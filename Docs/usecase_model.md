@@ -794,3 +794,7 @@ These diagrams break down the system into its core features, as defined in the S
 | Special Requirements: | All payment transactions must use HTTPS. Payment gateway credentials must be securely stored. All transactions must include HMAC SHA512 signature verification. |
 | Assumptions: | VNPay payment gateway API is available and functional. The Pet Owner has a valid payment method. |
 | Notes and Issues: | VNPay free sandbox environment will be used for development and testing. Production environment will be used for live transactions. |
+
+
+
+AD
