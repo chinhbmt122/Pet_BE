@@ -1,0 +1,32 @@
+# Force LF line endings for text files
+* text=auto eol=lf
+
+# TypeScript and JavaScript files
+*.ts text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+
+# Markdown files
+*.md text eol=lf
+
+# Config files
+.eslintrc text eol=lf
+.prettierrc text eol=lf
+tsconfig.json text eol=lf
+package.json text eol=lf
+
+# Shell scripts (if any)
+*.sh text eol=lf
+
+# Windows batch files should use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
