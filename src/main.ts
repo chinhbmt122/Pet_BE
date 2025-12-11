@@ -2,10 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { HttpExceptionFilter } from './middleware/filters/http-exception.filter';
-import { AllExceptionsFilter } from './middleware/filters/all-exceptions.filter';
-import { LoggingInterceptor } from './middleware/interceptors/logging.interceptor';
-import { TransformInterceptor } from './middleware/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,20 +14,13 @@ async function bootstrap() {
       transform: true, // Auto-transform payloads to DTO instances
     }),
   );
-
-  // Global filters
-  app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalFilters(new HttpExceptionFilter());
-
-  // Global interceptors
-  app.useGlobalInterceptors(new LoggingInterceptor());
-  app.useGlobalInterceptors(new TransformInterceptor());
-
-  // CORS configuration
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
     credentials: true,
+    origin: ['http://localhost:3001', 'https://localhost:3000'],
   });
+
+  // LƯU Ý: ==================================================
+  // Middlewares, Guards, and Filters được đăng ký trong AppModule
 
   // Swagger API documentation
   const config = new DocumentBuilder()

@@ -3,11 +3,17 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Appointment } from './appointment.entity';
+import { Payment } from './payment.entity';
+import { InvoiceStatus } from './types/entity.types';
+
+export { InvoiceStatus };
 
 /**
  * Invoice Entity
@@ -23,7 +29,9 @@ export class Invoice {
   @Column()
   appointmentId: number;
 
-  @ManyToOne(() => Appointment, { onDelete: 'CASCADE' })
+  @OneToOne(() => Appointment, (appointment) => appointment.invoice, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'appointmentId' })
   appointment: Appointment;
 
@@ -50,10 +58,10 @@ export class Invoice {
 
   @Column({
     type: 'enum',
-    enum: ['PENDING', 'PROCESSING_ONLINE', 'PAID', 'FAILED'],
-    default: 'PENDING',
+    enum: InvoiceStatus,
+    default: InvoiceStatus.PENDING,
   })
-  status: string;
+  status: InvoiceStatus;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
@@ -67,5 +75,10 @@ export class Invoice {
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date;
 
-  // TODO: Implement invoice calculation and status transition methods
+  /**
+   * One-to-Many relationship with Payment
+   * An invoice can have multiple payment transactions
+   */
+  @OneToMany(() => Payment, (payment) => payment.invoice)
+  payments?: Payment[];
 }

@@ -2,9 +2,11 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Service } from './service.entity';
 
 /**
  * ServiceCategory Entity
@@ -33,5 +35,10 @@ export class ServiceCategory {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // TODO: Implement category-specific pricing or rules if needed
+  /**
+   * One-to-Many relationship with Service
+   * A category can have multiple services
+   */
+  @OneToMany(() => Service, (service) => service.serviceCategory)
+  services?: Service[];
 }

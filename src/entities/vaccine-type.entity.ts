@@ -2,9 +2,14 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { VaccinationHistory } from './vaccination-history.entity';
+import { VaccineCategory } from './types/entity.types';
+
+export { VaccineCategory };
 
 /**
  * VaccineType Entity
@@ -18,8 +23,11 @@ export class VaccineType {
   @PrimaryGeneratedColumn('increment')
   vaccineTypeId: number;
 
-  @Column({ length: 50 })
-  category: string; // 'Core','Non-core','Optional'
+  @Column({
+    type: 'enum',
+    enum: VaccineCategory,
+  })
+  category: VaccineCategory;
 
   @Column({ unique: true, length: 100 })
   vaccineName: string;
@@ -27,12 +35,11 @@ export class VaccineType {
   @Column({ length: 50 })
   targetSpecies: string; // 'Dog','Cat', etc.
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   manufacturer: string;
 
   @Column({ type: 'text', nullable: true })
   description: string;
-
 
   @Column({ type: 'int', nullable: true })
   recommendedAgeMonths: number;
@@ -49,5 +56,10 @@ export class VaccineType {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // TODO: Implement vaccine schedule calculation methods
+  /**
+   * One-to-Many relationship with VaccinationHistory
+   * A vaccine type can be used in multiple vaccination records
+   */
+  @OneToMany(() => VaccinationHistory, (vaccination) => vaccination.vaccineType)
+  vaccinations?: VaccinationHistory[];
 }

@@ -41,14 +41,14 @@ export class VaccinationHistory {
   @JoinColumn({ name: 'vaccineTypeId' })
   vaccineType: VaccineType;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   medicalRecordId: number;
 
   @ManyToOne(() => MedicalRecord, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'medicalRecordId' })
   medicalRecord: MedicalRecord;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   batchNumber: string;
 
   @Column({ length: 50, nullable: true })

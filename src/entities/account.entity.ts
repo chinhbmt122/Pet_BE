@@ -5,7 +5,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
+  OneToMany,
 } from 'typeorm';
+import { PetOwner } from './pet-owner.entity';
+import { Employee } from './employee.entity';
+import { AuditLog } from './audit-log.entity';
+import { UserType } from './types/entity.types';
+
+export { UserType };
 
 /**
  * Account Entity
@@ -27,15 +34,9 @@ export class Account {
 
   @Column({
     type: 'enum',
-    enum: [
-      'PET_OWNER',
-      'MANAGER',
-      'VETERINARIAN',
-      'CARE_STAFF',
-      'RECEPTIONIST',
-    ],
+    enum: UserType,
   })
-  userType: string; // e.g. 'PetOwner','Manager','Veterinarian','CareStaff','Receptionist'
+  userType: UserType;
 
   @Column({ length: 255 })
   fullName: string;
@@ -55,5 +56,26 @@ export class Account {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // TODO: Implement relationships and methods
+  // Relationships
+
+  /**
+   * One-to-One relationship with PetOwner
+   * If userType is PET_OWNER, this will be populated
+   */
+  @OneToOne(() => PetOwner, (petOwner) => petOwner.account)
+  petOwner?: PetOwner;
+
+  /**
+   * One-to-One relationship with Employee
+   * If userType is MANAGER, VETERINARIAN, CARE_STAFF, or RECEPTIONIST, this will be populated
+   */
+  @OneToOne(() => Employee, (employee) => employee.account)
+  employee?: Employee;
+
+  /**
+   * One-to-Many relationship with AuditLog
+   * Tracks all actions performed by this account
+   */
+  @OneToMany(() => AuditLog, (auditLog) => auditLog.actorAccount)
+  auditLogs?: AuditLog[];
 }

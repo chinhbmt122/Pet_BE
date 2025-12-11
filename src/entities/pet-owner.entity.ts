@@ -3,11 +3,12 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToOne,
-  JoinColumn,
   OneToMany,
+  JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
 import { Account } from './account.entity';
+import { Pet } from './pet.entity';
 
 /**
  * PetOwner Entity
@@ -23,14 +24,16 @@ export class PetOwner {
   @Column({ unique: true })
   accountId: number;
 
-  @OneToOne(() => Account, { onDelete: 'CASCADE' })
+  @OneToOne('Account', 'petOwner', {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'accountId' })
-  account: Account;
+  account?: Account;
 
   @Column({ length: 50, default: 'Email' })
   preferredContactMethod: string;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   emergencyContact: string;
 
   @Column({ type: 'int', default: 0 })
@@ -39,7 +42,10 @@ export class PetOwner {
   @CreateDateColumn({ name: 'registrationDate' })
   registrationDate: Date;
 
-  // Registered at / created at handled by registrationDate above
-
-  // TODO: Implement relationships to Pet entity and methods
+  /**
+   * One-to-Many relationship with Pet
+   * A pet owner can have multiple pets
+   */
+  @OneToMany(() => Pet, (pet) => pet.owner)
+  pets?: Pet[];
 }

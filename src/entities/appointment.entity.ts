@@ -3,6 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
+  OneToOne,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
@@ -12,6 +14,11 @@ import {
 import { Pet } from './pet.entity';
 import { Employee } from './employee.entity';
 import { Service } from './service.entity';
+import { Invoice } from './invoice.entity';
+import { MedicalRecord } from './medical-record.entity';
+import { AppointmentStatus } from './types/entity.types';
+
+export { AppointmentStatus };
 
 /**
  * Appointment Entity
@@ -20,7 +27,7 @@ import { Service } from './service.entity';
  * Manages appointment lifecycle: PENDING → CONFIRMED → IN_PROGRESS → COMPLETED/CANCELLED.
  */
 @Index(['employeeId', 'appointmentDate', 'startTime'], { unique: true })
-@Check("endTime > startTime")
+@Check('"endTime" > "startTime"')
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('increment')
@@ -58,10 +65,10 @@ export class Appointment {
 
   @Column({
     type: 'enum',
-    enum: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
-    default: 'PENDING',
+    enum: AppointmentStatus,
+    default: AppointmentStatus.PENDING,
   })
-  status: string;
+  status: AppointmentStatus;
 
   @Column({ type: 'text', nullable: true })
   notes: string;
@@ -86,5 +93,17 @@ export class Appointment {
   /** Timestamp when appointment was cancelled */
   cancelledAt: Date | null;
 
-  // TODO: Implement methods for status transitions and validation
+  /**
+   * One-to-One relationship with Invoice
+   * Each appointment can have one invoice
+   */
+  @OneToOne(() => Invoice, (invoice) => invoice.appointment)
+  invoice?: Invoice;
+
+  /**
+   * One-to-Many relationship with MedicalRecord
+   * An appointment can have multiple medical records
+   */
+  @OneToMany(() => MedicalRecord, (record) => record.appointment)
+  medicalRecords?: MedicalRecord[];
 }

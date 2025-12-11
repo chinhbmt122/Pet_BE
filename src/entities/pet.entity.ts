@@ -3,11 +3,15 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { PetOwner } from './pet-owner.entity';
+import { Appointment } from './appointment.entity';
+import { MedicalRecord } from './medical-record.entity';
+import { VaccinationHistory } from './vaccination-history.entity';
 
 /**
  * Pet Entity
@@ -33,7 +37,7 @@ export class Pet {
   @Column({ length: 50 })
   species: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   breed: string;
 
   @Column({ type: 'date', nullable: true })
@@ -45,7 +49,7 @@ export class Pet {
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   weight: number;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   color: string;
 
   @Column({ type: 'text', nullable: true })
@@ -70,5 +74,24 @@ export class Pet {
     return Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
   }
 
-  // TODO: Implement relationships to Appointment and MedicalRecord entities
+  /**
+   * One-to-Many relationship with Appointment
+   * A pet can have multiple appointments
+   */
+  @OneToMany(() => Appointment, (appointment) => appointment.pet)
+  appointments?: Appointment[];
+
+  /**
+   * One-to-Many relationship with MedicalRecord
+   * A pet can have multiple medical records
+   */
+  @OneToMany(() => MedicalRecord, (record) => record.pet)
+  medicalRecords?: MedicalRecord[];
+
+  /**
+   * One-to-Many relationship with VaccinationHistory
+   * A pet can have multiple vaccination records
+   */
+  @OneToMany(() => VaccinationHistory, (vaccination) => vaccination.pet)
+  vaccinationHistory?: VaccinationHistory[];
 }

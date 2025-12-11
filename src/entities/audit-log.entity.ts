@@ -8,6 +8,9 @@ import {
   Index,
 } from 'typeorm';
 import { Account } from './account.entity';
+import { AuditOperation, ActorType } from './types/entity.types';
+
+export { AuditOperation, ActorType };
 
 /**
  * AuditLog Entity
@@ -28,26 +31,36 @@ export class AuditLog {
   @Column()
   recordId: number;
 
-  @Column({ length: 10 })
-  operation: string; // 'INSERT' | 'UPDATE' | 'DELETE'
+  @Column({
+    type: 'enum',
+    enum: AuditOperation,
+  })
+  operation: AuditOperation;
 
   @Column({ type: 'jsonb', nullable: true })
   changes: object | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   actorAccountId: number | null;
 
-  @ManyToOne(() => Account, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Account, (account) => account.auditLogs, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'actorAccountId' })
   actorAccount: Account | null;
 
-  @Column({ length: 50, nullable: true })
-  actorType: string | null; // EMPLOYEE | PET_OWNER | SYSTEM | WEBHOOK
+  @Column({
+    type: 'enum',
+    enum: ActorType,
+    nullable: true,
+  })
+  actorType: ActorType | null;
 
   @Column({ type: 'uuid', nullable: true })
   requestId: string | null;
 
-  @Column({ length: 45, nullable: true })
+  @Column({ type: 'varchar', length: 45, nullable: true })
   ipAddress: string | null;
 
   @Column({ type: 'text', nullable: true })

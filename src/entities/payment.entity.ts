@@ -3,12 +3,17 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   Index,
 } from 'typeorm';
 import { Invoice } from './invoice.entity';
 import { Employee } from './employee.entity';
+import { PaymentGatewayArchive } from './payment-gateway-archive.entity';
+import { PaymentMethod, PaymentStatus } from './types/entity.types';
+
+export { PaymentMethod, PaymentStatus };
 
 /**
  * Payment Entity
@@ -35,29 +40,29 @@ export class Payment {
 
   @Column({
     type: 'enum',
-    enum: ['CASH', 'BANK_TRANSFER', 'VNPAY', 'MOMO', 'ZALOPAY'],
+    enum: PaymentMethod,
   })
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
 
-  @Column({ length: 100, nullable: true, unique: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
   transactionId: string | null;
-  @Column({ length: 100, nullable: true, unique: true })
+  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
   idempotencyKey: string | null;
 
   @Column({
     type: 'enum',
-    enum: ['PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'REFUNDED'],
-    default: 'PENDING',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
   })
-  paymentStatus: string;
+  paymentStatus: PaymentStatus;
 
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   receivedBy: number | null;
 
   @ManyToOne(() => Employee, { nullable: true, onDelete: 'SET NULL' })
@@ -81,5 +86,10 @@ export class Payment {
   @CreateDateColumn()
   createdAt: Date;
 
-  // TODO: Implement payment gateway integration methods
+  /**
+   * One-to-Many relationship with PaymentGatewayArchive
+   * A payment can have multiple gateway response archives
+   */
+  @OneToMany(() => PaymentGatewayArchive, (archive) => archive.payment)
+  gatewayArchives?: PaymentGatewayArchive[];
 }

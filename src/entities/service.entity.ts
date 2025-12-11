@@ -3,12 +3,14 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
 } from 'typeorm';
 import { ServiceCategory } from './service-category.entity';
+import { Appointment } from './appointment.entity';
 
 /**
  * Service Entity
@@ -17,7 +19,7 @@ import { ServiceCategory } from './service-category.entity';
  * References ServiceCategory for catalog management (SRP: separated category concerns).
  * SRP Applied: Service details only, category metadata managed separately.
  */
-@Index('idx_service_category', ['serviceCategoryId'])
+@Index('idx_service_category', ['categoryId'])
 @Index('idx_service_available', ['isAvailable'])
 @Entity('services')
 export class Service {
@@ -55,5 +57,10 @@ export class Service {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // TODO: Implement pricing calculation methods
+  /**
+   * One-to-Many relationship with Appointment
+   * A service can be used in multiple appointments
+   */
+  @OneToMany(() => Appointment, (appointment) => appointment.service)
+  appointments?: Appointment[];
 }

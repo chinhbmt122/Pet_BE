@@ -17,7 +17,7 @@ import { Employee } from './employee.entity';
  * Manages employee availability for appointment booking.
  * Used ONLY for availability checking (Law of Demeter).
  */
-@Check("endTime > startTime")
+@Check('"endTime" > "startTime"')
 @Entity('work_schedules')
 export class WorkSchedule {
   @PrimaryGeneratedColumn('increment')
@@ -26,7 +26,9 @@ export class WorkSchedule {
   @Column()
   employeeId: number;
 
-  @ManyToOne(() => Employee)
+  @ManyToOne(() => Employee, (employee) => employee.workSchedules, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'employeeId' })
   employee: Employee;
 

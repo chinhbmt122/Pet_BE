@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
@@ -10,6 +11,7 @@ import {
 import { Pet } from './pet.entity';
 import { Employee } from './employee.entity';
 import { Appointment } from './appointment.entity';
+import { VaccinationHistory } from './vaccination-history.entity';
 
 /**
  * MedicalRecord Entity
@@ -37,11 +39,11 @@ export class MedicalRecord {
   @JoinColumn({ name: 'veterinarianId' })
   veterinarian: Employee;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   appointmentId: number;
 
   @ManyToOne(() => Appointment)
-  @JoinColumn({ name: 'appointmentId'})
+  @JoinColumn({ name: 'appointmentId' })
   appointment: Appointment;
 
   @Column({ type: 'timestamp' })
@@ -65,5 +67,13 @@ export class MedicalRecord {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // TODO: Implement immutable record methods
+  /**
+   * One-to-Many relationship with VaccinationHistory
+   * A medical record can include multiple vaccination records
+   */
+  @OneToMany(
+    () => VaccinationHistory,
+    (vaccination) => vaccination.medicalRecord,
+  )
+  vaccinations?: VaccinationHistory[];
 }

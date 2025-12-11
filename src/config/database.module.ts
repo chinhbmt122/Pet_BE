@@ -15,6 +15,7 @@ import { Invoice } from '../entities/invoice.entity';
 import { Payment } from '../entities/payment.entity';
 import { AuditLog } from '../entities/audit-log.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
+import { ServiceCategory } from 'src/entities/service-category.entity';
 
 /**
  * DatabaseModule
@@ -34,22 +35,7 @@ import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entit
         username: configService.get('DATABASE_USER'),
         password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME'),
-        entities: [
-          Account,
-          PetOwner,
-          Employee,
-          Pet,
-          Appointment,
-          WorkSchedule,
-          Service,
-          MedicalRecord,
-          VaccineType,
-          VaccinationHistory,
-          Invoice,
-          Payment,
-          AuditLog,
-          PaymentGatewayArchive,
-        ],
+        entities: [__dirname + '/../**/*.entity.js'],
         synchronize: configService.get('NODE_ENV') === 'development', // Disable in production
         logging: configService.get('NODE_ENV') === 'development',
       }),
