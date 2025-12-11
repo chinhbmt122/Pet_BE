@@ -196,6 +196,7 @@ Employee (0..1) ──< (*) Vaccination [SET NULL - administrator]
 Employee (0..1) ──< (*) Payment [SET NULL - receiver]
 
 Service (1) ─────< (*) Appointment [RESTRICT]
+ServiceCategory (1) ──< (*) Service [RESTRICT]
 
 Appointment (1) ── (1) Invoice [CASCADE]
 Invoice (1) ─────< (1..*) Payment [RESTRICT]
@@ -461,7 +462,7 @@ CREATE INDEX idx_medical_summary ON MedicalRecord USING GIN(medicalSummary);  --
 |:-:|:--------|:---|:----------|:-------------|
 |1|vaccineTypeId|SERIAL|PK|Entity Integrity|
 |2|vaccineName|VARCHAR(100)|NOT NULL, UNIQUE|Core data (e.g., "Rabies", "DHPP")|
-|3|vaccineType|VARCHAR(50)|NOT NULL|Category (e.g., "Core", "Non-core", "Optional")|
+|3|category|VARCHAR(50)|NOT NULL|Category (e.g., "Core", "Non-core", "Optional")|
 |4|targetSpecies|VARCHAR(50)|NOT NULL|Species applicability (Dog, Cat, Bird, etc.)|
 |5|manufacturer|VARCHAR(100)|NULL|Default manufacturer|
 |6|description|TEXT|NULL|Vaccine information|
@@ -499,11 +500,11 @@ CREATE INDEX idx_vaccine_active ON VaccineType(isActive) WHERE isActive = TRUE;
 |3|vaccineTypeId|INTEGER|FK → VaccineType, NOT NULL|Referential Integrity (DRY)|
 |4|medicalRecordId|INTEGER|FK → MedicalRecord, NULL|Optional link|
 |5|batchNumber|VARCHAR(50)|NULL|**Recall tracking (SRP)**|
-|6|administrationDate|DATE|NOT NULL|Temporal|
-|7|administeredBy|INTEGER|FK → Employee, NULL|Who gave vaccine|
-|8|nextDueDate|DATE|NULL|Reminder system|
-|9|site|VARCHAR(50)|NULL|Injection location (e.g., "Left shoulder")|
-|10|reactions|TEXT|NULL|Adverse events|
+|6|administeredBy|INTEGER|FK → Employee, NULL|Who gave vaccine|
+|7|site|VARCHAR(50)|NULL|Injection location (e.g., "Left shoulder")|
+|8|reactions|TEXT|NULL|Adverse events|
+|9|administrationDate|DATE|NOT NULL|Temporal|
+|10|nextDueDate|DATE|NULL|Reminder system|
 |11|notes|TEXT|NULL|Additional observations|
 |12|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
 
@@ -535,16 +536,39 @@ ORDER BY vh.administrationDate DESC;
 
 ---
 
-### **3.2.5 Service Table**
+### **3.2.5 ServiceCategory Table**
 
-**OOAD Principle:** SRP - Service catalog only
-**Pattern:** Soft delete for service availability
+**OOAD Principle:** SRP - Service category catalog management
+**Reason:** DRY - category metadata stored once, referenced by service records
+**Justification:** Enables admin management of categories without schema changes
+
+|No.|Attribute|Type|Constraints|OOAD Principle|
+|:-:|:--------|:---|:----------|:-------------|
+|1|categoryId|SERIAL|PK|Entity Integrity|
+|2|categoryName|VARCHAR(50)|NOT NULL, UNIQUE|Core data (e.g., "Grooming", "Medical")|
+|3|description|TEXT|NULL|Category information|
+|4|isActive|BOOLEAN|DEFAULT TRUE|Soft delete|
+|5|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
+|6|updatedAt|TIMESTAMP|DEFAULT NOW()|Audit|
+
+**Indexes:**
+```sql
+CREATE UNIQUE INDEX idx_service_category_name ON ServiceCategory(categoryName);
+CREATE INDEX idx_service_category_active ON ServiceCategory(isActive) WHERE isActive = TRUE;
+```
+
+---
+
+### **3.2.6 Service Table**
+
+**OOAD Principle:** SRP - Service details only (category management separated)
+**Pattern:** References ServiceCategory via FK (DRY principle)
 
 |No.|Attribute|Type|Constraints|OOAD Principle|
 |:-:|:--------|:---|:----------|:-------------|
 |1|serviceId|SERIAL|PK|Entity Integrity|
 |2|serviceName|VARCHAR(100)|NOT NULL, UNIQUE|Natural key|
-|3|category|VARCHAR(50)|NOT NULL, CHECK|Categorization|
+|3|categoryId|INTEGER|FK → ServiceCategory, NOT NULL|Referential Integrity (DRY)|
 |4|description|TEXT|NULL|Detail|
 |5|basePrice|DECIMAL(10,2)|NOT NULL|Pricing|
 |6|estimatedDuration|INTEGER|NOT NULL|In minutes (scheduling)|
@@ -553,19 +577,23 @@ ORDER BY vh.administrationDate DESC;
 |9|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
 |10|updatedAt|TIMESTAMP|DEFAULT NOW()|Audit|
 
-**CHECK Constraints:**
+**Foreign Keys:**
 ```sql
-CHECK (category IN ('Grooming', 'Medical', 'Boarding', 'Training', 'Wellness', 'Special Care'))
-CHECK (requiredStaffType IN ('Veterinarian', 'CareStaff', 'Any'))
-CHECK (basePrice >= 0)
-CHECK (estimatedDuration > 0 AND estimatedDuration <= 480)
+CONSTRAINT fk_service_category FOREIGN KEY (serviceCategoryId) REFERENCES ServiceCategory(serviceCategoryId) ON DELETE RESTRICT
 ```
 
 **Indexes:**
 ```sql
 CREATE UNIQUE INDEX idx_service_name ON Service(serviceName);
-CREATE INDEX idx_service_category ON Service(category);
+CREATE INDEX idx_service_category ON Service(categoryId);
 CREATE INDEX idx_service_available ON Service(isAvailable) WHERE isAvailable = TRUE;
+```
+
+**CHECK Constraints:**
+```sql
+CHECK (requiredStaffType IN ('Veterinarian', 'CareStaff', 'Any'))
+CHECK (basePrice >= 0)
+CHECK (estimatedDuration > 0 AND estimatedDuration <= 480)
 ```
 
 ---
@@ -638,9 +666,9 @@ CHECK (breakEnd IS NULL OR breakStart IS NULL OR (
 |10|actualCost|DECIMAL(10,2)|NULL|After completion|
 |11|notes|TEXT|NULL|Special requests|
 |12|cancellationReason|TEXT|NULL|Required if cancelled|
-|13|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
-|14|updatedAt|TIMESTAMP|DEFAULT NOW()|Audit|
-|15|completedAt|TIMESTAMP|NULL|Completion timestamp|
+|13|cancelledAt|TIMESTAMP|NULL|Cancellation timestamp|
+|14|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
+|15|updatedAt|TIMESTAMP|DEFAULT NOW()|Audit|
 
 **Foreign Keys:**
 ```sql
@@ -724,6 +752,7 @@ FOR EACH ROW EXECUTE FUNCTION check_invoice_calculation();
 
 ---
 
+
 ### **3.3.4 Payment Table**
 
 **OOAD Principle:** Open/Closed - Supports multiple payment methods via abstraction
@@ -733,18 +762,19 @@ FOR EACH ROW EXECUTE FUNCTION check_invoice_calculation();
 |:-:|:--------|:---|:----------|:-------------|
 |1|paymentId|SERIAL|PK|Entity Integrity|
 |2|invoiceId|INTEGER|FK → Invoice, NOT NULL|Referential Integrity|
-|3|amount|DECIMAL(10,2)|NOT NULL|Payment amount|
-|4|paymentMethod|VARCHAR(50)|NOT NULL|Abstract interface|
-|5|transactionId|VARCHAR(100)|UNIQUE|External reference|
-|6|paymentStatus|VARCHAR(50)|DEFAULT 'Pending'|State|
-|7|paymentDate|TIMESTAMP|DEFAULT NOW()|Temporal|
-|8|receivedBy|INTEGER|FK → Employee, NULL|For cash/transfer|
-|9|gatewayResponse|JSONB|NULL|**Open/Closed: Different gateway structures**|
-|10|refundAmount|DECIMAL(10,2)|DEFAULT 0|Partial refund support|
-|11|refundDate|TIMESTAMP|NULL|Refund timestamp|
-|12|refundReason|TEXT|NULL|Required if refunded|
-|13|notes|TEXT|NULL|Additional|
-|14|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
+|3|paymentMethod|VARCHAR(50)|NOT NULL|Abstract interface (CASH, BANK_TRANSFER, VNPAY, MOMO, ZALOPAY)|
+|4|amount|DECIMAL(10,2)|NOT NULL|Payment amount|
+|5|transactionId|VARCHAR(100)|UNIQUE, NULL|External reference (nullable for cash)|
+|6|idempotencyKey|VARCHAR(100)|NULL|Optional idempotency key for retries (unique when present)|
+|7|paymentStatus|VARCHAR(50)|DEFAULT 'PENDING'|State (PENDING, PROCESSING, SUCCESS, FAILED, REFUNDED)|
+|8|paidAt|TIMESTAMP|NULL|Completion timestamp (set when payment succeeds)|
+|9|receivedBy|INTEGER|FK → Employee, NULL|For cash/transfer (optional)|
+|10|gatewayResponse|JSONB|NULL|**Open/Closed: Different gateway structures**|
+|11|refundAmount|DECIMAL(10,2)|DEFAULT 0|Partial refund support|
+|12|refundDate|TIMESTAMP|NULL|Refund timestamp|
+|13|refundReason|TEXT|NULL|Required if refunded|
+|14|notes|TEXT|NULL|Additional| 
+|15|createdAt|TIMESTAMP|DEFAULT NOW()|Audit|
 
 **Foreign Keys:**
 ```sql
@@ -756,18 +786,19 @@ CONSTRAINT fk_payment_receiver FOREIGN KEY (receivedBy) REFERENCES Employee(empl
 ```sql
 CREATE INDEX idx_payment_invoice ON Payment(invoiceId);
 CREATE UNIQUE INDEX idx_payment_txn ON Payment(transactionId) WHERE transactionId IS NOT NULL;
-CREATE INDEX idx_payment_date ON Payment(paymentDate DESC);
+CREATE UNIQUE INDEX idx_payment_idem ON Payment(idempotencyKey) WHERE idempotencyKey IS NOT NULL;
+CREATE INDEX idx_payment_paid_at ON Payment(paidAt DESC);
 CREATE INDEX idx_payment_status ON Payment(paymentStatus);
 CREATE INDEX idx_payment_gateway ON Payment USING GIN(gatewayResponse);  -- JSONB index
 ```
 
 **CHECK Constraints:**
 ```sql
-CHECK (paymentMethod IN ('Cash', 'Bank Transfer', 'VNPay'))
-CHECK (paymentStatus IN ('Pending', 'Processing', 'Completed', 'Failed', 'Refunded'))
+CHECK (paymentMethod IN ('CASH', 'BANK_TRANSFER', 'VNPAY', 'MOMO', 'ZALOPAY'))
+CHECK (paymentStatus IN ('PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'REFUNDED'))
 CHECK (amount > 0)
 CHECK (refundAmount >= 0 AND refundAmount <= amount)
-CHECK (receivedBy IS NULL OR paymentMethod IN ('Cash', 'Bank Transfer'))
+CHECK (receivedBy IS NULL OR paymentMethod IN ('CASH', 'BANK_TRANSFER'))
 ```
 
 **JSONB Gateway Response Examples:**
@@ -792,21 +823,48 @@ CHECK (receivedBy IS NULL OR paymentMethod IN ('Cash', 'Bank Transfer'))
 ### **3.4.1 AuditLog Table**
 
 **OOAD Principle:** Separation of Concerns - Audit trail separated from business data
+**Purpose:** Track all data changes for compliance, security, and debugging
 
+|No.|Attribute|Type|Constraints|Description|
+|:-:|:--------|:---|:----------|:----------|
+|1|auditId|SERIAL|PK|Unique identifier for audit entry|
+|2|tableName|VARCHAR(50)|NOT NULL|Name of modified table (e.g., 'appointments', 'medical_records')|
+|3|recordId|INTEGER|NOT NULL|Primary key of the modified record|
+|4|operation|VARCHAR(10)|NOT NULL, CHECK|Type of operation: 'INSERT', 'UPDATE', or 'DELETE'|
+|5|changes|JSONB|NULL|Detailed change data with before/after values|
+|6|actorAccountId|INTEGER|FK → Account, NULL|Account ID of user who made the change (NULL for system)|
+|7|actorType|VARCHAR(50)|NULL|Type of actor: 'EMPLOYEE', 'PET_OWNER', 'SYSTEM', 'WEBHOOK'|
+|8|requestId|UUID|NULL|Unique ID for distributed tracing across operations|
+|9|ipAddress|VARCHAR(45)|NULL|Client IP address (IPv4/IPv6) for security tracking|
+|10|userAgent|TEXT|NULL|Browser/client user agent for client identification|
+|11|changedAt|TIMESTAMP|DEFAULT NOW()|Timestamp when the change occurred|
+
+**Indexes:**
 ```sql
-CREATE TABLE AuditLog (
-    auditId SERIAL PRIMARY KEY,
-    tableName VARCHAR(50) NOT NULL,
-    recordId INTEGER NOT NULL,
-    operation VARCHAR(10) NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
-    oldData JSONB NULL,
-    newData JSONB NULL,
-    changedBy INTEGER REFERENCES Employee(employeeId) ON DELETE SET NULL,
-    changedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_audit_table_record (tableName, recordId),
-    INDEX idx_audit_date (changedAt DESC)
-);
+CREATE INDEX idx_audit_table_record ON AuditLog(tableName, recordId);
+CREATE INDEX idx_audit_changed_at ON AuditLog(changedAt DESC);
+CREATE INDEX idx_audit_actor_account ON AuditLog(actorType, actorAccountId);
+```
+
+**Foreign Keys:**
+```sql
+CONSTRAINT fk_audit_actor 
+    FOREIGN KEY (actorAccountId) REFERENCES Account(accountId) 
+    ON DELETE SET NULL  -- Retain audit trail even if account deleted
+```
+
+**CHECK Constraints:**
+```sql
+CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE'))
+```
+
+**JSONB Structure Example (changes field):**
+```json
+{
+  "before": {"status": "Pending", "estimatedCost": 500000},
+  "after": {"status": "Confirmed", "estimatedCost": 550000},
+  "changedFields": ["status", "estimatedCost"]
+}
 ```
 
 **Trigger Example:**
@@ -821,29 +879,54 @@ FOR EACH ROW EXECUTE FUNCTION log_audit_trail();
 ### **3.4.2 PaymentGatewayArchive Table**
 
 **OOAD Principle:** Data Retention Policy - Archive old gateway responses
+**Purpose:** Reduce Payment table size while maintaining compliance and debugging capability
 
+|No.|Attribute|Type|Constraints|Description|
+|:-:|:--------|:---|:----------|:----------|
+|1|archiveId|SERIAL|PK|Unique identifier for archive entry|
+|2|paymentId|INTEGER|FK → Payment, NOT NULL|Reference to original payment record|
+|3|gatewayName|VARCHAR(50)|NOT NULL|Payment gateway name (VNPAY, MOMO, ZALOPAY, etc.)|
+|4|gatewayResponse|JSONB|NOT NULL|Raw response from payment gateway (archived data)|
+|5|transactionTimestamp|TIMESTAMP|NOT NULL|When the original transaction occurred|
+|6|archivedAt|TIMESTAMP|DEFAULT NOW()|When this record was archived|
+
+**Foreign Keys:**
 ```sql
-CREATE TABLE PaymentGatewayArchive (
-    archiveId SERIAL PRIMARY KEY,
-    paymentId INTEGER NOT NULL REFERENCES Payment(paymentId) ON DELETE CASCADE,
-    gatewayResponse JSONB NOT NULL,
-    archivedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_archive_payment (paymentId),
-    INDEX idx_archive_date (archivedAt DESC)
-);
+CONSTRAINT fk_archive_payment 
+    FOREIGN KEY (paymentId) REFERENCES Payment(paymentId) 
+    ON DELETE CASCADE  -- Delete archive when payment deleted
+```
 
--- Monthly job: Move responses older than 90 days
+**Indexes:**
+```sql
+CREATE INDEX idx_archive_payment ON PaymentGatewayArchive(paymentId);
+CREATE INDEX idx_archive_date ON PaymentGatewayArchive(archivedAt DESC);
+CREATE INDEX idx_archive_gateway ON PaymentGatewayArchive(gatewayName);
+CREATE INDEX idx_archive_transaction_date ON PaymentGatewayArchive(transactionTimestamp);
+```
+
+**Archival Policy:**
+- Move gateway responses older than 90 days from Payment table
+- Retain archived data for 7 years (compliance requirement)
+- Self-contained: includes gateway name and transaction timestamp
+
+**Archival Procedure:**
+```sql
+-- Monthly job: Archive old gateway responses
 CREATE PROCEDURE archive_old_gateway_data() AS $$
 BEGIN
-    INSERT INTO PaymentGatewayArchive (paymentId, gatewayResponse)
-    SELECT paymentId, gatewayResponse
-    FROM Payment
-    WHERE gatewayResponse IS NOT NULL 
-      AND paymentDate < CURRENT_DATE - INTERVAL '90 days';
+    INSERT INTO PaymentGatewayArchive (paymentId, gatewayName, gatewayResponse, transactionTimestamp)
+    SELECT 
+        p.paymentId, 
+        p.paymentMethod as gatewayName,
+        p.gatewayResponse,
+        p.paidAt as transactionTimestamp
+    FROM Payment p
+    WHERE p.gatewayResponse IS NOT NULL 
+      AND p.paidAt < CURRENT_DATE - INTERVAL '90 days';
     
     UPDATE Payment SET gatewayResponse = NULL
-    WHERE paymentDate < CURRENT_DATE - INTERVAL '90 days';
+    WHERE paidAt < CURRENT_DATE - INTERVAL '90 days';
 END;
 $$ LANGUAGE plpgsql;
 ```

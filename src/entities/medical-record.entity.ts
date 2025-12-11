@@ -26,14 +26,14 @@ export class MedicalRecord {
   @Column()
   petId: number;
 
-  @ManyToOne(() => Pet)
+  @ManyToOne(() => Pet, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'petId' })
   pet: Pet;
 
   @Column()
   veterinarianId: number;
 
-  @ManyToOne(() => Employee)
+  @ManyToOne(() => Employee, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'veterinarianId' })
   veterinarian: Employee;
 
@@ -41,7 +41,7 @@ export class MedicalRecord {
   appointmentId: number;
 
   @ManyToOne(() => Appointment)
-  @JoinColumn({ name: 'appointmentId' })
+  @JoinColumn({ name: 'appointmentId'})
   appointment: Appointment;
 
   @Column({ type: 'timestamp' })
@@ -53,14 +53,11 @@ export class MedicalRecord {
   @Column({ type: 'text' })
   treatment: string;
 
-  @Column({ type: 'text', nullable: true })
-  prescription: string;
-
   @Column({ type: 'jsonb', nullable: true })
   medicalSummary: object;
 
-  @Column({ type: 'text', nullable: true })
-  followUpRecommendations: string;
+  @Column({ type: 'date', nullable: true })
+  followUpDate: Date;
 
   @CreateDateColumn()
   createdAt: Date;

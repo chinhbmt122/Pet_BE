@@ -6,6 +6,8 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
+  Check,
 } from 'typeorm';
 import { Pet } from './pet.entity';
 import { Employee } from './employee.entity';
@@ -17,6 +19,8 @@ import { Service } from './service.entity';
  * References Employee directly (Law of Demeter - no scheduleId).
  * Manages appointment lifecycle: PENDING → CONFIRMED → IN_PROGRESS → COMPLETED/CANCELLED.
  */
+@Index(['employeeId', 'appointmentDate', 'startTime'], { unique: true })
+@Check("endTime > startTime")
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('increment')
@@ -25,29 +29,32 @@ export class Appointment {
   @Column()
   petId: number;
 
-  @ManyToOne(() => Pet)
+  @ManyToOne(() => Pet, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'petId' })
   pet: Pet;
 
   @Column()
   employeeId: number;
 
-  @ManyToOne(() => Employee)
+  @ManyToOne(() => Employee, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'employeeId' })
   employee: Employee;
 
   @Column()
   serviceId: number;
 
-  @ManyToOne(() => Service)
+  @ManyToOne(() => Service, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'serviceId' })
   service: Service;
 
-  @Column({ type: 'timestamp' })
-  appointmentDateTime: Date;
+  @Column({ type: 'date' })
+  appointmentDate: Date;
 
-  @Column({ type: 'int' })
-  durationMinutes: number;
+  @Column({ type: 'time' })
+  startTime: string;
+
+  @Column({ type: 'time' })
+  endTime: string;
 
   @Column({
     type: 'enum',
@@ -59,14 +66,25 @@ export class Appointment {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  @Column({ type: 'text', nullable: true })
+  /** Optional cancellation reason */
+  cancellationReason: string | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   estimatedCost: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  actualCost: number;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  /** Timestamp when appointment was cancelled */
+  cancelledAt: Date | null;
 
   // TODO: Implement methods for status transitions and validation
 }

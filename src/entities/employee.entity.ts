@@ -22,24 +22,26 @@ export class Employee {
   @Column({ unique: true })
   accountId: number;
 
-  @OneToOne(() => Account)
+  @OneToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'accountId' })
   account: Account;
 
-  @Column({ length: 100 })
-  fullName: string;
-
-  @Column({
-    type: 'enum',
-    enum: ['MANAGER', 'VETERINARIAN', 'CARE_STAFF', 'RECEPTIONIST'],
-  })
-  role: string;
+  // Role is defined on Account.userType to avoid duplication
 
   @Column({ type: 'text', nullable: true })
   specialization: string;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ length: 100, nullable: true })
+  licenseNumber: string;
+
+  @Column({ type: 'date', nullable: false })
   hireDate: Date;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
+  salary: number;
+
+  @Column({ default: true })
+  isAvailable: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

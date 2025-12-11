@@ -23,18 +23,30 @@ export class Invoice {
   @Column()
   appointmentId: number;
 
-  @ManyToOne(() => Appointment)
+  @ManyToOne(() => Appointment, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'appointmentId' })
   appointment: Appointment;
 
+  @Column({ length: 50, unique: true })
+  invoiceNumber: string;
+
+  @Column({ type: 'date' })
+  issueDate: Date;
+
+  @Column({ type: 'date', nullable: true })
+  dueDate: Date;
+
   @Column({ type: 'decimal', precision: 10, scale: 2 })
-  totalAmount: number;
+  subtotal: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   discount: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   tax: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  totalAmount: number;
 
   @Column({
     type: 'enum',
@@ -51,6 +63,9 @@ export class Invoice {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  paidAt: Date;
 
   // TODO: Implement invoice calculation and status transition methods
 }

@@ -3,7 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
+import { Account } from './account.entity';
 
 /**
  * AuditLog Entity
@@ -11,34 +15,46 @@ import {
  * Separation of concerns for audit trail.
  * Logs security events, data changes, and system actions.
  */
+@Index('idx_audit_actor_account', ['actorAccountId'])
+@Index('idx_audit_changed_at', ['changedAt'])
 @Entity('audit_logs')
 export class AuditLog {
   @PrimaryGeneratedColumn('increment')
-  logId: number;
-
-  @Column({ nullable: true })
-  userId: number;
+  auditId: number;
 
   @Column({ length: 50 })
-  action: string;
+  tableName: string;
 
-  @Column({ length: 100, nullable: true })
-  entityType: string;
+  @Column()
+  recordId: number;
 
-  @Column({ nullable: true })
-  entityId: number;
+  @Column({ length: 10 })
+  operation: string; // 'INSERT' | 'UPDATE' | 'DELETE'
 
   @Column({ type: 'jsonb', nullable: true })
-  changes: object;
+  changes: object | null;
+
+  @Column({ nullable: true })
+  actorAccountId: number | null;
+
+  @ManyToOne(() => Account, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'actorAccountId' })
+  actorAccount: Account | null;
+
+  @Column({ length: 50, nullable: true })
+  actorType: string | null; // EMPLOYEE | PET_OWNER | SYSTEM | WEBHOOK
+
+  @Column({ type: 'uuid', nullable: true })
+  requestId: string | null;
 
   @Column({ length: 45, nullable: true })
-  ipAddress: string;
+  ipAddress: string | null;
 
   @Column({ type: 'text', nullable: true })
-  userAgent: string;
+  userAgent: string | null;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn({ name: 'changedAt' })
+  changedAt: Date;
 
   // TODO: Implement audit query and analysis methods
 }

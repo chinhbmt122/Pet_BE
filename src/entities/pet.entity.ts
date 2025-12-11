@@ -23,7 +23,7 @@ export class Pet {
   @Column()
   ownerId: number;
 
-  @ManyToOne(() => PetOwner)
+  @ManyToOne(() => PetOwner, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'ownerId' })
   owner: PetOwner;
 
@@ -39,11 +39,20 @@ export class Pet {
   @Column({ type: 'date', nullable: true })
   birthDate: Date;
 
+  @Column({ length: 10, nullable: false, default: 'Unknown' })
+  gender: string;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
   weight: number;
 
+  @Column({ length: 100, nullable: true })
+  color: string;
+
   @Column({ type: 'text', nullable: true })
-  healthCondition: string;
+  initialHealthStatus: string;
+
+  @Column({ type: 'text', nullable: true })
+  specialNotes: string;
 
   @Column({ default: true })
   isActive: boolean;
@@ -53,6 +62,13 @@ export class Pet {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Virtual getter for computed age (years) based on birthDate
+  get age(): number {
+    if (!this.birthDate) return 0;
+    const diff = Date.now() - new Date(this.birthDate).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
+  }
 
   // TODO: Implement relationships to Appointment and MedicalRecord entities
 }

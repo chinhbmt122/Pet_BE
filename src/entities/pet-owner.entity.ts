@@ -18,23 +18,28 @@ import { Account } from './account.entity';
 @Entity('pet_owners')
 export class PetOwner {
   @PrimaryGeneratedColumn('increment')
-  ownerId: number;
+  petOwnerId: number;
 
   @Column({ unique: true })
   accountId: number;
 
-  @OneToOne(() => Account)
+  @OneToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'accountId' })
   account: Account;
 
-  @Column({ length: 100 })
-  fullName: string;
+  @Column({ length: 50, default: 'Email' })
+  preferredContactMethod: string;
 
-  @Column({ type: 'text', nullable: true })
-  address: string;
+  @Column({ length: 255, nullable: true })
+  emergencyContact: string;
 
-  @CreateDateColumn()
-  registeredAt: Date;
+  @Column({ type: 'int', default: 0 })
+  loyaltyPoints: number;
+
+  @CreateDateColumn({ name: 'registrationDate' })
+  registrationDate: Date;
+
+  // Registered at / created at handled by registrationDate above
 
   // TODO: Implement relationships to Pet entity and methods
 }

@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 /**
@@ -17,8 +18,14 @@ export class VaccineType {
   @PrimaryGeneratedColumn('increment')
   vaccineTypeId: number;
 
+  @Column({ length: 50 })
+  category: string; // 'Core','Non-core','Optional'
+
   @Column({ unique: true, length: 100 })
   vaccineName: string;
+
+  @Column({ length: 50 })
+  targetSpecies: string; // 'Dog','Cat', etc.
 
   @Column({ length: 100, nullable: true })
   manufacturer: string;
@@ -26,14 +33,21 @@ export class VaccineType {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'int', nullable: true })
-  validityDays: number;
 
-  @Column({ type: 'jsonb', nullable: true })
-  scheduleInfo: object;
+  @Column({ type: 'int', nullable: true })
+  recommendedAgeMonths: number;
+
+  @Column({ type: 'int', nullable: true })
+  boosterIntervalMonths: number;
+
+  @Column({ default: true })
+  isActive: boolean;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   // TODO: Implement vaccine schedule calculation methods
 }

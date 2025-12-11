@@ -3,7 +3,10 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Payment } from './payment.entity';
 
 /**
  * PaymentGatewayArchive Entity
@@ -18,6 +21,10 @@ export class PaymentGatewayArchive {
 
   @Column()
   paymentId: number;
+
+  @ManyToOne(() => Payment, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'paymentId' })
+  payment: Payment;
 
   @Column({ length: 50 })
   gatewayName: string;

@@ -20,16 +20,10 @@ export class Account {
   accountId: number;
 
   @Column({ unique: true, length: 100 })
-  username: string;
+  email: string;
 
   @Column({ length: 255 })
   passwordHash: string;
-
-  @Column({ unique: true, length: 100 })
-  email: string;
-
-  @Column({ length: 20, nullable: true })
-  phoneNumber: string;
 
   @Column({
     type: 'enum',
@@ -41,7 +35,16 @@ export class Account {
       'RECEPTIONIST',
     ],
   })
-  userType: string;
+  userType: string; // e.g. 'PetOwner','Manager','Veterinarian','CareStaff','Receptionist'
+
+  @Column({ length: 255 })
+  fullName: string;
+
+  @Column({ unique: true, length: 20 })
+  phoneNumber: string;
+
+  @Column({ type: 'text', nullable: true })
+  address: string;
 
   @Column({ default: true })
   isActive: boolean;

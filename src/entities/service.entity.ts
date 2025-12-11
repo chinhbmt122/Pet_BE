@@ -2,26 +2,37 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
+import { ServiceCategory } from './service-category.entity';
 
 /**
  * Service Entity
  *
  * Represents services offered by the pet care center.
- * Categories: Bathing, Spa, Grooming, Check-up (Veterinary), Vaccination.
+ * References ServiceCategory for catalog management (SRP: separated category concerns).
+ * SRP Applied: Service details only, category metadata managed separately.
  */
+@Index('idx_service_category', ['serviceCategoryId'])
+@Index('idx_service_available', ['isAvailable'])
 @Entity('services')
 export class Service {
   @PrimaryGeneratedColumn('increment')
   serviceId: number;
 
-  @Column({ length: 100 })
+  @Column({ length: 100, unique: true })
   serviceName: string;
 
-  @Column({ length: 50 })
-  category: string;
+  @Column()
+  categoryId: number;
+
+  @ManyToOne(() => ServiceCategory, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'categoryId' })
+  serviceCategory: ServiceCategory;
 
   @Column({ type: 'text', nullable: true })
   description: string;
@@ -30,7 +41,10 @@ export class Service {
   basePrice: number;
 
   @Column({ type: 'int' })
-  durationMinutes: number;
+  estimatedDuration: number;
+
+  @Column({ length: 50 })
+  requiredStaffType: string; // 'Veterinarian', 'CareStaff', 'Any'
 
   @Column({ default: true })
   isAvailable: boolean;

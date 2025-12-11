@@ -6,6 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Check,
 } from 'typeorm';
 import { Employee } from './employee.entity';
 
@@ -16,6 +17,7 @@ import { Employee } from './employee.entity';
  * Manages employee availability for appointment booking.
  * Used ONLY for availability checking (Law of Demeter).
  */
+@Check("endTime > startTime")
 @Entity('work_schedules')
 export class WorkSchedule {
   @PrimaryGeneratedColumn('increment')
@@ -38,13 +40,17 @@ export class WorkSchedule {
   endTime: string;
 
   @Column({ type: 'time', nullable: true })
-  breakStartTime: string;
+  breakStart: string;
 
   @Column({ type: 'time', nullable: true })
-  breakEndTime: string;
+  breakEnd: string;
 
   @Column({ default: true })
   isAvailable: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  /** Optional notes or reason for unavailability */
+  notes: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
