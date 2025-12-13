@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Account } from '../entities/account.entity';
 import { UserType } from '../entities/types/entity.types';
@@ -28,6 +30,7 @@ interface BaseAccountDto {
  *
  * Features:
  * - Password hashing with bcrypt
+ * - Email/phone uniqueness validation (app-level + DB constraint)
  * - Required field validation
  * - Type-specific entity creation
  *
@@ -37,9 +40,34 @@ interface BaseAccountDto {
 export class AccountFactory {
     private readonly SALT_ROUNDS = 10;
 
+    constructor(
+        @InjectRepository(Account)
+        private readonly accountRepository: Repository<Account>,
+    ) { }
+
     /**
-     * Creates a PetOwner account with associated PetOwner entity
+     * Validates that email and phone number are unique.
+     * Provides user-friendly error messages before hitting DB constraint.
      */
+    private async validateUniqueness(email: string, phoneNumber: string): Promise<void> {
+        const existingEmail = await this.accountRepository.findOne({
+            where: { email: email.toLowerCase() },
+        });
+        if (existingEmail) {
+            throw new ConflictException('Email already exists');
+        }
+
+        const existingPhone = await this.accountRepository.findOne({
+            where: { phoneNumber },
+        });
+        if (existingPhone) {
+            throw new ConflictException('Phone number already exists');
+        }
+    }
+
+    /**
+       * Creates a PetOwner account with associated PetOwner entity
+       */
     async createPetOwnerAccount(
         dto: BaseAccountDto & {
             preferredContactMethod?: string;
@@ -142,6 +170,9 @@ export class AccountFactory {
         if (!dto.email || !dto.password || !dto.fullName || !dto.phoneNumber) {
             throw new Error('Missing required account fields');
         }
+
+        // Validate email/phone uniqueness (app-level check before DB constraint)
+        await this.validateUniqueness(dto.email, dto.phoneNumber);
 
         const account = new Account();
         account.email = dto.email.toLowerCase();

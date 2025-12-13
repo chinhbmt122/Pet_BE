@@ -3,6 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentController } from '../controllers/appointment.controller';
 import { AppointmentService } from '../services/appointment.service';
 import { Appointment } from '../entities/appointment.entity';
+import { Pet } from '../entities/pet.entity';
+import { Employee } from '../entities/employee.entity';
+import { Service } from '../entities/service.entity';
+import { AppointmentFactory } from '../factories/appointment.factory';
 
 /**
  * AppointmentModule
@@ -12,9 +16,10 @@ import { Appointment } from '../entities/appointment.entity';
  * Coordinates with ScheduleManager for availability and NotificationService for confirmations.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment])],
+  imports: [TypeOrmModule.forFeature([Appointment, Pet, Employee, Service])],
   controllers: [AppointmentController],
-  providers: [AppointmentService],
-  exports: [AppointmentService],
+  providers: [AppointmentService, AppointmentFactory],
+  exports: [AppointmentService, AppointmentFactory],
 })
-export class AppointmentModule {}
+export class AppointmentModule { }
+

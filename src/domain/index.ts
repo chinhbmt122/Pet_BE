@@ -7,3 +7,4 @@
 export * from './account.domain';
 export * from './employee.domain';
 export * from './pet-owner.domain';
+export * from './appointment.domain';
