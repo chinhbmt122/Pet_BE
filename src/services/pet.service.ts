@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Pet } from '../entities/pet.entity';
@@ -15,7 +15,7 @@ export class PetService {
   constructor(
     @InjectRepository(Pet)
     private readonly petRepository: Repository<Pet>,
-  ) {}
+  ) { }
 
   /**
    * Registers new pet with owner association and validation.
@@ -62,15 +62,61 @@ export class PetService {
   }
 
   /**
-   * Soft deletes pet record (marks as inactive).
-   * @throws PetNotFoundException, HasActiveAppointmentsException
+   * Soft deletes pet record using TypeORM soft delete.
+   * Sets deletedAt timestamp, record remains in database but excluded from normal queries.
+   * @throws NotFoundException if pet not found
    */
   async deletePet(petId: number): Promise<boolean> {
-    // TODO: Implement delete pet logic
-    // 1. Find pet by ID
-    // 2. Check for active appointments
-    // 3. Mark as inactive
-    throw new Error('Method not implemented');
+    // 1. Find pet to ensure it exists
+    const pet = await this.petRepository.findOne({
+      where: { petId },
+    });
+
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // 2. Soft delete (sets deletedAt timestamp)
+    await this.petRepository.softDelete(petId);
+    return true;
+  }
+
+  /**
+   * Restores a soft-deleted pet record.
+   * Clears deletedAt timestamp.
+   * @throws NotFoundException if pet not found or not deleted
+   */
+  async restore(petId: number): Promise<void> {
+    const result = await this.petRepository.restore(petId);
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        `Pet with ID ${petId} not found or not deleted`,
+      );
+    }
+  }
+
+  /**
+   * Finds a pet including soft-deleted records.
+   * Used for admin/restore operations.
+   */
+  async findWithDeleted(petId: number): Promise<Pet | null> {
+    return this.petRepository.findOne({
+      where: { petId },
+      withDeleted: true,
+    });
+  }
+
+  /**
+   * Gets all soft-deleted pets for a specific owner.
+   * Used for "trash" or recovery UI.
+   */
+  async getDeletedPetsByOwner(ownerId: number): Promise<Pet[]> {
+    return this.petRepository
+      .createQueryBuilder('pet')
+      .withDeleted()
+      .where('pet.ownerId = :ownerId', { ownerId })
+      .andWhere('pet.deletedAt IS NOT NULL')
+      .getMany();
   }
 
   /**

@@ -7,6 +7,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { PetOwner } from './pet-owner.entity';
 import { Appointment } from './appointment.entity';
@@ -66,6 +67,13 @@ export class Pet {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  /**
+   * Soft delete column - when set, record is excluded from normal queries.
+   * Use repository.softDelete() to set, repository.restore() to clear.
+   */
+  @DeleteDateColumn()
+  deletedAt: Date | null;
 
   // Virtual getter for computed age (years) based on birthDate
   get age(): number {
