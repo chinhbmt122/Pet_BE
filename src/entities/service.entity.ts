@@ -63,4 +63,41 @@ export class Service {
    */
   @OneToMany(() => Appointment, (appointment) => appointment.service)
   appointments?: Appointment[];
+
+  // ===== Domain Methods (per ADR-002: Pragmatic + Methods) =====
+
+  /**
+   * Suspends this service (marks as unavailable for booking).
+   * Suspended services should not appear in booking options.
+   *
+   * @throws Error if already suspended
+   */
+  suspend(): void {
+    if (!this.isAvailable) {
+      throw new Error('Service is already suspended');
+    }
+    this.isAvailable = false;
+  }
+
+  /**
+   * Activates this service (marks as available for booking).
+   * Active services can be selected for new appointments.
+   *
+   * @throws Error if already active
+   */
+  activate(): void {
+    if (this.isAvailable) {
+      throw new Error('Service is already active');
+    }
+    this.isAvailable = true;
+  }
+
+  /**
+   * Checks if service can be booked.
+   *
+   * @returns true if service is available for booking
+   */
+  canBook(): boolean {
+    return this.isAvailable;
+  }
 }
