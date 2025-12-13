@@ -11,10 +11,13 @@ import { Account } from './account.entity';
 import { Pet } from './pet.entity';
 
 /**
- * PetOwner Entity
+ * PetOwner Entity (Pure Persistence)
  *
- * Extends Account via foreign key relationship.
- * Represents pet owners who book appointments and manage pet profiles.
+ * Links to Account via foreign key relationship.
+ * This is a pure persistence entity - all domain logic lives in PetOwnerDomainModel.
+ *
+ * @see domain/pet-owner.domain.ts for business logic
+ * @see ADR-001 (Domain/Persistence Separation)
  */
 @Entity('pet_owners')
 export class PetOwner {
@@ -35,9 +38,6 @@ export class PetOwner {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   emergencyContact: string;
-
-  @Column({ type: 'int', default: 0 })
-  loyaltyPoints: number;
 
   @CreateDateColumn({ name: 'registrationDate' })
   registrationDate: Date;

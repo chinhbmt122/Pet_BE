@@ -6,22 +6,27 @@ import {
   OneToMany,
   JoinColumn,
   CreateDateColumn,
+  TableInheritance,
 } from 'typeorm';
 import { Account } from './account.entity';
 import { Appointment } from './appointment.entity';
 import { WorkSchedule } from './work-schedule.entity';
-import { MedicalRecord } from './medical-record.entity';
-import { VaccinationHistory } from './vaccination-history.entity';
 import { Payment } from './payment.entity';
 
 /**
- * Employee Entity
+ * Employee Base Entity (Abstract, Pure Persistence)
  *
- * Extends Account via foreign key relationship.
- * Represents staff members: Manager, Veterinarian, CareStaff, Receptionist.
+ * Uses Single Table Inheritance with 'role' discriminator column.
+ * This is a pure persistence entity - all domain logic lives in EmployeeDomainModel hierarchy.
+ *
+ * Child entities: Veterinarian, CareStaff, Manager, Receptionist
+ *
+ * @see domain/employee.domain.ts for business logic
+ * @see ADR-001 (Domain/Persistence Separation)
  */
 @Entity('employees')
-export class Employee {
+@TableInheritance({ column: { type: 'varchar', name: 'role' } })
+export abstract class Employee {
   @PrimaryGeneratedColumn('increment')
   employeeId: number;
 
@@ -33,14 +38,6 @@ export class Employee {
   })
   @JoinColumn({ name: 'accountId' })
   account?: Account;
-
-  // Role is defined on Account.userType to avoid duplication
-
-  @Column({ type: 'text', nullable: true })
-  specialization: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  licenseNumber: string;
 
   @Column({ type: 'date', nullable: false })
   hireDate: Date;
@@ -67,23 +64,6 @@ export class Employee {
    */
   @OneToMany(() => WorkSchedule, (schedule) => schedule.employee)
   workSchedules?: WorkSchedule[];
-
-  /**
-   * One-to-Many relationship with MedicalRecord
-   * A veterinarian can create multiple medical records
-   */
-  @OneToMany(() => MedicalRecord, (record) => record.veterinarian)
-  medicalRecords?: MedicalRecord[];
-
-  /**
-   * One-to-Many relationship with VaccinationHistory
-   * An employee can administer multiple vaccinations
-   */
-  @OneToMany(
-    () => VaccinationHistory,
-    (vaccination) => vaccination.administrator,
-  )
-  vaccinationsAdministered?: VaccinationHistory[];
 
   /**
    * One-to-Many relationship with Payment

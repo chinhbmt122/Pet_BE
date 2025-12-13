@@ -15,11 +15,17 @@ import { UserType } from './types/entity.types';
 export { UserType };
 
 /**
- * Account Entity
+ * Account Entity (Pure Persistence)
  *
- * STI (Single Table Inheritance) base entity with userType discriminator.
- * Represents user accounts for authentication and authorization.
- * Supports five user roles: PET_OWNER, MANAGER, VETERINARIAN, CARE_STAFF, RECEPTIONIST.
+ * Uses composition pattern with PetOwner and Employee entities.
+ * This is a pure persistence entity - all domain logic lives in AccountDomainModel.
+ *
+ * @see domain/account.domain.ts for business logic
+ * @see ADR-001 (Domain/Persistence Separation)
+ *
+ * Relationships:
+ * - @OneToOne with PetOwner (for PET_OWNER userType)
+ * - @OneToOne with Employee hierarchy (for staff userTypes)
  */
 @Entity('accounts')
 export class Account {
@@ -56,7 +62,7 @@ export class Account {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // Relationships
+  // ===== Relationships =====
 
   /**
    * One-to-One relationship with PetOwner

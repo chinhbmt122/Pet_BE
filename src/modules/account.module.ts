@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AccountController } from '../controllers/account.controller';
 import { AccountService } from '../services/account.service';
+import { AccountFactory } from '../factories/account.factory';
 import { Account } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
@@ -35,7 +36,7 @@ import { Employee } from '../entities/employee.entity';
     }),
   ],
   controllers: [AccountController],
-  providers: [AccountService],
-  exports: [AccountService],
+  providers: [AccountService, AccountFactory],
+  exports: [AccountService, AccountFactory],
 })
-export class AccountModule {}
+export class AccountModule { }
