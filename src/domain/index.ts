@@ -8,3 +8,5 @@ export * from './account.domain';
 export * from './employee.domain';
 export * from './pet-owner.domain';
 export * from './appointment.domain';
+export * from './invoice.domain';
+export * from './payment.domain';

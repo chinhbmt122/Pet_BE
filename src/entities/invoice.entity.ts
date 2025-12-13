@@ -41,9 +41,6 @@ export class Invoice {
   @Column({ type: 'date' })
   issueDate: Date;
 
-  @Column({ type: 'date', nullable: true })
-  dueDate: Date;
-
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   subtotal: number;
 
