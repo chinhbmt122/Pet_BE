@@ -57,14 +57,8 @@ export class AuditLog {
   })
   actorType: ActorType | null;
 
-  @Column({ type: 'uuid', nullable: true })
-  requestId: string | null;
-
   @Column({ type: 'varchar', length: 45, nullable: true })
   ipAddress: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  userAgent: string | null;
 
   @CreateDateColumn({ name: 'changedAt' })
   changedAt: Date;

@@ -15,3 +15,5 @@ export * from './vaccination-history.domain';
 export * from './medical-record.domain';
 export * from './service.domain';
 export * from './work-schedule.domain';
+export * from './audit-log.domain';
+export * from './payment-gateway-archive.domain';
