@@ -75,52 +75,5 @@ export class VaccinationHistory {
 
   @CreateDateColumn()
   createdAt: Date;
-
-  // ===== Domain Methods (per ADR-002: Pragmatic + Methods) =====
-
-  /**
-   * Calculates the next due date based on vaccine booster interval.
-   * Requires vaccineType relation to be loaded.
-   *
-   * @returns Date of next vaccination, or null if no interval defined
-   */
-  calculateNextDueDate(): Date | null {
-    if (!this.vaccineType?.boosterIntervalMonths) {
-      return null;
-    }
-
-    const adminDate = new Date(this.administrationDate);
-    const nextDate = new Date(adminDate);
-    nextDate.setMonth(nextDate.getMonth() + this.vaccineType.boosterIntervalMonths);
-
-    return nextDate;
-  }
-
-  /**
-   * Checks if vaccination is due (nextDueDate has passed).
-   *
-   * @returns true if overdue, false otherwise
-   */
-  isDue(): boolean {
-    if (!this.nextDueDate) {
-      return false;
-    }
-    return new Date() > new Date(this.nextDueDate);
-  }
-
-  /**
-   * Returns days until next vaccination is due.
-   * Negative value means overdue.
-   *
-   * @returns Number of days until due, or null if no due date
-   */
-  daysUntilDue(): number | null {
-    if (!this.nextDueDate) {
-      return null;
-    }
-    const now = new Date();
-    const dueDate = new Date(this.nextDueDate);
-    const diffMs = dueDate.getTime() - now.getTime();
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  }
 }
+

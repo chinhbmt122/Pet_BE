@@ -88,4 +88,13 @@ export class RegisterDto {
   @ApiProperty({ example: 5000.0, required: false })
   @IsOptional()
   salary?: number;
+
+  // Additional fields for CareStaff
+  @ApiProperty({
+    example: ['bathing', 'grooming', 'spa'],
+    required: false,
+    description: 'Skills for CareStaff employees'
+  })
+  @IsOptional()
+  skills?: string[];
 }

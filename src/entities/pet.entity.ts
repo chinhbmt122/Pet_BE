@@ -75,13 +75,6 @@ export class Pet {
   @DeleteDateColumn()
   deletedAt: Date | null;
 
-  // Virtual getter for computed age (years) based on birthDate
-  get age(): number {
-    if (!this.birthDate) return 0;
-    const diff = Date.now() - new Date(this.birthDate).getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
-  }
-
   /**
    * One-to-Many relationship with Appointment
    * A pet can have multiple appointments

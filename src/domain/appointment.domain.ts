@@ -11,9 +11,9 @@ import { AppointmentStatus } from '../entities/types/entity.types';
 export class AppointmentDomainModel {
     private readonly _id: number | null;
     private _status: AppointmentStatus;
-    private readonly _petId: number;
-    private _employeeId: number;
-    private readonly _serviceId: number;
+    private readonly _petId: number;           // OWNER: Appointment for this pet
+    private _employeeId: number;               // REFERENCE: Assigned vet (can be reassigned)
+    private readonly _serviceId: number;       // IDENTITY: What service was booked
     private _appointmentDate: Date;
     private _startTime: string;
     private _endTime: string;

@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Pet } from './pet.entity';
-import { Employee } from './employee.entity';
+import { Veterinarian } from './veterinarian.entity';
 import { Appointment } from './appointment.entity';
 import { VaccinationHistory } from './vaccination-history.entity';
 
@@ -35,9 +35,9 @@ export class MedicalRecord {
   @Column()
   veterinarianId: number;
 
-  @ManyToOne(() => Employee, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => Veterinarian, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'veterinarianId' })
-  veterinarian: Employee;
+  veterinarian: Veterinarian;
 
   @Column({ type: 'int', nullable: true })
   appointmentId: number;

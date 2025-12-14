@@ -10,3 +10,8 @@ export * from './pet-owner.mapper';
 export * from './appointment.mapper';
 export * from './invoice.mapper';
 export * from './payment.mapper';
+export * from './pet.mapper';
+export * from './vaccination-history.mapper';
+export * from './medical-record.mapper';
+export * from './service.mapper';
+export * from './work-schedule.mapper';

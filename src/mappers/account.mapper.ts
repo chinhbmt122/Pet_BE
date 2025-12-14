@@ -30,12 +30,12 @@ export class AccountMapper {
     }
 
     /**
-     * Convert domain model to persistence entity (for saving)
-     * Returns partial entity - TypeORM will merge with existing.
-     *
-     * Note: createdAt/updatedAt are NOT included because TypeORM manages them
-     * automatically via @CreateDateColumn and @UpdateDateColumn decorators.
-     */
+   * Convert domain model to persistence entity (for saving)
+   * Returns partial entity - TypeORM will merge with existing.
+   *
+   * Note: createdAt/updatedAt are NOT included because TypeORM manages them
+   * automatically via @CreateDateColumn and @UpdateDateColumn decorators.
+   */
     static toPersistence(domain: AccountDomainModel): Partial<Account> {
         const entity: Partial<Account> = {
             email: domain.email,

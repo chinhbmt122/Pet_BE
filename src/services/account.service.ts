@@ -12,6 +12,10 @@ import * as bcrypt from 'bcrypt';
 import { Account, UserType } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
+import { Veterinarian } from '../entities/veterinarian.entity';
+import { CareStaff } from '../entities/care-staff.entity';
+import { Manager } from '../entities/manager.entity';
+import { Receptionist } from '../entities/receptionist.entity';
 import {
   RegisterDto,
   LoginResponseDto,
@@ -19,6 +23,9 @@ import {
   UpdateProfileDto,
 } from '../dto/account';
 import { JwtPayload } from '../dto/JWTTypes';
+// Domain models & mappers (ADR-001: Domain/Persistence Separation)
+import { AccountDomainModel } from '../domain/account.domain';
+import { AccountMapper } from '../mappers/account.mapper';
 
 /**
  * AccountService (AccountManager)
@@ -39,7 +46,7 @@ export class AccountService {
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   /**
    * Authenticates user credentials and returns session token.
@@ -120,7 +127,6 @@ export class AccountService {
         accountId: savedAccount.accountId,
         preferredContactMethod: registerDto.preferredContactMethod || 'Email',
         emergencyContact: registerDto.emergencyContact,
-        loyaltyPoints: 0,
       });
       await this.petOwnerRepository.save(petOwner);
     } else {
@@ -132,14 +138,38 @@ export class AccountService {
         throw new BadRequestException('Salary is required for employees');
       }
 
-      const employee = this.employeeRepository.create({
+      // Create appropriate child entity based on user type
+      const baseEmployeeData = {
         accountId: savedAccount.accountId,
-        specialization: registerDto.specialization,
-        licenseNumber: registerDto.licenseNumber,
         hireDate: new Date(registerDto.hireDate),
         salary: registerDto.salary,
         isAvailable: true,
-      });
+      };
+
+      let employee: Employee;
+      switch (registerDto.userType) {
+        case UserType.VETERINARIAN:
+          employee = this.employeeRepository.create({
+            ...baseEmployeeData,
+            licenseNumber: registerDto.licenseNumber || '',
+            expertise: registerDto.specialization,
+          } as Veterinarian);
+          break;
+        case UserType.CARE_STAFF:
+          employee = this.employeeRepository.create({
+            ...baseEmployeeData,
+            skills: registerDto.skills || [],
+          } as CareStaff);
+          break;
+        case UserType.MANAGER:
+          employee = this.employeeRepository.create(baseEmployeeData as Manager);
+          break;
+        case UserType.RECEPTIONIST:
+          employee = this.employeeRepository.create(baseEmployeeData as Receptionist);
+          break;
+        default:
+          employee = this.employeeRepository.create(baseEmployeeData as Manager);
+      }
       await this.employeeRepository.save(employee);
     }
 
@@ -223,11 +253,13 @@ export class AccountService {
         where: { accountId },
       });
       if (employee) {
-        if (updateData.specialization !== undefined) {
-          employee.specialization = updateData.specialization;
-        }
+        // Update common employee fields
         if (updateData.isAvailable !== undefined) {
           employee.isAvailable = updateData.isAvailable;
+        }
+        // Update type-specific fields based on employee type
+        if (employee instanceof Veterinarian && updateData.specialization !== undefined) {
+          (employee as Veterinarian).expertise = updateData.specialization;
         }
         await this.employeeRepository.save(employee);
       }

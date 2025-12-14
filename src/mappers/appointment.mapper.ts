@@ -1,5 +1,6 @@
 import { Appointment } from '../entities/appointment.entity';
 import { AppointmentDomainModel } from '../domain/appointment.domain';
+import { Account } from 'src/entities/account.entity';
 
 /**
  * Appointment Mapper (Data Mapper Pattern)
@@ -60,5 +61,12 @@ export class AppointmentMapper {
         }
 
         return entity;
+    }
+
+    /**
+         * Convert array of entities to domain models
+         */
+    static toDomainList(entities: Appointment[]): AppointmentDomainModel[] {
+        return entities.map((entity) => this.toDomain(entity));
     }
 }

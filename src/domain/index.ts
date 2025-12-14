@@ -10,3 +10,8 @@ export * from './pet-owner.domain';
 export * from './appointment.domain';
 export * from './invoice.domain';
 export * from './payment.domain';
+export * from './pet.domain';
+export * from './vaccination-history.domain';
+export * from './medical-record.domain';
+export * from './service.domain';
+export * from './work-schedule.domain';
