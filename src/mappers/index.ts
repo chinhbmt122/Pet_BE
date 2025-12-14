@@ -17,3 +17,5 @@ export * from './service.mapper';
 export * from './work-schedule.mapper';
 export * from './audit-log.mapper';
 export * from './payment-gateway-archive.mapper';
+export * from './cage.mapper';
+export * from './cage-assignment.mapper';

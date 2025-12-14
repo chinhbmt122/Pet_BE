@@ -51,6 +51,9 @@ export class Service {
   @Column({ default: true })
   isAvailable: boolean;
 
+  @Column({ default: false })
+  isBoardingService: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

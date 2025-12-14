@@ -16,6 +16,7 @@ import { Employee } from './employee.entity';
 import { Service } from './service.entity';
 import { Invoice } from './invoice.entity';
 import { MedicalRecord } from './medical-record.entity';
+import { CageAssignment } from './cage-assignment.entity';
 import { AppointmentStatus } from './types/entity.types';
 
 export { AppointmentStatus };
@@ -106,4 +107,13 @@ export class Appointment {
    */
   @OneToMany(() => MedicalRecord, (record) => record.appointment)
   medicalRecords?: MedicalRecord[];
+
+  // ===== Boarding Integration (Story 7.3) =====
+
+  @Column({ type: 'int', nullable: true })
+  cageAssignmentId: number | null;
+
+  @ManyToOne(() => CageAssignment, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'cageAssignmentId' })
+  cageAssignment?: CageAssignment;
 }

@@ -13,6 +13,7 @@ export class ServiceDomainModel {
     private _estimatedDuration: number;
     private _requiredStaffType: string;
     private _isAvailable: boolean;
+    private _isBoardingService: boolean;
     private readonly _createdAt: Date;
     private readonly _updatedAt: Date;
 
@@ -27,6 +28,7 @@ export class ServiceDomainModel {
         estimatedDuration: number;
         requiredStaffType: string;
         isAvailable: boolean;
+        isBoardingService: boolean;
         createdAt: Date;
         updatedAt: Date;
     }) {
@@ -38,6 +40,7 @@ export class ServiceDomainModel {
         this._estimatedDuration = data.estimatedDuration;
         this._requiredStaffType = data.requiredStaffType;
         this._isAvailable = data.isAvailable;
+        this._isBoardingService = data.isBoardingService;
         this._createdAt = data.createdAt;
         this._updatedAt = data.updatedAt;
     }
@@ -51,6 +54,7 @@ export class ServiceDomainModel {
         estimatedDuration: number;
         requiredStaffType: string;
         description?: string;
+        isBoardingService?: boolean;
     }): ServiceDomainModel {
         return new ServiceDomainModel({
             id: null,
@@ -61,6 +65,7 @@ export class ServiceDomainModel {
             estimatedDuration: props.estimatedDuration,
             requiredStaffType: props.requiredStaffType,
             isAvailable: true,
+            isBoardingService: props.isBoardingService ?? false,
             createdAt: new Date(),
             updatedAt: new Date(),
         });
@@ -75,6 +80,7 @@ export class ServiceDomainModel {
         estimatedDuration: number;
         requiredStaffType: string;
         isAvailable: boolean;
+        isBoardingService: boolean;
         createdAt: Date;
         updatedAt: Date;
     }): ServiceDomainModel {
@@ -106,6 +112,9 @@ export class ServiceDomainModel {
     }
     get isAvailable(): boolean {
         return this._isAvailable;
+    }
+    get isBoardingService(): boolean {
+        return this._isBoardingService;
     }
     get createdAt(): Date {
         return this._createdAt;

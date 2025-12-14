@@ -15,6 +15,7 @@ export class ServiceMapper {
             estimatedDuration: entity.estimatedDuration,
             requiredStaffType: entity.requiredStaffType,
             isAvailable: entity.isAvailable,
+            isBoardingService: entity.isBoardingService,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
         });
@@ -29,6 +30,7 @@ export class ServiceMapper {
             estimatedDuration: domain.estimatedDuration,
             requiredStaffType: domain.requiredStaffType,
             isAvailable: domain.isAvailable,
+            isBoardingService: domain.isBoardingService,
         };
 
         if (domain.id !== null) {

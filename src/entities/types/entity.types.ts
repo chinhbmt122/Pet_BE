@@ -94,3 +94,34 @@ export enum VaccineCategory {
   NON_CORE = 'Non-core',
   OPTIONAL = 'Optional',
 }
+
+/**
+ * Cage Size Enum
+ * Defines the available cage sizes for boarding
+ */
+export enum CageSize {
+  SMALL = 'SMALL',
+  MEDIUM = 'MEDIUM',
+  LARGE = 'LARGE',
+}
+
+/**
+ * Cage Status Enum
+ * Defines the lifecycle states of a cage
+ */
+export enum CageStatus {
+  AVAILABLE = 'AVAILABLE',
+  OCCUPIED = 'OCCUPIED',
+  MAINTENANCE = 'MAINTENANCE',
+  RESERVED = 'RESERVED',
+}
+
+/**
+ * Cage Assignment Status Enum
+ * Defines the lifecycle states of a cage assignment
+ */
+export enum CageAssignmentStatus {
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
