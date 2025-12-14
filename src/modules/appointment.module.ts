@@ -21,5 +21,4 @@ import { AppointmentFactory } from '../factories/appointment.factory';
   providers: [AppointmentService, AppointmentFactory],
   exports: [AppointmentService, AppointmentFactory],
 })
-export class AppointmentModule { }
-
+export class AppointmentModule {}

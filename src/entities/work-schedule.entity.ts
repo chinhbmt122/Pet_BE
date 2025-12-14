@@ -60,4 +60,3 @@ export class WorkSchedule {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-

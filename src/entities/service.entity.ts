@@ -67,4 +67,3 @@ export class Service {
   @OneToMany(() => Appointment, (appointment) => appointment.service)
   appointments?: Appointment[];
 }
-

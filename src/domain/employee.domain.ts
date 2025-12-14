@@ -17,16 +17,30 @@
 /**
  * Employee Role Enum (matches persistence layer)
  */
-export type EmployeeRole = 'MANAGER' | 'VETERINARIAN' | 'CARE_STAFF' | 'RECEPTIONIST';
+export type EmployeeRole =
+    | 'MANAGER'
+    | 'VETERINARIAN'
+    | 'CARE_STAFF'
+    | 'RECEPTIONIST';
 
 /**
- * Base props interface for Employee domain model
+ * Create props for new employees (factory input - KISS)
+ * All the common fields needed to create any employee
  */
-export interface EmployeeBaseProps {
-    employeeId: number | null;
+export interface EmployeeCreateProps {
     accountId: number;
+    fullName: string;
+    phoneNumber: string;
+    address: string | null;
     hireDate: Date;
     salary: number;
+}
+
+/**
+ * Base props interface for Employee domain model (reconstitute from DB)
+ */
+export interface EmployeeBaseProps extends EmployeeCreateProps {
+    employeeId: number | null;
     isAvailable: boolean;
     createdAt: Date;
 }
@@ -37,7 +51,10 @@ export interface EmployeeBaseProps {
 export abstract class EmployeeDomainModel {
     protected readonly _employeeId: number | null;
     protected readonly _accountId: number;
-    protected _hireDate: Date;  // Mutable: allows typo correction
+    protected _fullName: string;
+    protected _phoneNumber: string;
+    protected _address: string | null;
+    protected _hireDate: Date;
     protected _salary: number;
     protected _isAvailable: boolean;
     protected readonly _createdAt: Date;
@@ -45,6 +62,9 @@ export abstract class EmployeeDomainModel {
     protected constructor(props: EmployeeBaseProps) {
         this._employeeId = props.employeeId;
         this._accountId = props.accountId;
+        this._fullName = props.fullName;
+        this._phoneNumber = props.phoneNumber;
+        this._address = props.address;
         this._hireDate = props.hireDate;
         this._salary = props.salary;
         this._isAvailable = props.isAvailable;
@@ -59,6 +79,18 @@ export abstract class EmployeeDomainModel {
 
     get accountId(): number {
         return this._accountId;
+    }
+
+    get fullName(): string {
+        return this._fullName;
+    }
+
+    get phoneNumber(): string {
+        return this._phoneNumber;
+    }
+
+    get address(): string | null {
+        return this._address;
     }
 
     get hireDate(): Date {
@@ -114,6 +146,34 @@ export abstract class EmployeeDomainModel {
     }
 
     /**
+     * Updates employment details (salary, hireDate)
+     */
+    updateEmploymentDetails(props: {
+        salary?: number;
+        hireDate?: Date;
+    }): void {
+        if (props.salary !== undefined) {
+            this.updateSalary(props.salary);
+        }
+        if (props.hireDate !== undefined) {
+            this.updateHireDate(props.hireDate);
+        }
+    }
+
+    /**
+     * Update profile information (moved from Account)
+     */
+    updateProfile(props: {
+        fullName?: string;
+        phoneNumber?: string;
+        address?: string | null;
+    }): void {
+        if (props.fullName !== undefined) this._fullName = props.fullName;
+        if (props.phoneNumber !== undefined) this._phoneNumber = props.phoneNumber;
+        if (props.address !== undefined) this._address = props.address;
+    }
+
+    /**
      * Returns the role type (polymorphic method)
      */
     abstract getRole(): EmployeeRole;
@@ -125,7 +185,7 @@ export abstract class EmployeeDomainModel {
  * Veterinarian Domain Model
  */
 export class VeterinarianDomainModel extends EmployeeDomainModel {
-    private _licenseNumber: string;  // Mutable: allows typo correction
+    private _licenseNumber: string; // Mutable: allows typo correction
     private _expertise: string | null;
 
     private constructor(
@@ -139,6 +199,9 @@ export class VeterinarianDomainModel extends EmployeeDomainModel {
 
     static create(props: {
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address?: string | null;
         hireDate: Date;
         salary: number;
         licenseNumber: string;
@@ -148,6 +211,9 @@ export class VeterinarianDomainModel extends EmployeeDomainModel {
             {
                 employeeId: null,
                 accountId: props.accountId,
+                fullName: props.fullName,
+                phoneNumber: props.phoneNumber,
+                address: props.address ?? null,
                 hireDate: props.hireDate,
                 salary: props.salary,
                 isAvailable: true,
@@ -163,6 +229,9 @@ export class VeterinarianDomainModel extends EmployeeDomainModel {
     static reconstitute(props: {
         employeeId: number;
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address: string | null;
         hireDate: Date;
         salary: number;
         isAvailable: boolean;
@@ -174,6 +243,9 @@ export class VeterinarianDomainModel extends EmployeeDomainModel {
             {
                 employeeId: props.employeeId,
                 accountId: props.accountId,
+                fullName: props.fullName,
+                phoneNumber: props.phoneNumber,
+                address: props.address,
                 hireDate: props.hireDate,
                 salary: props.salary,
                 isAvailable: props.isAvailable,
@@ -226,6 +298,9 @@ export class CareStaffDomainModel extends EmployeeDomainModel {
 
     static create(props: {
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address?: string | null;
         hireDate: Date;
         salary: number;
         skills?: string[];
@@ -234,6 +309,9 @@ export class CareStaffDomainModel extends EmployeeDomainModel {
             {
                 employeeId: null,
                 accountId: props.accountId,
+                fullName: props.fullName,
+                phoneNumber: props.phoneNumber,
+                address: props.address ?? null,
                 hireDate: props.hireDate,
                 salary: props.salary,
                 isAvailable: true,
@@ -246,6 +324,9 @@ export class CareStaffDomainModel extends EmployeeDomainModel {
     static reconstitute(props: {
         employeeId: number;
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address: string | null;
         hireDate: Date;
         salary: number;
         isAvailable: boolean;
@@ -256,6 +337,9 @@ export class CareStaffDomainModel extends EmployeeDomainModel {
             {
                 employeeId: props.employeeId,
                 accountId: props.accountId,
+                fullName: props.fullName,
+                phoneNumber: props.phoneNumber,
+                address: props.address,
                 hireDate: props.hireDate,
                 salary: props.salary,
                 isAvailable: props.isAvailable,
@@ -279,6 +363,13 @@ export class CareStaffDomainModel extends EmployeeDomainModel {
         this._skills = this._skills.filter((s) => s !== skill);
     }
 
+    /**
+     * Updates all skills (bulk replace)
+     */
+    updateSkills(skills: string[]): void {
+        this._skills = [...skills];
+    }
+
     getRole(): EmployeeRole {
         return 'CARE_STAFF';
     }
@@ -294,12 +385,18 @@ export class ManagerDomainModel extends EmployeeDomainModel {
 
     static create(props: {
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address?: string | null;
         hireDate: Date;
         salary: number;
     }): ManagerDomainModel {
         return new ManagerDomainModel({
             employeeId: null,
             accountId: props.accountId,
+            fullName: props.fullName,
+            phoneNumber: props.phoneNumber,
+            address: props.address ?? null,
             hireDate: props.hireDate,
             salary: props.salary,
             isAvailable: true,
@@ -310,6 +407,9 @@ export class ManagerDomainModel extends EmployeeDomainModel {
     static reconstitute(props: {
         employeeId: number;
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address: string | null;
         hireDate: Date;
         salary: number;
         isAvailable: boolean;
@@ -333,12 +433,18 @@ export class ReceptionistDomainModel extends EmployeeDomainModel {
 
     static create(props: {
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address?: string | null;
         hireDate: Date;
         salary: number;
     }): ReceptionistDomainModel {
         return new ReceptionistDomainModel({
             employeeId: null,
             accountId: props.accountId,
+            fullName: props.fullName,
+            phoneNumber: props.phoneNumber,
+            address: props.address ?? null,
             hireDate: props.hireDate,
             salary: props.salary,
             isAvailable: true,
@@ -349,6 +455,9 @@ export class ReceptionistDomainModel extends EmployeeDomainModel {
     static reconstitute(props: {
         employeeId: number;
         accountId: number;
+        fullName: string;
+        phoneNumber: string;
+        address: string | null;
         hireDate: Date;
         salary: number;
         isAvailable: boolean;

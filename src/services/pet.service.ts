@@ -15,7 +15,7 @@ export class PetService {
   constructor(
     @InjectRepository(Pet)
     private readonly petRepository: Repository<Pet>,
-  ) { }
+  ) {}
 
   /**
    * Registers new pet with owner association and validation.

@@ -9,6 +9,6 @@ import { Employee } from './employee.entity';
  */
 @ChildEntity('MANAGER')
 export class Manager extends Employee {
-    // Manager uses common Employee fields only
-    // No additional fields required
+  // Manager uses common Employee fields only
+  // No additional fields required
 }

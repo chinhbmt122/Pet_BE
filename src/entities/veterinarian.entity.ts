@@ -11,30 +11,33 @@ import { VaccinationHistory } from './vaccination-history.entity';
  */
 @ChildEntity('VETERINARIAN')
 export class Veterinarian extends Employee {
-    /**
-     * Veterinarian license number (required)
-     */
-    @Column({ type: 'varchar', length: 100 })
-    licenseNumber: string;
+  /**
+   * Veterinarian license number (required)
+   */
+  @Column({ type: 'varchar', length: 100 })
+  licenseNumber: string;
 
-    /**
-     * Areas of veterinary expertise
-     * e.g., "surgery, dermatology, internal medicine"
-     */
-    @Column({ type: 'text', nullable: true })
-    expertise: string;
+  /**
+   * Areas of veterinary expertise
+   * e.g., "surgery, dermatology, internal medicine"
+   */
+  @Column({ type: 'text', nullable: true })
+  expertise: string;
 
-    /**
-     * One-to-Many relationship with MedicalRecord
-     * A veterinarian can create multiple medical records
-     */
-    @OneToMany(() => MedicalRecord, (record) => record.veterinarian)
-    medicalRecords?: MedicalRecord[];
+  /**
+   * One-to-Many relationship with MedicalRecord
+   * A veterinarian can create multiple medical records
+   */
+  @OneToMany(() => MedicalRecord, (record) => record.veterinarian)
+  medicalRecords?: MedicalRecord[];
 
-    /**
-     * One-to-Many relationship with VaccinationHistory
-     * A veterinarian can administer multiple vaccinations
-     */
-    @OneToMany(() => VaccinationHistory, (vaccination) => vaccination.administrator)
-    vaccinationsAdministered?: VaccinationHistory[];
+  /**
+   * One-to-Many relationship with VaccinationHistory
+   * A veterinarian can administer multiple vaccinations
+   */
+  @OneToMany(
+    () => VaccinationHistory,
+    (vaccination) => vaccination.administrator,
+  )
+  vaccinationsAdministered?: VaccinationHistory[];
 }

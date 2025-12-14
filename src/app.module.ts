@@ -4,6 +4,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './config/database.module';
 import { AccountModule } from './modules/account.module';
+import { PetOwnerModule } from './modules/pet-owner.module';
+import { EmployeeModule } from './modules/employee.module';
 import { AppointmentModule } from './modules/appointment.module';
 import { PetModule } from './modules/pet.module';
 import { ScheduleModule } from './modules/schedule.module';
@@ -29,6 +31,8 @@ import { RequestLoggerMiddleware } from './middleware/interceptors/requestLog.in
     DatabaseModule,
     // Feature modules
     AccountModule,
+    PetOwnerModule,
+    EmployeeModule,
     AppointmentModule,
     PetModule,
     ScheduleModule,

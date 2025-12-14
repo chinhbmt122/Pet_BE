@@ -33,6 +33,19 @@ export class PetOwner {
   @JoinColumn({ name: 'accountId' })
   account?: Account;
 
+  // ===== Profile Fields (moved from Account) =====
+
+  @Column({ length: 100 })
+  fullName: string;
+
+  @Column({ length: 20 })
+  phoneNumber: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  address: string | null;
+
+  // ===== PetOwner-specific Fields =====
+
   @Column({ length: 50, default: 'Email' })
   preferredContactMethod: string;
 

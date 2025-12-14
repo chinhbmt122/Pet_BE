@@ -1,39 +1,27 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AccountController } from '../controllers/account.controller';
 import { AccountService } from '../services/account.service';
 import { AccountFactory } from '../factories/account.factory';
 import { Account } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
+import { AuthModule } from './auth.module';
 
 /**
  * AccountModule
  *
- * Manages user authentication, registration, and role-based access control (RBAC).
- * Handles login sessions, password management, and account verification.
- * Supports five user roles: Pet Owner, Manager, Veterinarian, Care Staff, and Receptionist.
+ * Handles generic account operations:
+ * - Password change
+ * - Account activation/deactivation
+ * - Profile retrieval
+ *
+ * Imports AuthModule for login/logout functionality.
  */
 @Module({
   imports: [
     TypeOrmModule.forFeature([Account, PetOwner, Employee]),
-    JwtModule.registerAsync({
-      global: true,
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret:
-          configService.get<string>('JWT_SECRET') ||
-          'your-secret-key-change-in-production',
-        signOptions: {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
-            '24h') as any,
-        },
-      }),
-    }),
+    AuthModule,
   ],
   controllers: [AccountController],
   providers: [AccountService, AccountFactory],

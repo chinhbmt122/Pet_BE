@@ -9,10 +9,10 @@ import { Employee } from './employee.entity';
  */
 @ChildEntity('CARE_STAFF')
 export class CareStaff extends Employee {
-    /**
-     * Array of skills the care staff possesses
-     * e.g., ['bathing', 'grooming', 'spa', 'nail_trimming']
-     */
-    @Column({ type: 'simple-array', nullable: true })
-    skills: string[];
+  /**
+   * Array of skills the care staff possesses
+   * e.g., ['bathing', 'grooming', 'spa', 'nail_trimming']
+   */
+  @Column({ type: 'simple-array', nullable: true })
+  skills: string[];
 }

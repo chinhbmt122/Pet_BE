@@ -44,15 +44,6 @@ export class Account {
   })
   userType: UserType;
 
-  @Column({ length: 255 })
-  fullName: string;
-
-  @Column({ unique: true, length: 20 })
-  phoneNumber: string;
-
-  @Column({ type: 'text', nullable: true })
-  address: string;
-
   @Column({ default: true })
   isActive: boolean;
 

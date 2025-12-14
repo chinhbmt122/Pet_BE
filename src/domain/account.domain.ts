@@ -11,14 +11,11 @@ import * as bcrypt from 'bcrypt';
 import { UserType } from '../entities/types/entity.types';
 
 export class AccountDomainModel {
-    // Private fields for strict encapsulation
+    // Private fields for strict encapsulation (Thin Account - auth only)
     private readonly _accountId: number | null;
     private readonly _email: string;
     private _passwordHash: string;
     private readonly _userType: UserType;
-    private _fullName: string;
-    private _phoneNumber: string;
-    private _address: string | null;
     private _isActive: boolean;
     private readonly _createdAt: Date;
     private _updatedAt: Date;
@@ -31,9 +28,6 @@ export class AccountDomainModel {
         email: string;
         passwordHash: string;
         userType: UserType;
-        fullName: string;
-        phoneNumber: string;
-        address: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -42,9 +36,6 @@ export class AccountDomainModel {
         this._email = props.email;
         this._passwordHash = props.passwordHash;
         this._userType = props.userType;
-        this._fullName = props.fullName;
-        this._phoneNumber = props.phoneNumber;
-        this._address = props.address;
         this._isActive = props.isActive;
         this._createdAt = props.createdAt;
         this._updatedAt = props.updatedAt;
@@ -59,9 +50,6 @@ export class AccountDomainModel {
         email: string;
         passwordHash: string;
         userType: UserType;
-        fullName: string;
-        phoneNumber: string;
-        address?: string | null;
     }): AccountDomainModel {
         const now = new Date();
         return new AccountDomainModel({
@@ -69,9 +57,6 @@ export class AccountDomainModel {
             email: props.email,
             passwordHash: props.passwordHash,
             userType: props.userType,
-            fullName: props.fullName,
-            phoneNumber: props.phoneNumber,
-            address: props.address ?? null,
             isActive: true,
             createdAt: now,
             updatedAt: now,
@@ -86,9 +71,6 @@ export class AccountDomainModel {
         email: string;
         passwordHash: string;
         userType: UserType;
-        fullName: string;
-        phoneNumber: string;
-        address: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -126,16 +108,8 @@ export class AccountDomainModel {
         return this._userType;
     }
 
-    get fullName(): string {
-        return this._fullName;
-    }
-
-    get phoneNumber(): string {
-        return this._phoneNumber;
-    }
-
-    get address(): string | null {
-        return this._address;
+    get isActive(): boolean {
+        return this._isActive;
     }
 
     get createdAt(): Date {
@@ -199,19 +173,6 @@ export class AccountDomainModel {
         return this._userType === UserType.VETERINARIAN;
     }
 
-    /**
-     * Updates profile information
-     */
-    updateProfile(props: {
-        fullName?: string;
-        phoneNumber?: string;
-        address?: string | null;
-    }): void {
-        if (props.fullName !== undefined) this._fullName = props.fullName;
-        if (props.phoneNumber !== undefined) this._phoneNumber = props.phoneNumber;
-        if (props.address !== undefined) this._address = props.address;
-        this._updatedAt = new Date();
-    }
 
     /**
      * Changes password (expects already hashed password)

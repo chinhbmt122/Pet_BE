@@ -93,7 +93,7 @@ export class RegisterDto {
   @ApiProperty({
     example: ['bathing', 'grooming', 'spa'],
     required: false,
-    description: 'Skills for CareStaff employees'
+    description: 'Skills for CareStaff employees',
   })
   @IsOptional()
   skills?: string[];

@@ -76,4 +76,3 @@ export class VaccinationHistory {
   @CreateDateColumn()
   createdAt: Date;
 }
-

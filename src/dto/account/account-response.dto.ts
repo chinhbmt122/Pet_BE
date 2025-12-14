@@ -20,8 +20,8 @@ export class AccountResponseDto {
   @ApiProperty()
   phoneNumber: string;
 
-  @ApiProperty()
-  address: string;
+  @ApiProperty({ nullable: true })
+  address: string | null;
 
   @ApiProperty()
   isActive: boolean;
