@@ -1,17 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { MedicalRecord } from '../entities/medical-record.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
+import { Pet } from '../entities/pet.entity';
+import { Veterinarian } from '../entities/veterinarian.entity';
+import { MedicalRecordDomainModel } from '../domain/medical-record.domain';
+import { VaccinationHistoryDomainModel } from '../domain/vaccination-history.domain';
+import { MedicalRecordMapper } from '../mappers/medical-record.mapper';
+import { VaccinationHistoryMapper } from '../mappers/vaccination-history.mapper';
+import {
+  CreateMedicalRecordDto,
+  UpdateMedicalRecordDto,
+  MedicalRecordResponseDto,
+} from '../dto/medical-record';
+import { CreateVaccinationDto, VaccinationResponseDto } from '../dto/vaccination';
 
 /**
  * MedicalRecordService (MedicalRecordManager)
  *
- * Manages veterinary examination records.
- * Handles creation and viewing of medical records by authorized veterinarians.
- * Records diagnosis, treatment details, prescriptions, and follow-up recommendations.
- * Maintains complete medical history for each pet.
+ * Manages veterinary examination records using DDD pattern.
+ * Uses domain models for business logic and mappers for entity conversion.
  */
 @Injectable()
 export class MedicalRecordService {
@@ -22,91 +36,194 @@ export class MedicalRecordService {
     private readonly vaccineTypeRepository: Repository<VaccineType>,
     @InjectRepository(VaccinationHistory)
     private readonly vaccinationHistoryRepository: Repository<VaccinationHistory>,
+    @InjectRepository(Pet)
+    private readonly petRepository: Repository<Pet>,
+    @InjectRepository(Veterinarian)
+    private readonly veterinarianRepository: Repository<Veterinarian>,
   ) {}
 
   /**
    * Creates new medical record for pet with diagnosis and treatment.
-   * @throws PetNotFoundException, ValidationException, AppointmentNotFoundException
+   * Validates that veterinarian exists.
    */
-  async createMedicalRecord(recordData: any): Promise<MedicalRecord> {
-    // TODO: Implement create medical record logic
-    // 1. Validate record data
-    // 2. Verify pet and veterinarian
-    // 3. Create immutable medical record
-    // 4. Link to appointment if provided
-    throw new Error('Method not implemented');
+  async createMedicalRecord(
+    dto: CreateMedicalRecordDto,
+  ): Promise<MedicalRecordResponseDto> {
+    // 1. Verify pet exists
+    const pet = await this.petRepository.findOne({
+      where: { petId: dto.petId },
+    });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+    }
+
+    // 2. Verify vet exists (Veterinarian entity already ensures role)
+    const vet = await this.veterinarianRepository.findOne({
+      where: { employeeId: dto.veterinarianId },
+    });
+    if (!vet) {
+      throw new BadRequestException(
+        `Employee ${dto.veterinarianId} is not a veterinarian`,
+      );
+    }
+
+    // 3. Create domain model
+    const domain = MedicalRecordDomainModel.create({
+      petId: dto.petId,
+      veterinarianId: dto.veterinarianId,
+      diagnosis: dto.diagnosis,
+      treatment: dto.treatment,
+      appointmentId: dto.appointmentId,
+      medicalSummary: dto.medicalSummary,
+      followUpDate: dto.followUpDate ? new Date(dto.followUpDate) : undefined,
+    });
+
+    // 4. Convert to entity and save
+    const entityData = MedicalRecordMapper.toPersistence(domain);
+    const entity = this.medicalRecordRepository.create(entityData);
+    const saved = await this.medicalRecordRepository.save(entity);
+
+    // 5. Return response DTO
+    const savedDomain = MedicalRecordMapper.toDomain(saved);
+    return MedicalRecordResponseDto.fromDomain(savedDomain);
   }
 
   /**
    * Updates existing medical record with new information.
-   * @throws MedicalRecordNotFoundException, ValidationException
    */
   async updateMedicalRecord(
     recordId: number,
-    updateData: any,
-  ): Promise<MedicalRecord> {
-    // TODO: Implement update medical record logic
-    // Note: Updates create new versions rather than modifying
-    throw new Error('Method not implemented');
+    dto: UpdateMedicalRecordDto,
+  ): Promise<MedicalRecordResponseDto> {
+    const entity = await this.medicalRecordRepository.findOne({
+      where: { recordId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Medical record with ID ${recordId} not found`);
+    }
+
+    // Convert to domain and update
+    const domain = MedicalRecordMapper.toDomain(entity);
+    domain.updateDetails({
+      diagnosis: dto.diagnosis,
+      treatment: dto.treatment,
+      medicalSummary: dto.medicalSummary,
+      followUpDate: dto.followUpDate ? new Date(dto.followUpDate) : undefined,
+    });
+
+    // Save changes
+    const updatedData = MedicalRecordMapper.toPersistence(domain);
+    Object.assign(entity, updatedData);
+    const saved = await this.medicalRecordRepository.save(entity);
+
+    const savedDomain = MedicalRecordMapper.toDomain(saved);
+    return MedicalRecordResponseDto.fromDomain(savedDomain);
   }
 
   /**
    * Retrieves complete medical record by ID.
-   * @throws MedicalRecordNotFoundException
    */
-  async getMedicalRecordById(recordId: number): Promise<MedicalRecord> {
-    // TODO: Implement get medical record logic
-    throw new Error('Method not implemented');
+  async getMedicalRecordById(recordId: number): Promise<MedicalRecordResponseDto> {
+    const entity = await this.medicalRecordRepository.findOne({
+      where: { recordId },
+      relations: ['pet', 'veterinarian'],
+    });
+    if (!entity) {
+      throw new NotFoundException(`Medical record with ID ${recordId} not found`);
+    }
+
+    const domain = MedicalRecordMapper.toDomain(entity);
+    return MedicalRecordResponseDto.fromDomain(domain);
   }
 
   /**
    * Retrieves complete medical history for a pet in chronological order.
    */
-  async getMedicalHistoryByPet(petId: number): Promise<MedicalRecord[]> {
-    // TODO: Implement get medical history logic
-    throw new Error('Method not implemented');
+  async getMedicalHistoryByPet(petId: number): Promise<MedicalRecordResponseDto[]> {
+    const entities = await this.medicalRecordRepository.find({
+      where: { petId },
+      order: { examinationDate: 'DESC' },
+      relations: ['veterinarian'],
+    });
+
+    const domains = MedicalRecordMapper.toDomainList(entities);
+    return domains.map((d) => MedicalRecordResponseDto.fromDomain(d));
   }
 
   /**
    * Records vaccination with vaccine type, date, and next due date.
-   * @throws PetNotFoundException, ValidationException
+   * Next due date is auto-calculated by domain model using VaccineType.boosterIntervalMonths.
    */
   async addVaccination(
     petId: number,
-    vaccinationData: any,
-  ): Promise<VaccinationHistory> {
-    // TODO: Implement add vaccination logic
-    // 1. Validate vaccination data
-    // 2. Check vaccine type exists
-    // 3. Calculate next due date
-    // 4. Create vaccination record
-    // 5. Schedule reminder notification
-    throw new Error('Method not implemented');
+    dto: CreateVaccinationDto,
+  ): Promise<VaccinationResponseDto> {
+    // 1. Verify pet exists
+    const pet = await this.petRepository.findOne({ where: { petId } });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // 2. Get VaccineType for booster interval
+    const vaccineType = await this.vaccineTypeRepository.findOne({
+      where: { vaccineTypeId: dto.vaccineTypeId },
+    });
+    if (!vaccineType) {
+      throw new NotFoundException(
+        `Vaccine type with ID ${dto.vaccineTypeId} not found`,
+      );
+    }
+
+    // 3. Verify vet exists
+    const vet = await this.veterinarianRepository.findOne({
+      where: { employeeId: dto.administeredBy },
+    });
+    if (!vet) {
+      throw new BadRequestException(
+        `Employee ${dto.administeredBy} is not a veterinarian`,
+      );
+    }
+
+    // 4. Create domain model (nextDueDate auto-calculated)
+    const domain = VaccinationHistoryDomainModel.create({
+      petId,
+      vaccineTypeId: dto.vaccineTypeId,
+      administeredBy: dto.administeredBy,
+      administrationDate: new Date(dto.administrationDate),
+      batchNumber: dto.batchNumber,
+      site: dto.site,
+      reactions: dto.reactions,
+      notes: dto.notes,
+      medicalRecordId: dto.medicalRecordId,
+      vaccineBoosterIntervalMonths: vaccineType.boosterIntervalMonths ?? undefined,
+    });
+
+    // 5. Convert to entity and save
+    const entityData = VaccinationHistoryMapper.toPersistence(domain);
+    const entity = this.vaccinationHistoryRepository.create(entityData);
+    const saved = await this.vaccinationHistoryRepository.save(entity);
+
+    // 6. Reload with relations and return
+    const reloaded = await this.vaccinationHistoryRepository.findOne({
+      where: { vaccinationId: saved.vaccinationId },
+      relations: ['vaccineType'],
+    });
+    const savedDomain = VaccinationHistoryMapper.toDomain(reloaded!);
+    return VaccinationResponseDto.fromDomain(savedDomain);
   }
 
   /**
    * Retrieves all vaccinations for a pet.
    */
-  async getVaccinationHistory(petId: number): Promise<VaccinationHistory[]> {
-    // TODO: Implement get vaccination history logic
-    throw new Error('Method not implemented');
-  }
+  async getVaccinationHistory(petId: number): Promise<VaccinationResponseDto[]> {
+    const entities = await this.vaccinationHistoryRepository.find({
+      where: { petId },
+      order: { administrationDate: 'DESC' },
+      relations: ['vaccineType'],
+    });
 
-  /**
-   * Adds prescription to medical record with medication details and dosage.
-   * @throws MedicalRecordNotFoundException, ValidationException
-   */
-  async addPrescription(recordId: number, prescriptionData: any): Promise<any> {
-    // TODO: Implement add prescription logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Searches records by diagnosis, treatment, date range, or pet.
-   */
-  async searchMedicalRecords(searchCriteria: any): Promise<MedicalRecord[]> {
-    // TODO: Implement search medical records logic
-    throw new Error('Method not implemented');
+    const domains = VaccinationHistoryMapper.toDomainList(entities);
+    return domains.map((d) => VaccinationResponseDto.fromDomain(d));
   }
 
   /**
@@ -115,60 +232,57 @@ export class MedicalRecordService {
   async getUpcomingVaccinations(
     petId: number,
     daysAhead: number,
-  ): Promise<VaccinationHistory[]> {
-    // TODO: Implement get upcoming vaccinations logic
-    throw new Error('Method not implemented');
+  ): Promise<VaccinationResponseDto[]> {
+    const today = new Date();
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + daysAhead);
+
+    const entities = await this.vaccinationHistoryRepository.find({
+      where: {
+        petId,
+        nextDueDate: LessThanOrEqual(futureDate),
+      },
+      relations: ['vaccineType'],
+      order: { nextDueDate: 'ASC' },
+    });
+
+    // Filter using domain model's isDue() and daysUntilDue()
+    const domains = VaccinationHistoryMapper.toDomainList(entities);
+    const upcomingDomains = domains.filter((d) => {
+      const days = d.daysUntilDue();
+      return days !== null && days <= daysAhead;
+    });
+
+    return upcomingDomains.map((d) => VaccinationResponseDto.fromDomain(d));
   }
 
   /**
-   * Generates comprehensive medical report for date range.
+   * Gets overdue vaccinations for a pet.
    */
-  async generateMedicalReport(
-    petId: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<any> {
-    // TODO: Implement generate medical report logic
-    throw new Error('Method not implemented');
+  async getOverdueVaccinations(petId: number): Promise<VaccinationResponseDto[]> {
+    const entities = await this.vaccinationHistoryRepository.find({
+      where: { petId },
+      relations: ['vaccineType'],
+    });
+
+    const domains = VaccinationHistoryMapper.toDomainList(entities);
+    const overdueDomains = domains.filter((d) => d.isDue());
+
+    return overdueDomains.map((d) => VaccinationResponseDto.fromDomain(d));
   }
 
   /**
-   * Attaches supporting documents (X-rays, lab results, etc.).
+   * Gets records with overdue follow-ups for a pet.
    */
-  async attachDocument(
-    recordId: number,
-    document: any,
-    documentType: string,
-  ): Promise<any> {
-    // TODO: Implement attach document logic
-    throw new Error('Method not implemented');
-  }
+  async getOverdueFollowUps(petId: number): Promise<MedicalRecordResponseDto[]> {
+    const entities = await this.medicalRecordRepository.find({
+      where: { petId },
+      relations: ['veterinarian'],
+    });
 
-  // Private helper methods
+    const domains = MedicalRecordMapper.toDomainList(entities);
+    const overdueDomains = domains.filter((d) => d.isFollowUpOverdue());
 
-  /**
-   * Validates medical record data format and required fields.
-   */
-  private validateMedicalData(recordData: any): boolean {
-    // TODO: Implement validation logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Calculates next vaccination due date based on vaccine schedule.
-   */
-  private checkVaccinationSchedule(petId: number, vaccineType: string): Date {
-    // TODO: Implement vaccination schedule logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Sends reminder notification to pet owner for upcoming vaccination.
-   */
-  private async sendVaccinationReminder(
-    vaccination: VaccinationHistory,
-  ): Promise<void> {
-    // TODO: Implement vaccination reminder logic
-    throw new Error('Method not implemented');
+    return overdueDomains.map((d) => MedicalRecordResponseDto.fromDomain(d));
   }
 }

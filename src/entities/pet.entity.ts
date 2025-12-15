@@ -59,9 +59,6 @@ export class Pet {
   @Column({ type: 'text', nullable: true })
   specialNotes: string;
 
-  @Column({ default: true })
-  isActive: boolean;
-
   @CreateDateColumn()
   createdAt: Date;
 
