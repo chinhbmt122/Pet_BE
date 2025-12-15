@@ -6,7 +6,7 @@ import { MedicalRecord } from '../entities/medical-record.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
 import { Pet } from '../entities/pet.entity';
-import type { Veterinarian } from '../entities/veterinarian.entity';
+import { Veterinarian } from '../entities/veterinarian.entity';
 
 /**
  * MedicalRecordModule
@@ -23,7 +23,7 @@ import type { Veterinarian } from '../entities/veterinarian.entity';
       VaccineType,
       VaccinationHistory,
       Pet,
-      require('../entities/veterinarian.entity').Veterinarian,
+      Veterinarian,
     ]),
   ],
   controllers: [MedicalRecordController],
@@ -31,4 +31,3 @@ import type { Veterinarian } from '../entities/veterinarian.entity';
   exports: [MedicalRecordService],
 })
 export class MedicalRecordModule {}
-
