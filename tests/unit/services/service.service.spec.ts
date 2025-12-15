@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ServiceService } from '../../../src/services/service.service';
 import { Service } from '../../../src/entities/service.entity';
+import { ServiceCategory } from '../../../src/entities/service-category.entity';
 import { Repository } from 'typeorm';
 
 describe('ServiceService', () => {
@@ -14,6 +15,17 @@ describe('ServiceService', () => {
         ServiceService,
         {
           provide: getRepositoryToken(Service),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            softDelete: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(ServiceCategory),
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),

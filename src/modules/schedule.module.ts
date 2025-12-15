@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleController } from '../controllers/schedule.controller';
 import { ScheduleService } from '../services/schedule.service';
 import { WorkSchedule } from '../entities/work-schedule.entity';
+import { Employee } from '../entities/employee.entity';
 
 /**
  * ScheduleModule
@@ -12,7 +13,7 @@ import { WorkSchedule } from '../entities/work-schedule.entity';
  * Provides staff availability information for appointment booking system.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([WorkSchedule])],
+  imports: [TypeOrmModule.forFeature([WorkSchedule, Employee])],
   controllers: [ScheduleController],
   providers: [ScheduleService],
   exports: [ScheduleService],

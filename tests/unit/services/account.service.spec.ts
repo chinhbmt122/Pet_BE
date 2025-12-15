@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AccountService } from '../../../src/services/account.service';
 import { Account } from '../../../src/entities/account.entity';
+import { PetOwner } from '../../../src/entities/pet-owner.entity';
+import { Employee } from '../../../src/entities/employee.entity';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 
@@ -22,6 +24,22 @@ describe('AccountService', () => {
             create: jest.fn(),
             update: jest.fn(),
             softDelete: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(PetOwner),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Employee),
+          useValue: {
+            findOne: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
           },
         },
         {

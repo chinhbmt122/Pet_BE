@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AccountController } from '../../../src/controllers/account.controller';
 import { AccountService } from '../../../src/services/account.service';
+import { AuthService } from '../../../src/services/auth.service';
 
 describe('AccountController', () => {
   let controller: AccountController;
@@ -10,6 +11,15 @@ describe('AccountController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AccountController],
       providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            validateToken: jest.fn(),
+            generateToken: jest.fn(),
+            hashPassword: jest.fn(),
+            comparePassword: jest.fn(),
+          },
+        },
         {
           provide: AccountService,
           useValue: {

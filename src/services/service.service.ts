@@ -1,181 +1,288 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, Like, ILike } from 'typeorm';
 import { Service } from '../entities/service.entity';
+import { ServiceCategory } from '../entities/service-category.entity';
+import {
+  CreateServiceDto,
+  UpdateServiceDto,
+  ServiceResponseDto,
+} from '../dto/service';
 
 /**
- * ServiceService (ServiceManager)
+ * ServiceService (Direct Entity Pattern)
  *
- * Manages service catalog including add, remove, and update operations.
- * Handles five service types: Bathing, Spa, Grooming, Check-up (Veterinary), and Vaccination.
- * Updates service pricing and duration.
+ * Manages service catalog with simple CRUD operations.
+ * No domain model needed - Service entity is a simple catalog entry.
  */
 @Injectable()
 export class ServiceService {
   constructor(
     @InjectRepository(Service)
     private readonly serviceRepository: Repository<Service>,
+    @InjectRepository(ServiceCategory)
+    private readonly categoryRepository: Repository<ServiceCategory>,
   ) {}
 
   /**
-   * Creates new service in catalog with validation.
-   * @throws ValidationException, DuplicateServiceException
+   * Creates new service in catalog.
    */
-  async createService(serviceData: any): Promise<Service> {
-    // TODO: Implement create service logic
-    // 1. Validate service data
-    // 2. Check for duplicate service
-    // 3. Create service entity
-    throw new Error('Method not implemented');
+  async createService(dto: CreateServiceDto): Promise<ServiceResponseDto> {
+    // Check for duplicate service name
+    const existing = await this.serviceRepository.findOne({
+      where: { serviceName: dto.serviceName },
+    });
+    if (existing) {
+      throw new ConflictException(`Service '${dto.serviceName}' already exists`);
+    }
+
+    // Verify category exists
+    const category = await this.categoryRepository.findOne({
+      where: { categoryId: dto.categoryId },
+    });
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${dto.categoryId} not found`);
+    }
+
+    const entity = this.serviceRepository.create({
+      serviceName: dto.serviceName,
+      categoryId: dto.categoryId,
+      description: dto.description,
+      basePrice: dto.basePrice,
+      estimatedDuration: dto.estimatedDuration,
+      requiredStaffType: dto.requiredStaffType,
+      isBoardingService: dto.isBoardingService ?? false,
+      isAvailable: true,
+    });
+
+    const saved = await this.serviceRepository.save(entity);
+
+    // Reload with category relation for response
+    const reloaded = await this.serviceRepository.findOne({
+      where: { serviceId: saved.serviceId },
+      relations: ['serviceCategory'],
+    });
+
+    return ServiceResponseDto.fromEntity(reloaded!);
   }
 
   /**
-   * Updates service details, pricing, or duration.
-   * @throws ServiceNotFoundException, ValidationException
+   * Updates service details.
    */
-  async updateService(serviceId: number, updateData: any): Promise<Service> {
-    // TODO: Implement update service logic
-    // 1. Find service by ID
-    // 2. Validate update data
-    // 3. Update service fields
-    throw new Error('Method not implemented');
+  async updateService(
+    serviceId: number,
+    dto: UpdateServiceDto,
+  ): Promise<ServiceResponseDto> {
+    const entity = await this.serviceRepository.findOne({
+      where: { serviceId },
+      relations: ['serviceCategory'],
+    });
+    if (!entity) {
+      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+    }
+
+    // Check for name conflict if updating name
+    if (dto.serviceName && dto.serviceName !== entity.serviceName) {
+      const existing = await this.serviceRepository.findOne({
+        where: { serviceName: dto.serviceName },
+      });
+      if (existing) {
+        throw new ConflictException(`Service '${dto.serviceName}' already exists`);
+      }
+    }
+
+    // Verify category if updating
+    if (dto.categoryId && dto.categoryId !== entity.categoryId) {
+      const category = await this.categoryRepository.findOne({
+        where: { categoryId: dto.categoryId },
+      });
+      if (!category) {
+        throw new NotFoundException(`Category with ID ${dto.categoryId} not found`);
+      }
+    }
+
+    Object.assign(entity, dto);
+    const saved = await this.serviceRepository.save(entity);
+
+    const reloaded = await this.serviceRepository.findOne({
+      where: { serviceId: saved.serviceId },
+      relations: ['serviceCategory'],
+    });
+
+    return ServiceResponseDto.fromEntity(reloaded!);
   }
 
   /**
    * Soft deletes service (marks as unavailable).
-   * @throws ServiceNotFoundException, ServiceInUseException
    */
   async deleteService(serviceId: number): Promise<boolean> {
-    // TODO: Implement delete service logic
-    // 1. Find service by ID
-    // 2. Check if service is in use
-    // 3. Mark as unavailable
-    throw new Error('Method not implemented');
+    const entity = await this.serviceRepository.findOne({
+      where: { serviceId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+    }
+
+    entity.isAvailable = false;
+    await this.serviceRepository.save(entity);
+    return true;
   }
 
   /**
-   * Retrieves complete service details by ID.
-   * @throws ServiceNotFoundException
+   * Gets service by ID.
    */
-  async getServiceById(serviceId: number): Promise<Service> {
-    // TODO: Implement get service logic
-    throw new Error('Method not implemented');
+  async getServiceById(serviceId: number): Promise<ServiceResponseDto> {
+    const entity = await this.serviceRepository.findOne({
+      where: { serviceId },
+      relations: ['serviceCategory'],
+    });
+    if (!entity) {
+      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+    }
+
+    return ServiceResponseDto.fromEntity(entity);
   }
 
   /**
-   * Retrieves all available services in catalog.
+   * Gets all available services.
    */
-  async getAllServices(): Promise<Service[]> {
-    // TODO: Implement get all services logic
-    throw new Error('Method not implemented');
+  async getAllServices(includeUnavailable = false): Promise<ServiceResponseDto[]> {
+    const whereClause = includeUnavailable ? {} : { isAvailable: true };
+
+    const entities = await this.serviceRepository.find({
+      where: whereClause,
+      relations: ['serviceCategory'],
+      order: { serviceName: 'ASC' },
+    });
+
+    return ServiceResponseDto.fromEntityList(entities);
   }
 
   /**
-   * Filters services by category (Grooming, Medical, Boarding, etc.).
+   * Gets services by category.
    */
-  async getServicesByCategory(category: string): Promise<Service[]> {
-    // TODO: Implement get services by category logic
-    throw new Error('Method not implemented');
+  async getServicesByCategory(categoryId: number): Promise<ServiceResponseDto[]> {
+    const entities = await this.serviceRepository.find({
+      where: { categoryId, isAvailable: true },
+      relations: ['serviceCategory'],
+      order: { serviceName: 'ASC' },
+    });
+
+    return ServiceResponseDto.fromEntityList(entities);
   }
 
   /**
-   * Calculates total price with pet type modifiers and add-ons.
-   */
-  async calculateServicePrice(
-    serviceId: number,
-    petType: string,
-    addOns: number[],
-  ): Promise<number> {
-    // TODO: Implement price calculation logic
-    // 1. Get base service price
-    // 2. Apply pet type modifier
-    // 3. Add add-on prices
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Searches services by name, category, price range, or duration.
-   */
-  async searchServices(searchCriteria: any): Promise<Service[]> {
-    // TODO: Implement search services logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Filters services within specified price range.
+   * Gets services by price range.
    */
   async getServicesByPriceRange(
     minPrice: number,
     maxPrice: number,
-  ): Promise<Service[]> {
-    // TODO: Implement get services by price range logic
-    throw new Error('Method not implemented');
+  ): Promise<ServiceResponseDto[]> {
+    const entities = await this.serviceRepository.find({
+      where: {
+        basePrice: Between(minPrice, maxPrice),
+        isAvailable: true,
+      },
+      relations: ['serviceCategory'],
+      order: { basePrice: 'ASC' },
+    });
+
+    return ServiceResponseDto.fromEntityList(entities);
   }
 
   /**
-   * Toggles service availability (e.g., seasonal services).
+   * Searches services by name.
+   */
+  async searchServices(searchTerm: string): Promise<ServiceResponseDto[]> {
+    const entities = await this.serviceRepository.find({
+      where: {
+        serviceName: ILike(`%${searchTerm}%`),
+        isAvailable: true,
+      },
+      relations: ['serviceCategory'],
+      order: { serviceName: 'ASC' },
+    });
+
+    return ServiceResponseDto.fromEntityList(entities);
+  }
+
+  /**
+   * Toggles service availability.
    */
   async updateServiceAvailability(
     serviceId: number,
     isAvailable: boolean,
-  ): Promise<boolean> {
-    // TODO: Implement update availability logic
-    throw new Error('Method not implemented');
+  ): Promise<ServiceResponseDto> {
+    const entity = await this.serviceRepository.findOne({
+      where: { serviceId },
+      relations: ['serviceCategory'],
+    });
+    if (!entity) {
+      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+    }
+
+    entity.isAvailable = isAvailable;
+    const saved = await this.serviceRepository.save(entity);
+
+    return ServiceResponseDto.fromEntity(saved);
   }
 
   /**
-   * Returns most frequently booked services.
+   * Calculates service price with pet type modifier.
+   * Pet size modifiers: small=1.0, medium=1.2, large=1.5, extra-large=2.0
    */
-  async getPopularServices(limit: number): Promise<Service[]> {
-    // TODO: Implement get popular services logic
-    throw new Error('Method not implemented');
+  async calculateServicePrice(
+    serviceId: number,
+    petSize: string = 'medium',
+  ): Promise<{ basePrice: number; modifier: number; finalPrice: number }> {
+    const entity = await this.serviceRepository.findOne({
+      where: { serviceId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+    }
+
+    const modifiers: Record<string, number> = {
+      small: 1.0,
+      medium: 1.2,
+      large: 1.5,
+      'extra-large': 2.0,
+    };
+
+    const modifier = modifiers[petSize.toLowerCase()] ?? 1.2;
+    const basePrice = Number(entity.basePrice);
+    const finalPrice = Math.round(basePrice * modifier);
+
+    return { basePrice, modifier, finalPrice };
   }
 
   /**
-   * Creates bundled service package with discount.
+   * Gets boarding services only.
    */
-  async createServicePackage(packageData: any): Promise<any> {
-    // TODO: Implement create service package logic
-    throw new Error('Method not implemented');
-  }
+  async getBoardingServices(): Promise<ServiceResponseDto[]> {
+    const entities = await this.serviceRepository.find({
+      where: { isBoardingService: true, isAvailable: true },
+      relations: ['serviceCategory'],
+      order: { serviceName: 'ASC' },
+    });
 
-  // Private helper methods
-
-  /**
-   * Validates service name, category, pricing, and duration.
-   */
-  private validateServiceData(serviceData: any): boolean {
-    // TODO: Implement validation logic
-    throw new Error('Method not implemented');
+    return ServiceResponseDto.fromEntityList(entities);
   }
 
   /**
-   * Prevents duplicate services in same category.
+   * Gets services by required staff type.
    */
-  private async checkDuplicateService(
-    serviceName: string,
-    category: string,
-  ): Promise<boolean> {
-    // TODO: Implement duplicate check logic
-    throw new Error('Method not implemented');
-  }
+  async getServicesByStaffType(staffType: string): Promise<ServiceResponseDto[]> {
+    const entities = await this.serviceRepository.find({
+      where: { requiredStaffType: staffType, isAvailable: true },
+      relations: ['serviceCategory'],
+      order: { serviceName: 'ASC' },
+    });
 
-  /**
-   * Applies size/breed-based price adjustments.
-   */
-  private applyPetTypeModifier(basePrice: number, petType: string): number {
-    // TODO: Implement pet type modifier logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Calculates bundled package pricing with discount.
-   */
-  private calculatePackageDiscount(
-    services: Service[],
-    discountRate: number,
-  ): number {
-    // TODO: Implement package discount calculation
-    throw new Error('Method not implemented');
+    return ServiceResponseDto.fromEntityList(entities);
   }
 }

@@ -6,47 +6,269 @@ on:
   pull_request:
     branches: ['main', 'develop']
 
+# Prevent duplicate runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '22.x'
 
 jobs:
   # ============================================
-  # Job 1: Selective Tests
-  # Uses the same script as local development
+  # Job 1: Install & Cache Dependencies
+  # Shared by all parallel jobs
   # ============================================
-  test:
-    name: 🧪 Selective Tests
+  setup:
+    name: 📦 Setup
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=deps-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-modules
+        with:
+          path: node_modules
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - name: Install dependencies
+        if: steps.cache-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+  # ============================================
+  # Job 2a: Unit Tests (Parallel)
+  # ============================================
+  test-unit:
+    name: 🧪 Unit Tests
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for git diff
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
 
-      - name: Run selective tests
-        run: npm run test:changed
-        env:
-          BASE_BRANCH: ${{ github.base_ref || 'main' }}
+      - name: Run unit tests
+        run: npm run test
 
   # ============================================
-  # Job 2: Build Verification
-  # Always runs to catch TypeScript errors
+  # Job 2b: Integration Tests (Parallel)
+  # ============================================
+  test-integration:
+    name: 🔗 Integration Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: pet_care_test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres123
+          DB_NAME: pet_care_test_db
+          DB_SYNCHRONIZE: true
+          DB_DROP_SCHEMA: true
+          DB_LOGGING: false
+          USE_ORDERED_ENTITIES: true
+
+  # ============================================
+  # Job 2c: E2E Tests (Parallel)
+  # ============================================
+  test-e2e:
+    name: 🌐 E2E Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: pet_care_test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres123
+          DB_NAME: pet_care_test_db
+          DB_SYNCHRONIZE: true
+          DB_DROP_SCHEMA: true
+          DB_LOGGING: false
+          USE_ORDERED_ENTITIES: true
+
+  # ============================================
+  # Job 3: Build & Quality (Parallel with tests)
   # ============================================
   build:
     name: 🏗️ Build & Lint
-    needs: test
+    needs: setup
     runs-on: ubuntu-latest
-    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Lint (fail-fast)
+        run: npm run lint
+
+      - name: Build (catches type errors)
+        run: npm run build
+
+      - name: Check formatting
+        run: npx prettier --check "src/**/*.ts" || echo "::warning::Prettier check failed - run 'npm run format' to fix"
+
+  # ============================================
+  # Job 4: Security Scan (Parallel with tests)
+  # ============================================
+  security:
+    name: 🔒 Security
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate || echo "::warning::npm audit found vulnerabilities"
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  # ============================================
+  # Job 5: Coverage Report (after all tests pass)
+  # ============================================
+  coverage:
+    name: 📊 Coverage
+    needs: [test-unit, test-integration, test-e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: pet_care_test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,26 +282,104 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build (catches type errors)
-        run: npm run build
+      - name: Generate coverage report
+        run: npm run test:cov:all
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres123
+          DB_NAME: pet_care_test_db
+          DB_SYNCHRONIZE: true
+          DB_DROP_SCHEMA: true
+          DB_LOGGING: false
+          USE_ORDERED_ENTITIES: true
 
-      - name: Lint
-        run: npm run lint
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
 
   # ============================================
-  # Job 3: Summary
+  # Job 6: Docker Build (after quality gates)
+  # ============================================
+  docker:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration, test-e2e, build, security]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: pet-care-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================
+  # Job 7: Deploy to Staging
+  # ============================================
+  deploy-staging:
+    name: 🚀 Deploy Staging
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          # Add your staging deployment commands here
+
+  # ============================================
+  # Job 8: Deploy to Production
+  # ============================================
+  deploy-production:
+    name: 🎯 Deploy Production
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "🎯 Deploying to production environment..."
+          # Add your production deployment commands here
+
+  # ============================================
+  # Job 9: CI Summary
   # ============================================
   summary:
-    name: 📊 CI Summary
-    needs: [test, build]
+    name: 📋 Summary
+    needs: [test-unit, test-integration, test-e2e, build, security, docker]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Generate summary
         run: |
-          echo "## CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🧪 Selective Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Unit Tests | ${{ needs.test-unit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔗 Integration Tests | ${{ needs.test-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 E2E Tests | ${{ needs.test-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ Build & Lint | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Docker Build | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY

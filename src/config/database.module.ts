@@ -16,6 +16,7 @@ import { Payment } from '../entities/payment.entity';
 import { AuditLog } from '../entities/audit-log.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { ServiceCategory } from 'src/entities/service-category.entity';
+import { entitiesOrdered } from './entities';
 
 /**
  * DatabaseModule
@@ -35,7 +36,10 @@ import { ServiceCategory } from 'src/entities/service-category.entity';
         username: configService.get('DATABASE_USER'),
         password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME'),
-        entities: [__dirname + '/../**/*.entity.js'],
+        entities:
+          configService.get('USE_ORDERED_ENTITIES') === 'true'
+            ? entitiesOrdered
+            : [__dirname + '/../**/*.entity.js'],
         synchronize: configService.get('NODE_ENV') === 'development', // Disable in production
         logging: configService.get('NODE_ENV') === 'development',
       }),

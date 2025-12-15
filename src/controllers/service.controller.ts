@@ -7,137 +7,203 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ServiceService } from '../services/service.service';
+import {
+  CreateServiceDto,
+  UpdateServiceDto,
+  ServiceResponseDto,
+} from '../dto/service';
 
 /**
  * ServiceController
  *
  * Manages service catalog endpoints.
- * Routes: GET /api/services, POST /api/services, PUT /api/services/:id
  */
-@ApiTags('Service')
+@ApiTags('Service Catalog')
 @Controller('api/services')
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 
   /**
    * POST /api/services
-   * Creates new service in catalog with validation.
-   * @throws ValidationException, DuplicateServiceException
+   * Creates new service in catalog.
    */
   @Post()
   @ApiOperation({ summary: 'Create service' })
-  @ApiResponse({ status: 201, description: 'Service created' })
+  @ApiResponse({ status: 201, description: 'Service created', type: ServiceResponseDto })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 409, description: 'Service already exists' })
-  async createService(@Body() serviceDto: any) {
-    // TODO: Implement create service logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * GET /api/services/:id
-   * Retrieves complete service details by ID.
-   * @throws ServiceNotFoundException
-   */
-  @Get(':id')
-  @ApiOperation({ summary: 'Get service by ID' })
-  @ApiResponse({ status: 200, description: 'Service retrieved' })
-  @ApiResponse({ status: 404, description: 'Service not found' })
-  async getServiceById(@Param('id') id: number) {
-    // TODO: Implement get service logic
-    throw new Error('Method not implemented');
+  async createService(@Body() dto: CreateServiceDto): Promise<ServiceResponseDto> {
+    return this.serviceService.createService(dto);
   }
 
   /**
    * GET /api/services
-   * Retrieves all available services in catalog.
+   * Retrieves all services.
    */
   @Get()
   @ApiOperation({ summary: 'Get all services' })
-  @ApiResponse({ status: 200, description: 'Services retrieved' })
-  async getAllServices() {
-    // TODO: Implement get all services logic
-    throw new Error('Method not implemented');
+  @ApiQuery({ name: 'includeUnavailable', required: false, type: Boolean, description: 'Include unavailable services' })
+  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  async getAllServices(
+    @Query('includeUnavailable', new DefaultValuePipe(false), ParseBoolPipe) includeUnavailable: boolean,
+  ): Promise<ServiceResponseDto[]> {
+    return this.serviceService.getAllServices(includeUnavailable);
   }
 
   /**
-   * GET /api/services/category/:category
-   * Filters services by category (Grooming, Medical, Boarding, etc.).
+   * GET /api/services/search
+   * Searches services by name.
    */
-  @Get('category/:category')
+  @Get('search')
+  @ApiOperation({ summary: 'Search services' })
+  @ApiQuery({ name: 'q', required: true, type: String, description: 'Search term' })
+  @ApiResponse({ status: 200, description: 'Services found', type: [ServiceResponseDto] })
+  async searchServices(@Query('q') searchTerm: string): Promise<ServiceResponseDto[]> {
+    return this.serviceService.searchServices(searchTerm);
+  }
+
+  /**
+   * GET /api/services/category/:categoryId
+   * Gets services by category.
+   */
+  @Get('category/:categoryId')
   @ApiOperation({ summary: 'Get services by category' })
-  @ApiResponse({ status: 200, description: 'Services retrieved' })
-  async getServicesByCategory(@Param('category') category: string) {
-    // TODO: Implement get services by category logic
-    throw new Error('Method not implemented');
+  @ApiParam({ name: 'categoryId', type: Number })
+  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  async getServicesByCategory(
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+  ): Promise<ServiceResponseDto[]> {
+    return this.serviceService.getServicesByCategory(categoryId);
+  }
+
+  /**
+   * GET /api/services/price-range
+   * Gets services by price range.
+   */
+  @Get('price-range')
+  @ApiOperation({ summary: 'Get services by price range' })
+  @ApiQuery({ name: 'min', required: true, type: Number })
+  @ApiQuery({ name: 'max', required: true, type: Number })
+  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  async getServicesByPriceRange(
+    @Query('min', ParseIntPipe) minPrice: number,
+    @Query('max', ParseIntPipe) maxPrice: number,
+  ): Promise<ServiceResponseDto[]> {
+    return this.serviceService.getServicesByPriceRange(minPrice, maxPrice);
+  }
+
+  /**
+   * GET /api/services/boarding
+   * Gets boarding services only.
+   */
+  @Get('boarding')
+  @ApiOperation({ summary: 'Get boarding services' })
+  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  async getBoardingServices(): Promise<ServiceResponseDto[]> {
+    return this.serviceService.getBoardingServices();
+  }
+
+  /**
+   * GET /api/services/staff-type/:staffType
+   * Gets services by required staff type.
+   */
+  @Get('staff-type/:staffType')
+  @ApiOperation({ summary: 'Get services by staff type' })
+  @ApiParam({ name: 'staffType', type: String, enum: ['Veterinarian', 'CareStaff', 'Any'] })
+  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  async getServicesByStaffType(
+    @Param('staffType') staffType: string,
+  ): Promise<ServiceResponseDto[]> {
+    return this.serviceService.getServicesByStaffType(staffType);
+  }
+
+  /**
+   * GET /api/services/:id
+   * Gets service by ID.
+   */
+  @Get(':id')
+  @ApiOperation({ summary: 'Get service by ID' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Service retrieved', type: ServiceResponseDto })
+  @ApiResponse({ status: 404, description: 'Service not found' })
+  async getServiceById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ServiceResponseDto> {
+    return this.serviceService.getServiceById(id);
   }
 
   /**
    * PUT /api/services/:id
-   * Updates service details, pricing, or duration.
-   * @throws ServiceNotFoundException, ValidationException
+   * Updates service details.
    */
   @Put(':id')
   @ApiOperation({ summary: 'Update service' })
-  @ApiResponse({ status: 200, description: 'Service updated' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Service updated', type: ServiceResponseDto })
   @ApiResponse({ status: 404, description: 'Service not found' })
-  async updateService(@Param('id') id: number, @Body() updateDto: any) {
-    // TODO: Implement update service logic
-    throw new Error('Method not implemented');
+  async updateService(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateServiceDto,
+  ): Promise<ServiceResponseDto> {
+    return this.serviceService.updateService(id, dto);
   }
 
   /**
    * DELETE /api/services/:id
    * Soft deletes service (marks as unavailable).
-   * @throws ServiceNotFoundException, ServiceInUseException
    */
   @Delete(':id')
   @ApiOperation({ summary: 'Delete service' })
+  @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Service deleted' })
   @ApiResponse({ status: 404, description: 'Service not found' })
-  @ApiResponse({ status: 409, description: 'Service in use' })
-  async deleteService(@Param('id') id: number) {
-    // TODO: Implement delete service logic
-    throw new Error('Method not implemented');
+  async deleteService(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ deleted: boolean }> {
+    const result = await this.serviceService.deleteService(id);
+    return { deleted: result };
   }
 
   /**
-   * POST /api/services/calculate-price
-   * Calculates total price with pet type modifiers and add-ons.
+   * PUT /api/services/:id/availability
+   * Toggles service availability.
    */
-  @Post('calculate-price')
+  @Put(':id/availability')
+  @ApiOperation({ summary: 'Toggle service availability' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Availability updated', type: ServiceResponseDto })
+  async updateAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { isAvailable: boolean },
+  ): Promise<ServiceResponseDto> {
+    return this.serviceService.updateServiceAvailability(id, body.isAvailable);
+  }
+
+  /**
+   * POST /api/services/:id/calculate-price
+   * Calculates service price with pet size modifier.
+   */
+  @Post(':id/calculate-price')
   @ApiOperation({ summary: 'Calculate service price' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiQuery({ name: 'petSize', required: false, type: String, enum: ['small', 'medium', 'large', 'extra-large'] })
   @ApiResponse({ status: 200, description: 'Price calculated' })
-  async calculateServicePrice(@Body() priceDto: any) {
-    // TODO: Implement price calculation logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * GET /api/services/search
-   * Searches services by name, category, price range, or duration.
-   */
-  @Get('search')
-  @ApiOperation({ summary: 'Search services' })
-  @ApiResponse({ status: 200, description: 'Services found' })
-  async searchServices(@Query() query: any) {
-    // TODO: Implement search services logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * GET /api/services/popular
-   * Returns most frequently booked services.
-   */
-  @Get('popular')
-  @ApiOperation({ summary: 'Get popular services' })
-  @ApiResponse({ status: 200, description: 'Services retrieved' })
-  async getPopularServices(@Query() query: any) {
-    // TODO: Implement get popular services logic
-    throw new Error('Method not implemented');
+  async calculatePrice(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('petSize') petSize?: string,
+  ): Promise<{ basePrice: number; modifier: number; finalPrice: number }> {
+    return this.serviceService.calculateServicePrice(id, petSize);
   }
 }

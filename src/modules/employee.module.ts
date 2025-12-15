@@ -6,6 +6,10 @@ import { EmployeeFactory } from '../factories/employee.factory';
 import { AccountFactory } from '../factories/account.factory';
 import { Account } from '../entities/account.entity';
 import { Employee } from '../entities/employee.entity';
+import { Manager } from '../entities/manager.entity';
+import { Receptionist } from '../entities/receptionist.entity';
+import { CareStaff } from '../entities/care-staff.entity';
+import { Veterinarian } from '../entities/veterinarian.entity';
 
 /**
  * EmployeeModule
@@ -17,9 +21,18 @@ import { Employee } from '../entities/employee.entity';
  * - Role-based queries
  */
 @Module({
-    imports: [TypeOrmModule.forFeature([Account, Employee])],
-    controllers: [EmployeeController],
-    providers: [EmployeeService, EmployeeFactory, AccountFactory],
-    exports: [EmployeeService, EmployeeFactory],
+  imports: [
+    TypeOrmModule.forFeature([
+      Account,
+      Employee,
+      Manager,
+      Receptionist,
+      CareStaff,
+      Veterinarian,
+    ]),
+  ],
+  controllers: [EmployeeController],
+  providers: [EmployeeService, EmployeeFactory, AccountFactory],
+  exports: [EmployeeService, EmployeeFactory],
 })
-export class EmployeeModule { }
+export class EmployeeModule {}

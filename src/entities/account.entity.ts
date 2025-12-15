@@ -8,7 +8,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { PetOwner } from './pet-owner.entity';
-import { Employee } from './employee.entity';
+import type { Employee } from './employee.entity';
 import { AuditLog } from './audit-log.entity';
 import { UserType } from './types/entity.types';
 
@@ -66,7 +66,7 @@ export class Account {
    * One-to-One relationship with Employee
    * If userType is MANAGER, VETERINARIAN, CARE_STAFF, or RECEPTIONIST, this will be populated
    */
-  @OneToOne(() => Employee, (employee) => employee.account)
+  @OneToOne('Employee', 'account')
   employee?: Employee;
 
   /**

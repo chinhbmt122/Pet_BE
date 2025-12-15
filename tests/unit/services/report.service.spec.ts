@@ -2,7 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ReportService } from '../../../src/services/report.service';
 import { Appointment } from '../../../src/entities/appointment.entity';
-import { Invoice } from '../entities/invoice.entity';
+import { Invoice } from '../../../src/entities/invoice.entity';
+import { Service } from '../../../src/entities/service.entity';
 import { Repository } from 'typeorm';
 
 describe('ReportService', () => {
@@ -27,6 +28,14 @@ describe('ReportService', () => {
           useValue: {
             find: jest.fn(),
             sum: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Service),
+          useValue: {
+            find: jest.fn(),
+            count: jest.fn(),
             createQueryBuilder: jest.fn(),
           },
         },

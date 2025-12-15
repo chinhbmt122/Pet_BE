@@ -11,7 +11,7 @@ import {
   Index,
   Check,
 } from 'typeorm';
-import { Pet } from './pet.entity';
+import type { Pet } from './pet.entity';
 import { Employee } from './employee.entity';
 import { Service } from './service.entity';
 import { Invoice } from './invoice.entity';
@@ -37,7 +37,7 @@ export class Appointment {
   @Column()
   petId: number;
 
-  @ManyToOne(() => Pet, { onDelete: 'RESTRICT' })
+  @ManyToOne('Pet', { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'petId' })
   pet: Pet;
 

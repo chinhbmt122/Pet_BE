@@ -13,6 +13,7 @@ import { ServiceModule } from './modules/service.module';
 import { PaymentModule } from './modules/payment.module';
 import { MedicalRecordModule } from './modules/medical-record.module';
 import { ReportModule } from './modules/report.module';
+import { ServiceCategoryModule } from './modules/service-category.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './middleware/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from './middleware/filters/global.filter';
@@ -37,6 +38,7 @@ import { RequestLoggerMiddleware } from './middleware/interceptors/requestLog.in
     PetModule,
     ScheduleModule,
     ServiceModule,
+    ServiceCategoryModule,
     PaymentModule,
     MedicalRecordModule,
     ReportModule,

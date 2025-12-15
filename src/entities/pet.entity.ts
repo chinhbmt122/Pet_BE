@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
 } from 'typeorm';
-import { PetOwner } from './pet-owner.entity';
+import type { PetOwner } from './pet-owner.entity';
 import { Appointment } from './appointment.entity';
 import { MedicalRecord } from './medical-record.entity';
 import { VaccinationHistory } from './vaccination-history.entity';
@@ -28,7 +28,7 @@ export class Pet {
   @Column()
   ownerId: number;
 
-  @ManyToOne(() => PetOwner, { onDelete: 'CASCADE' })
+  @ManyToOne('PetOwner', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'ownerId' })
   owner: PetOwner;
 

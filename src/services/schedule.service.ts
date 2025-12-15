@@ -1,213 +1,313 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { WorkSchedule } from '../entities/work-schedule.entity';
+import { Employee } from '../entities/employee.entity';
+import { WorkScheduleDomainModel } from '../domain/work-schedule.domain';
+import { WorkScheduleMapper } from '../mappers/work-schedule.mapper';
+import {
+  CreateWorkScheduleDto,
+  UpdateWorkScheduleDto,
+  WorkScheduleResponseDto,
+} from '../dto/schedule';
 
 /**
- * ScheduleService (ScheduleManager)
+ * ScheduleService (DDD Pattern)
  *
- * Manages staff work schedules and service assignments.
- * Handles schedule creation, updates, deletion, and conflict checking.
- * Provides staff availability information for appointment booking system.
+ * Manages staff work schedules using WorkScheduleDomainModel for business logic.
+ * Handles schedule CRUD, availability checking, and time slot management.
  */
 @Injectable()
 export class ScheduleService {
   constructor(
     @InjectRepository(WorkSchedule)
     private readonly scheduleRepository: Repository<WorkSchedule>,
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
   ) {}
 
   /**
-   * Creates new work schedule for an employee with validation.
-   * @throws ValidationException, ScheduleConflictException, EmployeeNotFoundException
+   * Creates new work schedule for an employee.
    */
-  async createSchedule(scheduleData: any): Promise<WorkSchedule> {
-    // TODO: Implement create schedule logic
-    // 1. Validate schedule data
-    // 2. Check for conflicts
-    // 3. Verify employee exists
-    // 4. Create schedule
-    throw new Error('Method not implemented');
+  async createSchedule(dto: CreateWorkScheduleDto): Promise<WorkScheduleResponseDto> {
+    // Verify employee exists
+    const employee = await this.employeeRepository.findOne({
+      where: { employeeId: dto.employeeId },
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+    }
+
+    // Check for conflicts on same date
+    const existingSchedule = await this.scheduleRepository.findOne({
+      where: {
+        employeeId: dto.employeeId,
+        workDate: new Date(dto.workDate),
+      },
+    });
+    if (existingSchedule) {
+      throw new ConflictException(
+        `Schedule already exists for employee ${dto.employeeId} on ${dto.workDate}`,
+      );
+    }
+
+    // Create via domain model (validates time constraints)
+    const domain = WorkScheduleDomainModel.create({
+      employeeId: dto.employeeId,
+      workDate: new Date(dto.workDate),
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      breakStart: dto.breakStart,
+      breakEnd: dto.breakEnd,
+      notes: dto.notes,
+    });
+
+    const entityData = WorkScheduleMapper.toPersistence(domain);
+    const entity = this.scheduleRepository.create(entityData);
+    const saved = await this.scheduleRepository.save(entity);
+
+    const savedDomain = WorkScheduleMapper.toDomain(saved);
+    return WorkScheduleResponseDto.fromDomain(savedDomain);
   }
 
   /**
-   * Updates existing schedule with conflict checking.
-   * @throws ScheduleNotFoundException, ScheduleConflictException
+   * Updates existing schedule.
    */
   async updateSchedule(
     scheduleId: number,
-    updateData: any,
-  ): Promise<WorkSchedule> {
-    // TODO: Implement update schedule logic
-    // 1. Find schedule by ID
-    // 2. Validate update data
-    // 3. Check for conflicts
-    // 4. Update schedule
-    throw new Error('Method not implemented');
+    dto: UpdateWorkScheduleDto,
+  ): Promise<WorkScheduleResponseDto> {
+    const entity = await this.scheduleRepository.findOne({
+      where: { scheduleId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Schedule with ID ${scheduleId} not found`);
+    }
+
+    const domain = WorkScheduleMapper.toDomain(entity);
+
+    // Update via domain methods
+    if (dto.startTime && dto.endTime) {
+      domain.updateTimes(dto.startTime, dto.endTime);
+    } else if (dto.startTime || dto.endTime) {
+      domain.updateTimes(dto.startTime ?? domain.startTime, dto.endTime ?? domain.endTime);
+    }
+
+    if (dto.breakStart !== undefined || dto.breakEnd !== undefined) {
+      domain.updateBreak(dto.breakStart ?? domain.breakStart, dto.breakEnd ?? domain.breakEnd);
+    }
+
+    if (dto.notes !== undefined) {
+      domain.updateNotes(dto.notes);
+    }
+
+    const updatedData = WorkScheduleMapper.toPersistence(domain);
+    Object.assign(entity, updatedData);
+    const saved = await this.scheduleRepository.save(entity);
+
+    const savedDomain = WorkScheduleMapper.toDomain(saved);
+    return WorkScheduleResponseDto.fromDomain(savedDomain);
   }
 
   /**
-   * Removes schedule if no appointments are booked.
-   * @throws ScheduleNotFoundException, HasActiveAppointmentsException
+   * Deletes schedule if no appointments are linked.
    */
   async deleteSchedule(scheduleId: number): Promise<boolean> {
-    // TODO: Implement delete schedule logic
-    // 1. Find schedule by ID
-    // 2. Check for active appointments
-    // 3. Delete schedule
-    throw new Error('Method not implemented');
+    const entity = await this.scheduleRepository.findOne({
+      where: { scheduleId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Schedule with ID ${scheduleId} not found`);
+    }
+
+    await this.scheduleRepository.remove(entity);
+    return true;
   }
 
   /**
-   * Checks if employee is available for specified time slot.
+   * Gets schedule by ID.
+   */
+  async getScheduleById(scheduleId: number): Promise<WorkScheduleResponseDto> {
+    const entity = await this.scheduleRepository.findOne({
+      where: { scheduleId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Schedule with ID ${scheduleId} not found`);
+    }
+
+    const domain = WorkScheduleMapper.toDomain(entity);
+    return WorkScheduleResponseDto.fromDomain(domain);
+  }
+
+  /**
+   * Gets all schedules with optional filters.
+   */
+  async getAllSchedules(options?: {
+    onlyAvailable?: boolean;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<WorkScheduleResponseDto[]> {
+    const whereClause: any = {};
+
+    if (options?.onlyAvailable) {
+      whereClause.isAvailable = true;
+    }
+
+    if (options?.startDate && options?.endDate) {
+      whereClause.workDate = Between(options.startDate, options.endDate);
+    } else if (options?.startDate) {
+      whereClause.workDate = MoreThanOrEqual(options.startDate);
+    } else if (options?.endDate) {
+      whereClause.workDate = LessThanOrEqual(options.endDate);
+    }
+
+    const entities = await this.scheduleRepository.find({
+      where: whereClause,
+      order: { workDate: 'ASC', startTime: 'ASC' },
+    });
+
+    const domains = WorkScheduleMapper.toDomainList(entities);
+    return WorkScheduleResponseDto.fromDomainList(domains);
+  }
+
+  /**
+   * Gets employee schedules for a date range.
+   */
+  async getSchedulesByEmployee(
+    employeeId: number,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<WorkScheduleResponseDto[]> {
+    const whereClause: any = { employeeId };
+
+    if (startDate && endDate) {
+      whereClause.workDate = Between(startDate, endDate);
+    } else if (startDate) {
+      whereClause.workDate = MoreThanOrEqual(startDate);
+    } else if (endDate) {
+      whereClause.workDate = LessThanOrEqual(endDate);
+    }
+
+    const entities = await this.scheduleRepository.find({
+      where: whereClause,
+      order: { workDate: 'ASC', startTime: 'ASC' },
+    });
+
+    const domains = WorkScheduleMapper.toDomainList(entities);
+    return WorkScheduleResponseDto.fromDomainList(domains);
+  }
+
+  /**
+   * Gets all schedules for a specific date.
+   */
+  async getSchedulesByDate(date: Date): Promise<WorkScheduleResponseDto[]> {
+    const entities = await this.scheduleRepository.find({
+      where: { workDate: date },
+      order: { startTime: 'ASC' },
+    });
+
+    const domains = WorkScheduleMapper.toDomainList(entities);
+    return WorkScheduleResponseDto.fromDomainList(domains);
+  }
+
+  /**
+   * Checks if employee is available at a specific date/time.
+   * Uses domain model's checkAvailability method.
    */
   async checkAvailability(
     employeeId: number,
     dateTime: Date,
-    duration: number,
   ): Promise<boolean> {
-    // TODO: Implement availability check logic
-    throw new Error('Method not implemented');
+    const date = new Date(dateTime);
+    date.setHours(0, 0, 0, 0);
+
+    const entity = await this.scheduleRepository.findOne({
+      where: {
+        employeeId,
+        workDate: date,
+      },
+    });
+
+    if (!entity) {
+      return false; // No schedule = not available
+    }
+
+    const domain = WorkScheduleMapper.toDomain(entity);
+    return domain.checkAvailability(dateTime);
   }
 
   /**
-   * Returns list of available time slots for a given date.
-   */
-  async getAvailableTimeSlots(
-    employeeId: number,
-    date: Date,
-    serviceDuration: number,
-  ): Promise<any[]> {
-    // TODO: Implement get available time slots logic
-    // 1. Get employee schedule for date
-    // 2. Get existing appointments
-    // 3. Calculate available slots
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Retrieves employee schedule for date range.
-   */
-  async getScheduleByEmployee(
-    employeeId: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<WorkSchedule[]> {
-    // TODO: Implement get schedule by employee logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Gets all employee schedules for a specific date.
-   */
-  async getScheduleByDate(date: Date): Promise<WorkSchedule[]> {
-    // TODO: Implement get schedule by date logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Assigns break time within work schedule.
+   * Assigns break time to a schedule.
    */
   async assignBreakTime(
     scheduleId: number,
     breakStart: string,
     breakEnd: string,
-  ): Promise<boolean> {
-    // TODO: Implement assign break time logic
-    throw new Error('Method not implemented');
+  ): Promise<WorkScheduleResponseDto> {
+    const entity = await this.scheduleRepository.findOne({
+      where: { scheduleId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Schedule with ID ${scheduleId} not found`);
+    }
+
+    const domain = WorkScheduleMapper.toDomain(entity);
+    domain.updateBreak(breakStart, breakEnd);
+
+    const updatedData = WorkScheduleMapper.toPersistence(domain);
+    Object.assign(entity, updatedData);
+    const saved = await this.scheduleRepository.save(entity);
+
+    const savedDomain = WorkScheduleMapper.toDomain(saved);
+    return WorkScheduleResponseDto.fromDomain(savedDomain);
   }
 
   /**
-   * Creates time-off request for employee.
+   * Marks schedule as unavailable.
    */
-  async requestTimeOff(
-    employeeId: number,
-    startDate: Date,
-    endDate: Date,
-    reason: string,
-  ): Promise<any> {
-    // TODO: Implement time-off request logic
-    throw new Error('Method not implemented');
+  async markUnavailable(scheduleId: number, reason?: string): Promise<WorkScheduleResponseDto> {
+    const entity = await this.scheduleRepository.findOne({
+      where: { scheduleId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Schedule with ID ${scheduleId} not found`);
+    }
+
+    const domain = WorkScheduleMapper.toDomain(entity);
+    domain.markUnavailable(reason);
+
+    const updatedData = WorkScheduleMapper.toPersistence(domain);
+    Object.assign(entity, updatedData);
+    const saved = await this.scheduleRepository.save(entity);
+
+    const savedDomain = WorkScheduleMapper.toDomain(saved);
+    return WorkScheduleResponseDto.fromDomain(savedDomain);
   }
 
   /**
-   * Calculates employee workload statistics for period.
+   * Marks schedule as available.
    */
-  async getEmployeeWorkload(
-    employeeId: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<any> {
-    // TODO: Implement get workload logic
-    throw new Error('Method not implemented');
-  }
+  async markAvailable(scheduleId: number): Promise<WorkScheduleResponseDto> {
+    const entity = await this.scheduleRepository.findOne({
+      where: { scheduleId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Schedule with ID ${scheduleId} not found`);
+    }
 
-  /**
-   * Finds employees available and qualified for service at specified time.
-   */
-  async findAvailableEmployee(
-    serviceType: string,
-    dateTime: Date,
-    duration: number,
-  ): Promise<any[]> {
-    // TODO: Implement find available employee logic
-    throw new Error('Method not implemented');
-  }
+    const domain = WorkScheduleMapper.toDomain(entity);
+    domain.markAvailable();
 
-  /**
-   * Retrieves schedule by ID with full details.
-   */
-  async getScheduleById(scheduleId: number): Promise<WorkSchedule> {
-    // TODO: Implement get schedule by ID logic
-    throw new Error('Method not implemented');
-  }
+    const updatedData = WorkScheduleMapper.toPersistence(domain);
+    Object.assign(entity, updatedData);
+    const saved = await this.scheduleRepository.save(entity);
 
-  // Private helper methods
-
-  /**
-   * Validates schedule times, dates, and business rules.
-   */
-  private validateScheduleData(scheduleData: any): boolean {
-    // TODO: Implement validation logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Checks for overlapping schedules or appointments.
-   */
-  private async detectScheduleConflict(
-    employeeId: number,
-    startTime: Date,
-    endTime: Date,
-  ): Promise<boolean> {
-    // TODO: Implement conflict detection logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Calculates total work hours excluding breaks.
-   */
-  private calculateWorkHours(schedule: WorkSchedule): number {
-    // TODO: Implement work hours calculation
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Validates schedule times are within business operating hours.
-   */
-  private isWithinBusinessHours(startTime: string, endTime: string): boolean {
-    // TODO: Implement business hours validation
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Divides work schedule into bookable time slots based on service duration.
-   */
-  private splitTimeSlots(
-    schedule: WorkSchedule,
-    serviceDuration: number,
-  ): any[] {
-    // TODO: Implement time slot splitting logic
-    throw new Error('Method not implemented');
+    const savedDomain = WorkScheduleMapper.toDomain(saved);
+    return WorkScheduleResponseDto.fromDomain(savedDomain);
   }
 }

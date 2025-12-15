@@ -3,12 +3,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { PaymentService } from '../../../src/services/payment.service';
 import { Invoice } from '../../../src/entities/invoice.entity';
 import { Payment } from '../../../src/entities/payment.entity';
+import { PaymentGatewayArchive } from '../../../src/entities/payment-gateway-archive.entity';
 import { Repository } from 'typeorm';
 
 describe('PaymentService', () => {
   let service: PaymentService;
   let invoiceRepository: Repository<Invoice>;
   let paymentRepository: Repository<Payment>;
+  let paymentGatewayArchiveRepository: Repository<PaymentGatewayArchive>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,6 +34,15 @@ describe('PaymentService', () => {
             create: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(PaymentGatewayArchive),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -42,6 +53,9 @@ describe('PaymentService', () => {
     paymentRepository = module.get<Repository<Payment>>(
       getRepositoryToken(Payment),
     );
+    paymentGatewayArchiveRepository = module.get<
+      Repository<PaymentGatewayArchive>
+    >(getRepositoryToken(PaymentGatewayArchive));
   });
 
   it('should be defined', () => {

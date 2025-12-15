@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ScheduleService } from '../../../src/services/schedule.service';
 import { WorkSchedule } from '../../../src/entities/work-schedule.entity';
+import { Employee } from '../../../src/entities/employee.entity';
 import { Repository } from 'typeorm';
 
 describe('ScheduleService', () => {
@@ -14,6 +15,16 @@ describe('ScheduleService', () => {
         ScheduleService,
         {
           provide: getRepositoryToken(WorkSchedule),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+            delete: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Employee),
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),

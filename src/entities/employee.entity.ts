@@ -8,10 +8,10 @@ import {
   CreateDateColumn,
   TableInheritance,
 } from 'typeorm';
-import { Account } from './account.entity';
-import { Appointment } from './appointment.entity';
-import { WorkSchedule } from './work-schedule.entity';
-import { Payment } from './payment.entity';
+import type { Account } from './account.entity';
+import type { Appointment } from './appointment.entity';
+import type { WorkSchedule } from './work-schedule.entity';
+import type { Payment } from './payment.entity';
 
 /**
  * Employee Base Entity (Abstract, Pure Persistence)
@@ -68,20 +68,20 @@ export abstract class Employee {
    * One-to-Many relationship with Appointment
    * An employee can handle multiple appointments
    */
-  @OneToMany(() => Appointment, (appointment) => appointment.employee)
+  @OneToMany('Appointment', 'employee')
   appointments?: Appointment[];
 
   /**
    * One-to-Many relationship with WorkSchedule
    * An employee can have multiple work schedules
    */
-  @OneToMany(() => WorkSchedule, (schedule) => schedule.employee)
+  @OneToMany('WorkSchedule', 'employee')
   workSchedules?: WorkSchedule[];
 
   /**
    * One-to-Many relationship with Payment
    * An employee can receive multiple payments
    */
-  @OneToMany(() => Payment, (payment) => payment.receiver)
+  @OneToMany('Payment', 'receiver')
   paymentsReceived?: Payment[];
 }

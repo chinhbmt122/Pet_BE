@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServiceController } from '../controllers/service.controller';
 import { ServiceService } from '../services/service.service';
 import { Service } from '../entities/service.entity';
+import { ServiceCategory } from '../entities/service-category.entity';
 
 /**
  * ServiceModule
@@ -12,7 +13,7 @@ import { Service } from '../entities/service.entity';
  * Updates service pricing and duration.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Service])],
+  imports: [TypeOrmModule.forFeature([Service, ServiceCategory])],
   controllers: [ServiceController],
   providers: [ServiceService],
   exports: [ServiceService],

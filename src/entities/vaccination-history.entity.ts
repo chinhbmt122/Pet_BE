@@ -7,7 +7,7 @@ import {
   CreateDateColumn,
   Index,
 } from 'typeorm';
-import { Pet } from './pet.entity';
+import type { Pet } from './pet.entity';
 import { VaccineType } from './vaccine-type.entity';
 import { MedicalRecord } from './medical-record.entity';
 import { Veterinarian } from './veterinarian.entity';
@@ -30,7 +30,7 @@ export class VaccinationHistory {
   @Column()
   petId: number;
 
-  @ManyToOne(() => Pet, { onDelete: 'CASCADE' })
+  @ManyToOne('Pet', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'petId' })
   pet: Pet;
 
