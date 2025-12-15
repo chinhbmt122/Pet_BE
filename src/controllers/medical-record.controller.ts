@@ -6,144 +6,175 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { MedicalRecordService } from '../services/medical-record.service';
+import {
+  CreateMedicalRecordDto,
+  UpdateMedicalRecordDto,
+  MedicalRecordResponseDto,
+} from '../dto/medical-record';
+import { CreateVaccinationDto, VaccinationResponseDto } from '../dto/vaccination';
 
 /**
  * MedicalRecordController
  *
  * Handles medical record and vaccination endpoints.
- * Routes: GET /api/medical-records, POST /api/medical-records, GET /api/vaccinations
+ * Routes: /api/medical-records, /api/pets/:petId/vaccinations
  */
 @ApiTags('Medical Record')
 @Controller('api')
 export class MedicalRecordController {
   constructor(private readonly medicalRecordService: MedicalRecordService) {}
 
+  // ============================================
+  // MEDICAL RECORDS
+  // ============================================
+
   /**
    * POST /api/medical-records
    * Creates new medical record for pet with diagnosis and treatment.
-   * @throws PetNotFoundException, ValidationException, AppointmentNotFoundException
    */
   @Post('medical-records')
   @ApiOperation({ summary: 'Create medical record' })
-  @ApiResponse({ status: 201, description: 'Medical record created' })
-  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 201, description: 'Medical record created', type: MedicalRecordResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid veterinarian' })
   @ApiResponse({ status: 404, description: 'Pet not found' })
-  async createMedicalRecord(@Body() recordDto: any) {
-    // TODO: Implement create medical record logic
-    throw new Error('Method not implemented');
+  async createMedicalRecord(
+    @Body() dto: CreateMedicalRecordDto,
+  ): Promise<MedicalRecordResponseDto> {
+    return this.medicalRecordService.createMedicalRecord(dto);
   }
 
   /**
    * GET /api/medical-records/:id
    * Retrieves complete medical record by ID.
-   * @throws MedicalRecordNotFoundException
    */
   @Get('medical-records/:id')
   @ApiOperation({ summary: 'Get medical record by ID' })
-  @ApiResponse({ status: 200, description: 'Medical record retrieved' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Medical record retrieved', type: MedicalRecordResponseDto })
   @ApiResponse({ status: 404, description: 'Medical record not found' })
-  async getMedicalRecordById(@Param('id') id: number) {
-    // TODO: Implement get medical record logic
-    throw new Error('Method not implemented');
+  async getMedicalRecordById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<MedicalRecordResponseDto> {
+    return this.medicalRecordService.getMedicalRecordById(id);
   }
 
   /**
    * GET /api/medical-records/pet/:petId
-   * Retrieves complete medical history for a pet in chronological order.
+   * Retrieves complete medical history for a pet.
    */
   @Get('medical-records/pet/:petId')
   @ApiOperation({ summary: 'Get medical history by pet' })
-  @ApiResponse({ status: 200, description: 'Medical history retrieved' })
-  @ApiResponse({ status: 404, description: 'Pet not found' })
-  async getMedicalHistoryByPet(@Param('petId') petId: number) {
-    // TODO: Implement get medical history logic
-    throw new Error('Method not implemented');
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiResponse({ status: 200, description: 'Medical history retrieved', type: [MedicalRecordResponseDto] })
+  async getMedicalHistoryByPet(
+    @Param('petId', ParseIntPipe) petId: number,
+  ): Promise<MedicalRecordResponseDto[]> {
+    return this.medicalRecordService.getMedicalHistoryByPet(petId);
   }
 
   /**
    * PUT /api/medical-records/:id
-   * Updates existing medical record with new information.
-   * @throws MedicalRecordNotFoundException, ValidationException
+   * Updates existing medical record.
    */
   @Put('medical-records/:id')
   @ApiOperation({ summary: 'Update medical record' })
-  @ApiResponse({ status: 200, description: 'Medical record updated' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Medical record updated', type: MedicalRecordResponseDto })
   @ApiResponse({ status: 404, description: 'Medical record not found' })
-  async updateMedicalRecord(@Param('id') id: number, @Body() updateDto: any) {
-    // TODO: Implement update medical record logic
-    throw new Error('Method not implemented');
+  async updateMedicalRecord(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMedicalRecordDto,
+  ): Promise<MedicalRecordResponseDto> {
+    return this.medicalRecordService.updateMedicalRecord(id, dto);
   }
 
   /**
-   * POST /api/vaccinations
-   * Records vaccination with vaccine type, date, and next due date.
-   * @throws PetNotFoundException, ValidationException
+   * GET /api/medical-records/pet/:petId/overdue-followups
+   * Gets records with overdue follow-ups.
    */
-  @Post('vaccinations')
+  @Get('medical-records/pet/:petId/overdue-followups')
+  @ApiOperation({ summary: 'Get overdue follow-ups' })
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiResponse({ status: 200, description: 'Overdue follow-ups retrieved', type: [MedicalRecordResponseDto] })
+  async getOverdueFollowUps(
+    @Param('petId', ParseIntPipe) petId: number,
+  ): Promise<MedicalRecordResponseDto[]> {
+    return this.medicalRecordService.getOverdueFollowUps(petId);
+  }
+
+  // ============================================
+  // VACCINATIONS
+  // ============================================
+
+  /**
+   * POST /api/pets/:petId/vaccinations
+   * Records vaccination with auto-calculated next due date.
+   */
+  @Post('pets/:petId/vaccinations')
   @ApiOperation({ summary: 'Add vaccination' })
-  @ApiResponse({ status: 201, description: 'Vaccination recorded' })
-  @ApiResponse({ status: 400, description: 'Validation failed' })
-  @ApiResponse({ status: 404, description: 'Pet not found' })
-  async addVaccination(@Body() vaccinationDto: any) {
-    // TODO: Implement add vaccination logic
-    throw new Error('Method not implemented');
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiResponse({ status: 201, description: 'Vaccination recorded', type: VaccinationResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid veterinarian' })
+  @ApiResponse({ status: 404, description: 'Pet or vaccine type not found' })
+  async addVaccination(
+    @Param('petId', ParseIntPipe) petId: number,
+    @Body() dto: CreateVaccinationDto,
+  ): Promise<VaccinationResponseDto> {
+    return this.medicalRecordService.addVaccination(petId, dto);
   }
 
   /**
-   * GET /api/vaccinations/pet/:petId
+   * GET /api/pets/:petId/vaccinations
    * Retrieves all vaccinations for a pet.
    */
-  @Get('vaccinations/pet/:petId')
+  @Get('pets/:petId/vaccinations')
   @ApiOperation({ summary: 'Get vaccination history' })
-  @ApiResponse({ status: 200, description: 'Vaccinations retrieved' })
-  @ApiResponse({ status: 404, description: 'Pet not found' })
-  async getVaccinationHistory(@Param('petId') petId: number) {
-    // TODO: Implement get vaccination history logic
-    throw new Error('Method not implemented');
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiResponse({ status: 200, description: 'Vaccinations retrieved', type: [VaccinationResponseDto] })
+  async getVaccinationHistory(
+    @Param('petId', ParseIntPipe) petId: number,
+  ): Promise<VaccinationResponseDto[]> {
+    return this.medicalRecordService.getVaccinationHistory(petId);
   }
 
   /**
-   * GET /api/vaccinations/upcoming/:petId
+   * GET /api/pets/:petId/vaccinations/upcoming
    * Gets vaccinations due within specified days.
    */
-  @Get('vaccinations/upcoming/:petId')
+  @Get('pets/:petId/vaccinations/upcoming')
   @ApiOperation({ summary: 'Get upcoming vaccinations' })
-  @ApiResponse({ status: 200, description: 'Upcoming vaccinations retrieved' })
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Days ahead to check (default: 30)' })
+  @ApiResponse({ status: 200, description: 'Upcoming vaccinations retrieved', type: [VaccinationResponseDto] })
   async getUpcomingVaccinations(
-    @Param('petId') petId: number,
-    @Query() query: any,
-  ) {
-    // TODO: Implement get upcoming vaccinations logic
-    throw new Error('Method not implemented');
+    @Param('petId', ParseIntPipe) petId: number,
+    @Query('days', new DefaultValuePipe(30), ParseIntPipe) daysAhead: number,
+  ): Promise<VaccinationResponseDto[]> {
+    return this.medicalRecordService.getUpcomingVaccinations(petId, daysAhead);
   }
 
   /**
-   * POST /api/medical-records/:id/prescription
-   * Adds prescription to medical record with medication details and dosage.
-   * @throws MedicalRecordNotFoundException, ValidationException
+   * GET /api/pets/:petId/vaccinations/overdue
+   * Gets overdue vaccinations for a pet.
    */
-  @Post('medical-records/:id/prescription')
-  @ApiOperation({ summary: 'Add prescription' })
-  @ApiResponse({ status: 201, description: 'Prescription added' })
-  @ApiResponse({ status: 404, description: 'Medical record not found' })
-  async addPrescription(@Param('id') id: number, @Body() prescriptionDto: any) {
-    // TODO: Implement add prescription logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * GET /api/medical-records/search
-   * Searches records by diagnosis, treatment, date range, or pet.
-   */
-  @Get('medical-records/search')
-  @ApiOperation({ summary: 'Search medical records' })
-  @ApiResponse({ status: 200, description: 'Medical records found' })
-  async searchMedicalRecords(@Query() query: any) {
-    // TODO: Implement search medical records logic
-    throw new Error('Method not implemented');
+  @Get('pets/:petId/vaccinations/overdue')
+  @ApiOperation({ summary: 'Get overdue vaccinations' })
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiResponse({ status: 200, description: 'Overdue vaccinations retrieved', type: [VaccinationResponseDto] })
+  async getOverdueVaccinations(
+    @Param('petId', ParseIntPipe) petId: number,
+  ): Promise<VaccinationResponseDto[]> {
+    return this.medicalRecordService.getOverdueVaccinations(petId);
   }
 }

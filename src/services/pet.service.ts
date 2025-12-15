@@ -1,73 +1,137 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like, IsNull, Not } from 'typeorm';
 import { Pet } from '../entities/pet.entity';
+import { PetOwner } from '../entities/pet-owner.entity';
+import { PetDomainModel } from '../domain/pet.domain';
+import { PetMapper } from '../mappers/pet.mapper';
+import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
 
 /**
  * PetService (PetManager)
  *
- * Manages pet records including create, read, update, and delete (CRUD) operations.
- * Handles pet information including name, species, breed, age, weight, and health condition.
- * Supports multiple pets per owner account and maintains pet-owner relationships.
+ * Manages pet records using DDD pattern.
+ * Uses PetDomainModel for business logic and PetMapper for entity conversion.
  */
 @Injectable()
 export class PetService {
   constructor(
     @InjectRepository(Pet)
     private readonly petRepository: Repository<Pet>,
+    @InjectRepository(PetOwner)
+    private readonly petOwnerRepository: Repository<PetOwner>,
   ) {}
 
   /**
    * Registers new pet with owner association and validation.
-   * @throws ValidationException, OwnerNotFoundException
    */
-  async registerPet(petData: any, ownerId: number): Promise<Pet> {
-    // TODO: Implement register pet logic
+  async registerPet(dto: CreatePetDto, ownerId: number): Promise<PetResponseDto> {
     // 1. Verify owner exists
-    // 2. Validate pet data
-    // 3. Create pet entity
-    // 4. Link to owner
-    throw new Error('Method not implemented');
+    const owner = await this.petOwnerRepository.findOne({
+      where: { petOwnerId: ownerId },
+    });
+    if (!owner) {
+      throw new NotFoundException(`Owner with ID ${ownerId} not found`);
+    }
+
+    // 2. Create domain model
+    const domain = PetDomainModel.create({
+      ownerId,
+      name: dto.name,
+      species: dto.species,
+      breed: dto.breed,
+      birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
+      gender: dto.gender,
+      weight: dto.weight,
+      color: dto.color,
+      initialHealthStatus: dto.initialHealthStatus,
+      specialNotes: dto.specialNotes,
+    });
+
+    // 3. Convert to entity and save
+    const entityData = PetMapper.toPersistence(domain);
+    const entity = this.petRepository.create(entityData);
+    const saved = await this.petRepository.save(entity);
+
+    // 4. Return response DTO
+    const savedDomain = PetMapper.toDomain(saved);
+    return PetResponseDto.fromDomain(savedDomain);
   }
 
   /**
-   * Updates pet information (name, breed, age, weight, health conditions).
-   * @throws PetNotFoundException, ValidationException
+   * Updates pet information using domain model.
    */
-  async updatePetInfo(petId: number, updateData: any): Promise<Pet> {
-    // TODO: Implement update pet logic
-    // 1. Find pet by ID
-    // 2. Validate update data
-    // 3. Update pet fields
-    // 4. Save changes
-    throw new Error('Method not implemented');
+  async updatePetInfo(petId: number, dto: UpdatePetDto): Promise<PetResponseDto> {
+    // 1. Find entity
+    const entity = await this.petRepository.findOne({
+      where: { petId },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // 2. Convert to domain
+    const domain = PetMapper.toDomain(entity);
+
+    // 3. Update via domain model
+    domain.updateProfile({
+      name: dto.name,
+      species: dto.species,
+      breed: dto.breed,
+      birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
+      gender: dto.gender,
+      weight: dto.weight,
+      color: dto.color,
+      specialNotes: dto.specialNotes,
+    });
+
+    // 4. Convert back and save
+    const updatedData = PetMapper.toPersistence(domain);
+    Object.assign(entity, updatedData);
+    const saved = await this.petRepository.save(entity);
+
+    // 5. Return response
+    const savedDomain = PetMapper.toDomain(saved);
+    return PetResponseDto.fromDomain(savedDomain);
   }
 
   /**
    * Retrieves complete pet profile by ID.
-   * @throws PetNotFoundException
    */
-  async getPetById(petId: number): Promise<Pet> {
-    // TODO: Implement get pet logic
-    // 1. Find pet with owner relation
-    throw new Error('Method not implemented');
+  async getPetById(petId: number): Promise<PetResponseDto> {
+    const entity = await this.petRepository.findOne({
+      where: { petId },
+      relations: ['owner'],
+    });
+    if (!entity) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    const domain = PetMapper.toDomain(entity);
+    return PetResponseDto.fromDomain(domain);
   }
 
   /**
    * Retrieves all pets belonging to a specific owner.
    */
-  async getPetsByOwner(ownerId: number): Promise<Pet[]> {
-    // TODO: Implement get pets by owner logic
-    throw new Error('Method not implemented');
+  async getPetsByOwner(ownerId: number): Promise<PetResponseDto[]> {
+    const entities = await this.petRepository.find({
+      where: { ownerId },
+      order: { createdAt: 'DESC' },
+    });
+
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
   }
 
   /**
    * Soft deletes pet record using TypeORM soft delete.
-   * Sets deletedAt timestamp, record remains in database but excluded from normal queries.
-   * @throws NotFoundException if pet not found
    */
   async deletePet(petId: number): Promise<boolean> {
-    // 1. Find pet to ensure it exists
     const pet = await this.petRepository.findOne({
       where: { petId },
     });
@@ -76,137 +140,127 @@ export class PetService {
       throw new NotFoundException(`Pet with ID ${petId} not found`);
     }
 
-    // 2. Soft delete (sets deletedAt timestamp)
     await this.petRepository.softDelete(petId);
     return true;
   }
 
   /**
    * Restores a soft-deleted pet record.
-   * Clears deletedAt timestamp.
-   * @throws NotFoundException if pet not found or not deleted
    */
-  async restore(petId: number): Promise<void> {
+  async restore(petId: number): Promise<PetResponseDto> {
     const result = await this.petRepository.restore(petId);
     if (result.affected === 0) {
       throw new NotFoundException(
         `Pet with ID ${petId} not found or not deleted`,
       );
     }
+
+    const entity = await this.petRepository.findOne({ where: { petId } });
+    const domain = PetMapper.toDomain(entity!);
+    return PetResponseDto.fromDomain(domain);
   }
 
   /**
    * Finds a pet including soft-deleted records.
-   * Used for admin/restore operations.
    */
-  async findWithDeleted(petId: number): Promise<Pet | null> {
-    return this.petRepository.findOne({
+  async findWithDeleted(petId: number): Promise<PetResponseDto | null> {
+    const entity = await this.petRepository.findOne({
       where: { petId },
       withDeleted: true,
     });
+    if (!entity) return null;
+
+    const domain = PetMapper.toDomain(entity);
+    return PetResponseDto.fromDomain(domain);
   }
 
   /**
    * Gets all soft-deleted pets for a specific owner.
-   * Used for "trash" or recovery UI.
    */
-  async getDeletedPetsByOwner(ownerId: number): Promise<Pet[]> {
-    return this.petRepository
+  async getDeletedPetsByOwner(ownerId: number): Promise<PetResponseDto[]> {
+    const entities = await this.petRepository
       .createQueryBuilder('pet')
       .withDeleted()
       .where('pet.ownerId = :ownerId', { ownerId })
       .andWhere('pet.deletedAt IS NOT NULL')
       .getMany();
+
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
   }
 
   /**
    * Searches pets by name, breed, species, or owner.
    */
-  async searchPets(searchCriteria: any): Promise<Pet[]> {
-    // TODO: Implement search pets logic
-    throw new Error('Method not implemented');
-  }
+  async searchPets(searchCriteria: {
+    name?: string;
+    species?: string;
+    breed?: string;
+    ownerId?: number;
+  }): Promise<PetResponseDto[]> {
+    const where: any = {};
 
-  /**
-   * Retrieves complete medical history for a pet.
-   */
-  async getPetMedicalHistory(petId: number): Promise<any[]> {
-    // TODO: Implement get medical history logic
-    throw new Error('Method not implemented');
+    if (searchCriteria.name) {
+      where.name = Like(`%${searchCriteria.name}%`);
+    }
+    if (searchCriteria.species) {
+      where.species = searchCriteria.species;
+    }
+    if (searchCriteria.breed) {
+      where.breed = Like(`%${searchCriteria.breed}%`);
+    }
+    if (searchCriteria.ownerId) {
+      where.ownerId = searchCriteria.ownerId;
+    }
+
+    const entities = await this.petRepository.find({
+      where,
+      order: { createdAt: 'DESC' },
+    });
+
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
   }
 
   /**
    * Transfers pet ownership to a different owner.
-   * @throws PetNotFoundException, OwnerNotFoundException
    */
   async transferPetOwnership(
     petId: number,
     newOwnerId: number,
-  ): Promise<boolean> {
-    // TODO: Implement transfer ownership logic
-    throw new Error('Method not implemented');
+  ): Promise<PetResponseDto> {
+    // Verify pet exists
+    const pet = await this.petRepository.findOne({ where: { petId } });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // Verify new owner exists
+    const newOwner = await this.petOwnerRepository.findOne({
+      where: { petOwnerId: newOwnerId },
+    });
+    if (!newOwner) {
+      throw new NotFoundException(`Owner with ID ${newOwnerId} not found`);
+    }
+
+    // Update ownership
+    pet.ownerId = newOwnerId;
+    const saved = await this.petRepository.save(pet);
+
+    const domain = PetMapper.toDomain(saved);
+    return PetResponseDto.fromDomain(domain);
   }
 
   /**
    * Filters pets by species (Dog, Cat, Bird, etc.).
    */
-  async getPetsBySpecies(species: string): Promise<Pet[]> {
-    // TODO: Implement get pets by species logic
-    throw new Error('Method not implemented');
-  }
+  async getPetsBySpecies(species: string): Promise<PetResponseDto[]> {
+    const entities = await this.petRepository.find({
+      where: { species },
+      order: { name: 'ASC' },
+    });
 
-  /**
-   * Records new weight measurement with date tracking.
-   * Returns true if updated successfully.
-   */
-  async updatePetWeight(
-    petId: number,
-    weight: number,
-    date: Date,
-  ): Promise<boolean> {
-    // TODO: Implement update weight logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Retrieves all past and upcoming appointments for a pet.
-   */
-  async getPetAppointmentHistory(petId: number): Promise<any[]> {
-    // TODO: Implement get appointment history logic
-    throw new Error('Method not implemented');
-  }
-
-  // Private helper methods
-
-  /**
-   * Validates pet data format, species, breed, age range, weight.
-   */
-  private validatePetData(petData: any): boolean {
-    // TODO: Implement validation logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Checks if owner exists before associating with pet.
-   */
-  private async verifyOwnerExists(ownerId: number): Promise<boolean> {
-    // TODO: Implement owner verification logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Checks if pet has any pending or confirmed appointments.
-   */
-  private async checkActiveAppointments(petId: number): Promise<boolean> {
-    // TODO: Implement active appointments check
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Calculates pet's current age from birth date.
-   */
-  private calculateAge(birthDate: Date): number {
-    // TODO: Implement age calculation
-    throw new Error('Method not implemented');
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
   }
 }

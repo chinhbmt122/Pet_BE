@@ -20,7 +20,7 @@ export class PetMapper {
       color: entity.color,
       initialHealthStatus: entity.initialHealthStatus,
       specialNotes: entity.specialNotes,
-      isActive: entity.isActive,
+
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
@@ -39,7 +39,7 @@ export class PetMapper {
       color: domain.color ?? undefined,
       initialHealthStatus: domain.initialHealthStatus ?? undefined,
       specialNotes: domain.specialNotes ?? undefined,
-      isActive: domain.isActive,
+
     };
 
     if (domain.id !== null) {

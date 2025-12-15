@@ -5,6 +5,8 @@ import { MedicalRecordService } from '../services/medical-record.service';
 import { MedicalRecord } from '../entities/medical-record.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
+import { Pet } from '../entities/pet.entity';
+import { Veterinarian } from '../entities/veterinarian.entity';
 
 /**
  * MedicalRecordModule
@@ -16,10 +18,17 @@ import { VaccinationHistory } from '../entities/vaccination-history.entity';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MedicalRecord, VaccineType, VaccinationHistory]),
+    TypeOrmModule.forFeature([
+      MedicalRecord,
+      VaccineType,
+      VaccinationHistory,
+      Pet,
+      Veterinarian,
+    ]),
   ],
   controllers: [MedicalRecordController],
   providers: [MedicalRecordService],
   exports: [MedicalRecordService],
 })
 export class MedicalRecordModule {}
+

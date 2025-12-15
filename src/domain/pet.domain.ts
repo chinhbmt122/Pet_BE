@@ -16,7 +16,7 @@ export class PetDomainModel {
   private _color: string | null;
   private _initialHealthStatus: string | null;
   private _specialNotes: string | null;
-  private _isActive: boolean;
+
   private readonly _createdAt: Date;
   private readonly _updatedAt: Date;
   private readonly _deletedAt: Date | null;
@@ -35,7 +35,7 @@ export class PetDomainModel {
     color: string | null;
     initialHealthStatus: string | null;
     specialNotes: string | null;
-    isActive: boolean;
+
     createdAt: Date;
     updatedAt: Date;
     deletedAt: Date | null;
@@ -51,7 +51,7 @@ export class PetDomainModel {
     this._color = data.color;
     this._initialHealthStatus = data.initialHealthStatus;
     this._specialNotes = data.specialNotes;
-    this._isActive = data.isActive;
+
     this._createdAt = data.createdAt;
     this._updatedAt = data.updatedAt;
     this._deletedAt = data.deletedAt;
@@ -83,7 +83,7 @@ export class PetDomainModel {
       color: props.color ?? null,
       initialHealthStatus: props.initialHealthStatus ?? null,
       specialNotes: props.specialNotes ?? null,
-      isActive: true,
+
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -102,7 +102,7 @@ export class PetDomainModel {
     color: string | null;
     initialHealthStatus: string | null;
     specialNotes: string | null;
-    isActive: boolean;
+
     createdAt: Date;
     updatedAt: Date;
     deletedAt: Date | null;
@@ -145,9 +145,7 @@ export class PetDomainModel {
   get specialNotes(): string | null {
     return this._specialNotes;
   }
-  get isActive(): boolean {
-    return this._isActive;
-  }
+
   get createdAt(): Date {
     return this._createdAt;
   }
@@ -203,11 +201,5 @@ export class PetDomainModel {
     this._initialHealthStatus = status;
   }
 
-  deactivate(): void {
-    this._isActive = false;
-  }
 
-  activate(): void {
-    this._isActive = true;
-  }
 }
