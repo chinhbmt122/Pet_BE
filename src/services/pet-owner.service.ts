@@ -115,8 +115,7 @@ export class PetOwnerService {
 
         // 4. Convert back and save
         const updated = PetOwnerMapper.toPersistence(domain);
-        Object.assign(entity, updated);
-        return this.petOwnerRepository.save(entity);
+        return this.petOwnerRepository.save(updated);
     }
 
     /**
@@ -145,7 +144,6 @@ export class PetOwnerService {
 
         // 4. Convert back and save
         const updated = PetOwnerMapper.toPersistence(domain);
-        Object.assign(entity, updated);
-        return this.petOwnerRepository.save(entity);
+        return this.petOwnerRepository.save(updated);
     }
 }

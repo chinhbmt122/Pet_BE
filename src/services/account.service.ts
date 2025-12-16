@@ -104,8 +104,7 @@ export class AccountService {
 
     // 6. Save
     const updated = AccountMapper.toPersistence(domain);
-    Object.assign(entity, updated);
-    await this.accountRepository.save(entity);
+    await this.accountRepository.save(updated);
 
     return true;
   }
@@ -125,8 +124,7 @@ export class AccountService {
     domain.deactivate();
 
     const updated = AccountMapper.toPersistence(domain);
-    Object.assign(entity, updated);
-    return this.accountRepository.save(entity);
+    return this.accountRepository.save(updated);
   }
 
   /**
@@ -144,8 +142,7 @@ export class AccountService {
     domain.activate();
 
     const updated = AccountMapper.toPersistence(domain);
-    Object.assign(entity, updated);
-    return this.accountRepository.save(entity);
+    return this.accountRepository.save(updated);
   }
 
   /**

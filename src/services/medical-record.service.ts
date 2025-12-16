@@ -113,8 +113,7 @@ export class MedicalRecordService {
 
     // Save changes
     const updatedData = MedicalRecordMapper.toPersistence(domain);
-    Object.assign(entity, updatedData);
-    const saved = await this.medicalRecordRepository.save(entity);
+    const saved = await this.medicalRecordRepository.save(updatedData);
 
     const savedDomain = MedicalRecordMapper.toDomain(saved);
     return MedicalRecordResponseDto.fromDomain(savedDomain);

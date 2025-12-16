@@ -70,8 +70,7 @@ export class ServiceCategoryService {
       }
     }
 
-    Object.assign(entity, dto);
-    const saved = await this.categoryRepository.save(entity);
+    const saved = await this.categoryRepository.save({ ...entity, ...dto });
     return ServiceCategoryResponseDto.fromEntity(saved);
   }
 

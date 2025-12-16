@@ -249,9 +249,7 @@ export class EmployeeService {
 
         // Save domain changes to entity
         const updated = EmployeeMapper.toPersistence(domain);
-        Object.assign(entity, updated);
-
-        return this.employeeRepository.save(entity);
+        return this.employeeRepository.save(updated);
     }
 
     /**
@@ -262,8 +260,7 @@ export class EmployeeService {
         const domain = EmployeeMapper.toDomain(entity);
         domain.markAvailable();
         const updated = EmployeeMapper.toPersistence(domain);
-        Object.assign(entity, updated);
-        return this.employeeRepository.save(entity);
+        return this.employeeRepository.save(updated);
     }
 
     /**
@@ -274,8 +271,7 @@ export class EmployeeService {
         const domain = EmployeeMapper.toDomain(entity);
         domain.markUnavailable();
         const updated = EmployeeMapper.toPersistence(domain);
-        Object.assign(entity, updated);
-        return this.employeeRepository.save(entity);
+        return this.employeeRepository.save(updated);
     }
 
     // ==================== Private Helpers ====================

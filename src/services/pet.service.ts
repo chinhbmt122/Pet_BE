@@ -91,8 +91,7 @@ export class PetService {
 
     // 4. Convert back and save
     const updatedData = PetMapper.toPersistence(domain);
-    Object.assign(entity, updatedData);
-    const saved = await this.petRepository.save(entity);
+    const saved = await this.petRepository.save(updatedData);
 
     // 5. Return response
     const savedDomain = PetMapper.toDomain(saved);

@@ -107,8 +107,7 @@ export class ScheduleService {
     }
 
     const updatedData = WorkScheduleMapper.toPersistence(domain);
-    Object.assign(entity, updatedData);
-    const saved = await this.scheduleRepository.save(entity);
+    const saved = await this.scheduleRepository.save(updatedData);
 
     const savedDomain = WorkScheduleMapper.toDomain(saved);
     return WorkScheduleResponseDto.fromDomain(savedDomain);
@@ -260,8 +259,7 @@ export class ScheduleService {
     domain.updateBreak(breakStart, breakEnd);
 
     const updatedData = WorkScheduleMapper.toPersistence(domain);
-    Object.assign(entity, updatedData);
-    const saved = await this.scheduleRepository.save(entity);
+    const saved = await this.scheduleRepository.save(updatedData);
 
     const savedDomain = WorkScheduleMapper.toDomain(saved);
     return WorkScheduleResponseDto.fromDomain(savedDomain);
@@ -282,8 +280,7 @@ export class ScheduleService {
     domain.markUnavailable(reason);
 
     const updatedData = WorkScheduleMapper.toPersistence(domain);
-    Object.assign(entity, updatedData);
-    const saved = await this.scheduleRepository.save(entity);
+    const saved = await this.scheduleRepository.save(updatedData);
 
     const savedDomain = WorkScheduleMapper.toDomain(saved);
     return WorkScheduleResponseDto.fromDomain(savedDomain);
@@ -304,8 +301,7 @@ export class ScheduleService {
     domain.markAvailable();
 
     const updatedData = WorkScheduleMapper.toPersistence(domain);
-    Object.assign(entity, updatedData);
-    const saved = await this.scheduleRepository.save(entity);
+    const saved = await this.scheduleRepository.save(updatedData);
 
     const savedDomain = WorkScheduleMapper.toDomain(saved);
     return WorkScheduleResponseDto.fromDomain(savedDomain);

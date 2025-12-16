@@ -105,8 +105,7 @@ export class ServiceService {
       }
     }
 
-    Object.assign(entity, dto);
-    const saved = await this.serviceRepository.save(entity);
+    const saved = await this.serviceRepository.save({ ...entity, ...dto });
 
     const reloaded = await this.serviceRepository.findOne({
       where: { serviceId: saved.serviceId },
