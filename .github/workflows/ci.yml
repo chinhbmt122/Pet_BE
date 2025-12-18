@@ -57,6 +57,21 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: pet_care_test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,6 +89,16 @@ jobs:
 
       - name: Run unit tests
         run: npm run test
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres123
+          DB_NAME: pet_care_test_db
+          DB_SYNCHRONIZE: true
+          DB_DROP_SCHEMA: true
+          DB_LOGGING: false
+          USE_ORDERED_ENTITIES: true
 
   # ============================================
   # Job 2b: Integration Tests (Parallel)
