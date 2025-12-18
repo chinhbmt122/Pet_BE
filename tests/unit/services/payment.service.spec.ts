@@ -5,6 +5,8 @@ import { Invoice } from '../../../src/entities/invoice.entity';
 import { Payment } from '../../../src/entities/payment.entity';
 import { PaymentGatewayArchive } from '../../../src/entities/payment-gateway-archive.entity';
 import { Repository } from 'typeorm';
+import { Appointment } from 'src/entities/appointment.entity';
+import { VNPayService } from 'src/services/vnpay.service';
 
 describe('PaymentService', () => {
   let service: PaymentService;
@@ -16,6 +18,10 @@ describe('PaymentService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
+        {
+          provide: VNPayService,
+          useValue: {}, // TODO: Mock this
+        },
         {
           provide: getRepositoryToken(Invoice),
           useValue: {
@@ -43,6 +49,15 @@ describe('PaymentService', () => {
             create: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Appointment),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -62,24 +77,24 @@ describe('PaymentService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('initiateVNPayPayment', () => {
-    it('should generate VNPay payment URL with HMAC signature', async () => {
-      // TODO: Mock generateVNPayUrl()
-      // TODO: Assert URL contains required parameters
-      // TODO: Assert signature is valid
-    });
-  });
+  // describe('initiateVNPayPayment', () => {
+  //   it('should generate VNPay payment URL with HMAC signature', async () => {
+  //     // TODO: Mock generateVNPayUrl()
+  //     // TODO: Assert URL contains required parameters
+  //     // TODO: Assert signature is valid
+  //   });
+  // });
 
-  describe('handleVNPayReturn', () => {
-    it('should verify callback signature', async () => {
-      // TODO: Mock verifyVNPaySignature()
-      // TODO: Assert payment status updated correctly
-    });
-  });
+  // describe('handleVNPayReturn', () => {
+  //   it('should verify callback signature', async () => {
+  //     // TODO: Mock verifyVNPaySignature()
+  //     // TODO: Assert payment status updated correctly
+  //   });
+  // });
 
-  describe('processRefund', () => {
-    it('should create refund transaction', async () => {
-      // TODO: Implement test
-    });
-  });
+  // describe('processRefund', () => {
+  //   it('should create refund transaction', async () => {
+  //     // TODO: Implement test
+  //   });
+  // });
 });
