@@ -6,20 +6,18 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Invoice } from '../entities/invoice.entity';
+import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Appointment } from '../entities/appointment.entity';
-import { InvoiceDomainModel } from '../domain/invoice.domain';
-import { InvoiceMapper } from '../mappers/invoice.mapper';
 import {
   CreateInvoiceDto,
-  UpdateInvoiceDto,
   InvoiceResponseDto,
+  UpdateInvoiceDto,
 } from '../dto/invoice';
 
 /**
- * InvoiceService (Domain Model Pattern)
+ * InvoiceService (Active Record Pattern)
  *
- * Manages invoices with business logic in InvoiceDomainModel.
+ * Manages invoices with business logic in Invoice entity.
  * Handles invoice creation, payment status transitions, and calculations.
  */
 @Injectable()
@@ -33,11 +31,14 @@ export class InvoiceService {
 
   /**
    * Creates a new invoice for an appointment
+   * NOTE: In production, this would calculate amounts from appointment service.
+   * For now, we expect the caller to provide calculated amounts.
    */
   async createInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
     // Verify appointment exists
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId: dto.appointmentId },
+      relations: ['service'],
     });
     if (!appointment) {
       throw new NotFoundException(
@@ -55,23 +56,69 @@ export class InvoiceService {
       );
     }
 
-    // Create domain model (handles calculations)
-    const domain = InvoiceDomainModel.create({
+    // Calculate invoice amounts from service
+    const servicePrice = Number(appointment.service.basePrice);
+    const subtotal = servicePrice;
+
+    // Apply discount (TODO: implement discount code lookup)
+    let discount = 0;
+    if (dto.discountCode) {
+      // TODO: Look up discount code and calculate discount amount
+      // For now, placeholder implementation
+      discount = 0;
+    }
+
+    // Calculate tax (10% VAT)
+    const TAX_RATE = 0.1;
+    const tax = (subtotal - discount) * TAX_RATE;
+
+    // Calculate total
+    const totalAmount = subtotal - discount + tax;
+
+    // Generate invoice number
+    const invoiceNumber = await this.generateInvoiceNumber();
+
+    // Create invoice entity
+    const entity = this.invoiceRepository.create({
       appointmentId: dto.appointmentId,
-      subtotal: dto.subtotal,
-      discount: dto.discount,
-      taxRate: dto.taxRate,
+      invoiceNumber,
+      issueDate: new Date(),
+      subtotal,
+      discount,
+      tax,
+      totalAmount,
       notes: dto.notes,
+      status: InvoiceStatus.PENDING,
     });
 
-    // Convert to entity and save
-    const entityData = InvoiceMapper.toPersistence(domain);
-    const entity = this.invoiceRepository.create(entityData);
+    // Save and return
     const saved = await this.invoiceRepository.save(entity);
+    return InvoiceResponseDto.fromEntity(saved);
+  }
 
-    // Return response DTO
-    const savedDomain = InvoiceMapper.toDomain(saved);
-    return InvoiceResponseDto.fromDomain(savedDomain);
+  /**
+   * Generate unique invoice number in format: INV-YYYYMMDD-00001
+   */
+  private async generateInvoiceNumber(): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+
+    // Find the latest invoice number for today
+    const latestInvoice = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .where('invoice.invoiceNumber LIKE :pattern', {
+        pattern: `INV-${dateStr}-%`,
+      })
+      .orderBy('invoice.invoiceNumber', 'DESC')
+      .getOne();
+
+    let sequence = 1;
+    if (latestInvoice) {
+      const lastSequence = latestInvoice.invoiceNumber.split('-')[2];
+      sequence = parseInt(lastSequence, 10) + 1;
+    }
+
+    return `INV-${dateStr}-${sequence.toString().padStart(5, '0')}`;
   }
 
   /**
@@ -88,27 +135,22 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    // Convert to domain and update
-    const domain = InvoiceMapper.toDomain(entity);
-
+    // Update using entity business methods
     if (dto.discount !== undefined) {
-      domain.applyDiscount(dto.discount);
+      entity.applyDiscount(dto.discount);
     }
 
     if (dto.tax !== undefined) {
-      domain.updateTax(dto.tax);
+      entity.updateTax(dto.tax);
     }
 
     if (dto.notes !== undefined) {
-      domain.updateNotes(dto.notes);
+      entity.updateNotes(dto.notes);
     }
 
     // Save changes
-    const updatedData = InvoiceMapper.toPersistence(domain);
-    const saved = await this.invoiceRepository.save(updatedData);
-
-    const savedDomain = InvoiceMapper.toDomain(saved);
-    return InvoiceResponseDto.fromDomain(savedDomain);
+    const saved = await this.invoiceRepository.save(entity);
+    return InvoiceResponseDto.fromEntity(saved);
   }
 
   /**
@@ -122,8 +164,7 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    return InvoiceResponseDto.fromDomain(domain);
+    return InvoiceResponseDto.fromEntity(entity);
   }
 
   /**
@@ -139,8 +180,7 @@ export class InvoiceService {
       );
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    return InvoiceResponseDto.fromDomain(domain);
+    return InvoiceResponseDto.fromEntity(entity);
   }
 
   /**
@@ -158,8 +198,7 @@ export class InvoiceService {
       );
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    return InvoiceResponseDto.fromDomain(domain);
+    return InvoiceResponseDto.fromEntity(entity);
   }
 
   /**
@@ -170,8 +209,7 @@ export class InvoiceService {
       order: { issueDate: 'DESC' },
     });
 
-    const domains = InvoiceMapper.toDomainList(entities);
-    return InvoiceResponseDto.fromDomainList(domains);
+    return InvoiceResponseDto.fromEntityList(entities);
   }
 
   /**
@@ -179,12 +217,11 @@ export class InvoiceService {
    */
   async getInvoicesByStatus(status: string): Promise<InvoiceResponseDto[]> {
     const entities = await this.invoiceRepository.find({
-      where: { status: status as any },
+      where: { status: status as InvoiceStatus },
       order: { issueDate: 'DESC' },
     });
 
-    const domains = InvoiceMapper.toDomainList(entities);
-    return InvoiceResponseDto.fromDomainList(domains);
+    return InvoiceResponseDto.fromEntityList(entities);
   }
 
   /**
@@ -195,10 +232,10 @@ export class InvoiceService {
       order: { issueDate: 'ASC' },
     });
 
-    const domains = InvoiceMapper.toDomainList(entities);
-    const overdueDomains = domains.filter((d) => d.isOverdue());
+    // Filter using entity business method
+    const overdueEntities = entities.filter((entity) => entity.isOverdue());
 
-    return InvoiceResponseDto.fromDomainList(overdueDomains);
+    return InvoiceResponseDto.fromEntityList(overdueEntities);
   }
 
   /**
@@ -215,14 +252,11 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    domain.markAsPaid(paidAt);
+    // Use entity business method
+    entity.markAsPaid(paidAt);
 
-    const updatedData = InvoiceMapper.toPersistence(domain);
-    const saved = await this.invoiceRepository.save(updatedData);
-
-    const savedDomain = InvoiceMapper.toDomain(saved);
-    return InvoiceResponseDto.fromDomain(savedDomain);
+    const saved = await this.invoiceRepository.save(entity);
+    return InvoiceResponseDto.fromEntity(saved);
   }
 
   /**
@@ -236,14 +270,11 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    domain.markAsFailed();
+    // Use entity business method
+    entity.markFailed();
 
-    const updatedData = InvoiceMapper.toPersistence(domain);
-    const saved = await this.invoiceRepository.save(updatedData);
-
-    const savedDomain = InvoiceMapper.toDomain(saved);
-    return InvoiceResponseDto.fromDomain(savedDomain);
+    const saved = await this.invoiceRepository.save(entity);
+    return InvoiceResponseDto.fromEntity(saved);
   }
 
   /**
@@ -257,14 +288,11 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    domain.markAsProcessing();
+    // Use entity business method
+    entity.markAsProcessing();
 
-    const updatedData = InvoiceMapper.toPersistence(domain);
-    const saved = await this.invoiceRepository.save(updatedData);
-
-    const savedDomain = InvoiceMapper.toDomain(saved);
-    return InvoiceResponseDto.fromDomain(savedDomain);
+    const saved = await this.invoiceRepository.save(entity);
+    return InvoiceResponseDto.fromEntity(saved);
   }
 
   /**
@@ -278,8 +306,8 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    const domain = InvoiceMapper.toDomain(entity);
-    if (domain.status === 'PAID') {
+    // Use entity business method
+    if (entity.isPaid()) {
       throw new BadRequestException('Cannot delete paid invoice');
     }
 

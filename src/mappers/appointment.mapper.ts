@@ -1,6 +1,5 @@
 import { Appointment } from '../entities/appointment.entity';
 import { AppointmentDomainModel } from '../domain/appointment.domain';
-import { Account } from 'src/entities/account.entity';
 
 /**
  * Appointment Mapper (Data Mapper Pattern)

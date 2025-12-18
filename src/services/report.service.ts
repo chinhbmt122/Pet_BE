@@ -1,3 +1,6 @@
+// PLEASE REMOVE THIS
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
@@ -39,7 +42,10 @@ export class ReportService {
   /**
    * Generates comprehensive financial report with revenue, expenses, and profit.
    */
-  async generateFinancialReport(startDate: Date, endDate: Date): Promise<{
+  async generateFinancialReport(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{
     period: { startDate: Date; endDate: Date };
     revenue: {
       total: number;
@@ -84,7 +90,10 @@ export class ReportService {
       .filter((inv) => inv.status === InvoiceStatus.PAID)
       .forEach((inv) => {
         const monthKey = `${inv.issueDate.getFullYear()}-${String(inv.issueDate.getMonth() + 1).padStart(2, '0')}`;
-        monthlyRevenue.set(monthKey, (monthlyRevenue.get(monthKey) || 0) + Number(inv.totalAmount));
+        monthlyRevenue.set(
+          monthKey,
+          (monthlyRevenue.get(monthKey) || 0) + Number(inv.totalAmount),
+        );
       });
 
     const revenueByMonth = Array.from(monthlyRevenue.entries())
@@ -109,12 +118,21 @@ export class ReportService {
       (sum, apt) => sum + Number(apt.actualCost || apt.estimatedCost || 0),
       0,
     );
-    const averageValue = completedAppointments.length > 0 ? totalRevenue / completedAppointments.length : 0;
+    const averageValue =
+      completedAppointments.length > 0
+        ? totalRevenue / completedAppointments.length
+        : 0;
 
-    const paidInvoices = invoices.filter((inv) => inv.status === InvoiceStatus.PAID).length;
-    const pendingInvoices = invoices.filter((inv) => inv.status === InvoiceStatus.PENDING).length;
+    const paidInvoices = invoices.filter(
+      (inv) => inv.status === InvoiceStatus.PAID,
+    ).length;
+    const pendingInvoices = invoices.filter(
+      (inv) => inv.status === InvoiceStatus.PENDING,
+    ).length;
     const completionRate =
-      appointments.length > 0 ? completedAppointments.length / appointments.length : 0;
+      appointments.length > 0
+        ? completedAppointments.length / appointments.length
+        : 0;
 
     return {
       period: { startDate, endDate },
@@ -182,7 +200,11 @@ export class ReportService {
       }
 
       if (!periodMap.has(periodKey)) {
-        periodMap.set(periodKey, { revenue: 0, invoiceCount: 0, appointmentCount: 0 });
+        periodMap.set(periodKey, {
+          revenue: 0,
+          invoiceCount: 0,
+          appointmentCount: 0,
+        });
       }
 
       const stats = periodMap.get(periodKey)!;
@@ -202,7 +224,10 @@ export class ReportService {
   /**
    * Gets appointment statistics and trends.
    */
-  async getAppointmentStatistics(startDate: Date, endDate: Date): Promise<{
+  async getAppointmentStatistics(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{
     total: number;
     byStatus: Record<AppointmentStatus, number>;
     completionRate: number;
@@ -246,9 +271,13 @@ export class ReportService {
     });
 
     const completionRate =
-      appointments.length > 0 ? byStatus[AppointmentStatus.COMPLETED] / appointments.length : 0;
+      appointments.length > 0
+        ? byStatus[AppointmentStatus.COMPLETED] / appointments.length
+        : 0;
     const cancellationRate =
-      appointments.length > 0 ? byStatus[AppointmentStatus.CANCELLED] / appointments.length : 0;
+      appointments.length > 0
+        ? byStatus[AppointmentStatus.CANCELLED] / appointments.length
+        : 0;
     const averageValue =
       byStatus[AppointmentStatus.COMPLETED] > 0
         ? totalValue / byStatus[AppointmentStatus.COMPLETED]
@@ -410,7 +439,9 @@ export class ReportService {
       .map((emp) => ({
         ...emp,
         completionRate:
-          emp.totalAppointments > 0 ? emp.completedAppointments / emp.totalAppointments : 0,
+          emp.totalAppointments > 0
+            ? emp.completedAppointments / emp.totalAppointments
+            : 0,
       }))
       .sort((a, b) => b.totalAppointments - a.totalAppointments);
   }
@@ -478,8 +509,11 @@ export class ReportService {
     const newCustomers = customers.filter(
       (c) => c.firstVisit >= startDate && c.firstVisit <= endDate,
     ).length;
-    const returningCustomers = customers.filter((c) => c.appointmentCount > 1).length;
-    const retentionRate = customers.length > 0 ? returningCustomers / customers.length : 0;
+    const returningCustomers = customers.filter(
+      (c) => c.appointmentCount > 1,
+    ).length;
+    const retentionRate =
+      customers.length > 0 ? returningCustomers / customers.length : 0;
 
     const topCustomers = customers
       .sort((a, b) => b.totalSpent - a.totalSpent)
@@ -555,7 +589,10 @@ export class ReportService {
         status: InvoiceStatus.PAID,
       },
     });
-    const todayRevenue = todayInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+    const todayRevenue = todayInvoices.reduce(
+      (sum, inv) => sum + Number(inv.totalAmount),
+      0,
+    );
 
     // Week statistics
     const weekStart = new Date(today);
@@ -566,7 +603,10 @@ export class ReportService {
         status: InvoiceStatus.PAID,
       },
     });
-    const weekRevenue = weekInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+    const weekRevenue = weekInvoices.reduce(
+      (sum, inv) => sum + Number(inv.totalAmount),
+      0,
+    );
 
     // Month statistics
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -576,7 +616,10 @@ export class ReportService {
         status: InvoiceStatus.PAID,
       },
     });
-    const monthRevenue = monthInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+    const monthRevenue = monthInvoices.reduce(
+      (sum, inv) => sum + Number(inv.totalAmount),
+      0,
+    );
 
     // Overview counts
     const totalPets = await this.petRepository.count();
@@ -695,8 +738,10 @@ export class ReportService {
     return Array.from(serviceMap.values())
       .map((s) => ({
         ...s,
-        averagePrice: s.completedBookings > 0 ? s.revenue / s.completedBookings : 0,
-        completionRate: s.totalBookings > 0 ? s.completedBookings / s.totalBookings : 0,
+        averagePrice:
+          s.completedBookings > 0 ? s.revenue / s.completedBookings : 0,
+        completionRate:
+          s.totalBookings > 0 ? s.completedBookings / s.totalBookings : 0,
       }))
       .sort((a, b) => b.revenue - a.revenue);
   }

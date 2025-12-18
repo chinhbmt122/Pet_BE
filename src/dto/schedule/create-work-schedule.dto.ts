@@ -23,22 +23,36 @@ export class CreateWorkScheduleDto {
   workDate: string;
 
   @ApiProperty({ description: 'Start time (HH:MM)', example: '09:00' })
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'startTime must be in HH:MM format' })
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'startTime must be in HH:MM format',
+  })
   @IsNotEmpty()
   startTime: string;
 
   @ApiProperty({ description: 'End time (HH:MM)', example: '17:00' })
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'endTime must be in HH:MM format' })
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'endTime must be in HH:MM format',
+  })
   @IsNotEmpty()
   endTime: string;
 
-  @ApiPropertyOptional({ description: 'Break start time (HH:MM)', example: '12:00' })
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'breakStart must be in HH:MM format' })
+  @ApiPropertyOptional({
+    description: 'Break start time (HH:MM)',
+    example: '12:00',
+  })
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'breakStart must be in HH:MM format',
+  })
   @IsOptional()
   breakStart?: string;
 
-  @ApiPropertyOptional({ description: 'Break end time (HH:MM)', example: '13:00' })
-  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: 'breakEnd must be in HH:MM format' })
+  @ApiPropertyOptional({
+    description: 'Break end time (HH:MM)',
+    example: '13:00',
+  })
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'breakEnd must be in HH:MM format',
+  })
   @IsOptional()
   breakEnd?: string;
 

@@ -19,4 +19,3 @@ import { PetOwner } from '../entities/pet-owner.entity';
   exports: [PetService],
 })
 export class PetModule {}
-

@@ -5,6 +5,10 @@ import { Appointment } from '../../../src/entities/appointment.entity';
 import { Invoice } from '../../../src/entities/invoice.entity';
 import { Service } from '../../../src/entities/service.entity';
 import { Repository } from 'typeorm';
+import { Pet } from 'src/entities/pet.entity';
+import { PetOwner } from 'src/entities/pet-owner.entity';
+import { Employee } from 'src/entities/employee.entity';
+import { CageAssignment } from 'src/entities/cage-assignment.entity';
 
 describe('ReportService', () => {
   let service: ReportService;
@@ -39,6 +43,38 @@ describe('ReportService', () => {
             createQueryBuilder: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Pet),
+          useValue: {
+            find: jest.fn(),
+            count: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(PetOwner),
+          useValue: {
+            find: jest.fn(),
+            count: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Employee),
+          useValue: {
+            find: jest.fn(),
+            count: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(CageAssignment),
+          useValue: {
+            find: jest.fn(),
+            count: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -55,23 +91,23 @@ describe('ReportService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('getFinancialReport', () => {
-    it('should aggregate revenue and expenses', async () => {
-      // TODO: Mock query builder for aggregation
-      // TODO: Assert correct financial calculations
-    });
-  });
+  // describe('getFinancialReport', () => {
+  //   it('should aggregate revenue and expenses', async () => {
+  //     // TODO: Mock query builder for aggregation
+  //     // TODO: Assert correct financial calculations
+  //   });
+  // });
 
-  describe('getDashboardSummary', () => {
-    it('should compile key metrics', async () => {
-      // TODO: Mock multiple repository queries
-      // TODO: Assert dashboard data structure
-    });
-  });
+  // describe('getDashboardSummary', () => {
+  //   it('should compile key metrics', async () => {
+  //     // TODO: Mock multiple repository queries
+  //     // TODO: Assert dashboard data structure
+  //   });
+  // });
 
-  describe('exportReport', () => {
-    it('should generate CSV report', async () => {
-      // TODO: Implement test
-    });
-  });
+  // describe('exportReport', () => {
+  //   it('should generate CSV report', async () => {
+  //     // TODO: Implement test
+  //   });
+  // });
 });

@@ -16,24 +16,24 @@ import { Employee } from '../entities/employee.entity';
  * - JWT management
  */
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Account, PetOwner, Employee]),
-        JwtModule.registerAsync({
-            global: true,
-            imports: [ConfigModule],
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService) => ({
-                secret:
-                    configService.get<string>('JWT_SECRET') ||
-                    'your-secret-key-change-in-production',
-                signOptions: {
-                    expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
-                        '24h') as any,
-                },
-            }),
-        }),
-    ],
-    providers: [AuthService],
-    exports: [AuthService],
+  imports: [
+    TypeOrmModule.forFeature([Account, PetOwner, Employee]),
+    JwtModule.registerAsync({
+      global: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret:
+          configService.get<string>('JWT_SECRET') ||
+          'your-secret-key-change-in-production',
+        signOptions: {
+          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
+            '24h') as any,
+        },
+      }),
+    }),
+  ],
+  providers: [AuthService],
+  exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

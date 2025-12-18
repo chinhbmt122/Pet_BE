@@ -1,10 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, IsNull, Not } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { Pet } from '../entities/pet.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { PetDomainModel } from '../domain/pet.domain';
@@ -29,7 +25,10 @@ export class PetService {
   /**
    * Registers new pet with owner association and validation.
    */
-  async registerPet(dto: CreatePetDto, ownerId: number): Promise<PetResponseDto> {
+  async registerPet(
+    dto: CreatePetDto,
+    ownerId: number,
+  ): Promise<PetResponseDto> {
     // 1. Verify owner exists
     const owner = await this.petOwnerRepository.findOne({
       where: { petOwnerId: ownerId },
@@ -65,7 +64,10 @@ export class PetService {
   /**
    * Updates pet information using domain model.
    */
-  async updatePetInfo(petId: number, dto: UpdatePetDto): Promise<PetResponseDto> {
+  async updatePetInfo(
+    petId: number,
+    dto: UpdatePetDto,
+  ): Promise<PetResponseDto> {
     // 1. Find entity
     const entity = await this.petRepository.findOne({
       where: { petId },
@@ -200,19 +202,24 @@ export class PetService {
     const where: any = {};
 
     if (searchCriteria.name) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.name = Like(`%${searchCriteria.name}%`);
     }
     if (searchCriteria.species) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.species = searchCriteria.species;
     }
     if (searchCriteria.breed) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.breed = Like(`%${searchCriteria.breed}%`);
     }
     if (searchCriteria.ownerId) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.ownerId = searchCriteria.ownerId;
     }
 
     const entities = await this.petRepository.find({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       where,
       order: { createdAt: 'DESC' },
     });

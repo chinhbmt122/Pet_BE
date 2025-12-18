@@ -1,13 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
-  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
 } from 'class-validator';
-import { AppointmentStatus } from '../../entities/types/entity.types';
 
 export class UpdateAppointmentDto {
   @ApiPropertyOptional({ description: 'Employee ID (vet/staff)' })

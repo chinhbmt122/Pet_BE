@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ReportService } from '../services/report.service';
 
@@ -122,7 +122,10 @@ export class ReportController {
    */
   @Get('customers/retention')
   @ApiOperation({ summary: 'Get customer retention report' })
-  @ApiResponse({ status: 200, description: 'Customer retention data retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer retention data retrieved',
+  })
   async getCustomerRetention(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,

@@ -57,6 +57,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -73,7 +74,7 @@ jobs:
           key: ${{ needs.setup.outputs.cache-key }}
 
       - name: Run unit tests
-        run: npm run test
+        run: npm run test:unit
 
   # ============================================
   # Job 2b: Integration Tests (Parallel)

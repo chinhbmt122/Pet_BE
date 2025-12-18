@@ -11,7 +11,6 @@ import { Account } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
 import { UserType } from '../entities/types/entity.types';
-import { AccountDomainModel } from '../domain/account.domain';
 import { AccountMapper } from '../mappers/account.mapper';
 
 /**
@@ -38,7 +37,7 @@ export class AccountService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
-  ) { }
+  ) {}
 
   /**
    * Gets account by ID.

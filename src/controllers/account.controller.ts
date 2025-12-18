@@ -43,7 +43,7 @@ export class AccountController {
   constructor(
     private readonly authService: AuthService,
     private readonly accountService: AccountService,
-  ) { }
+  ) {}
 
   // ==================== Auth Endpoints (AuthService) ====================
 

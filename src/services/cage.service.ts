@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Not } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Cage } from '../entities/cage.entity';
 import { CageAssignment } from '../entities/cage-assignment.entity';
 import { Pet } from '../entities/pet.entity';
@@ -183,7 +183,7 @@ export class CageService {
 
     if (existingAssignment) {
       throw new BadRequestException(
-        `Pet ${pet.petName} already has an active cage assignment`,
+        `Pet ${pet.name} already has an active cage assignment`,
       );
     }
 

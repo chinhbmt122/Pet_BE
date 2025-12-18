@@ -26,7 +26,10 @@ export class CreateVaccinationDto {
   @IsOptional()
   batchNumber?: string;
 
-  @ApiPropertyOptional({ description: 'Injection site', example: 'Left shoulder' })
+  @ApiPropertyOptional({
+    description: 'Injection site',
+    example: 'Left shoulder',
+  })
   @IsString()
   @IsOptional()
   site?: string;

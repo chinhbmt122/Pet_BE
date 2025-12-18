@@ -200,6 +200,4 @@ export class PetDomainModel {
   updateHealthStatus(status: string): void {
     this._initialHealthStatus = status;
   }
-
-
 }

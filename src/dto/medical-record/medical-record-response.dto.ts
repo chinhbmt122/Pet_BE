@@ -20,7 +20,10 @@ export class MedicalRecordResponseDto {
   @ApiProperty({ description: 'Treatment' })
   treatment: string;
 
-  @ApiPropertyOptional({ description: 'Medical summary (JSONB)', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Medical summary (JSONB)',
+    nullable: true,
+  })
   medicalSummary: object | null;
 
   @ApiPropertyOptional({ description: 'Follow-up date', nullable: true })
@@ -38,7 +41,9 @@ export class MedicalRecordResponseDto {
   @ApiProperty({ description: 'Created timestamp' })
   createdAt: Date;
 
-  static fromDomain(domain: MedicalRecordDomainModel): MedicalRecordResponseDto {
+  static fromDomain(
+    domain: MedicalRecordDomainModel,
+  ): MedicalRecordResponseDto {
     const dto = new MedicalRecordResponseDto();
     dto.id = domain.id!;
     dto.petId = domain.petId;
@@ -55,7 +60,9 @@ export class MedicalRecordResponseDto {
     return dto;
   }
 
-  static fromDomainList(domains: MedicalRecordDomainModel[]): MedicalRecordResponseDto[] {
+  static fromDomainList(
+    domains: MedicalRecordDomainModel[],
+  ): MedicalRecordResponseDto[] {
     return domains.map((d) => MedicalRecordResponseDto.fromDomain(d));
   }
 }

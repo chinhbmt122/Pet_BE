@@ -114,6 +114,7 @@ export enum CageStatus {
   OCCUPIED = 'OCCUPIED',
   MAINTENANCE = 'MAINTENANCE',
   RESERVED = 'RESERVED',
+  OUT_OF_SERVICE = 'OUT_OF_SERVICE',
 }
 
 /**

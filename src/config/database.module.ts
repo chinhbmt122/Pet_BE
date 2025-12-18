@@ -1,21 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Account } from '../entities/account.entity';
-import { PetOwner } from '../entities/pet-owner.entity';
-import { Employee } from '../entities/employee.entity';
-import { Pet } from '../entities/pet.entity';
-import { Appointment } from '../entities/appointment.entity';
-import { WorkSchedule } from '../entities/work-schedule.entity';
-import { Service } from '../entities/service.entity';
-import { MedicalRecord } from '../entities/medical-record.entity';
-import { VaccineType } from '../entities/vaccine-type.entity';
-import { VaccinationHistory } from '../entities/vaccination-history.entity';
-import { Invoice } from '../entities/invoice.entity';
-import { Payment } from '../entities/payment.entity';
-import { AuditLog } from '../entities/audit-log.entity';
-import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
-import { ServiceCategory } from 'src/entities/service-category.entity';
 import { entitiesOrdered } from './entities';
 
 /**

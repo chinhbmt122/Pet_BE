@@ -27,4 +27,4 @@ import { AuthModule } from './auth.module';
   providers: [AccountService, AccountFactory],
   exports: [AccountService, AccountFactory],
 })
-export class AccountModule { }
+export class AccountModule {}

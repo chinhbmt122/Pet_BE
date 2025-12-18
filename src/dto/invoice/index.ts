@@ -1,3 +1,3 @@
-export * from './create-invoice.dto';
-export * from './update-invoice.dto';
-export * from './invoice-response.dto';
+export { CreateInvoiceDto } from './create-invoice.dto';
+export { UpdateInvoiceDto } from './update-invoice.dto';
+export { InvoiceResponseDto } from './invoice-response.dto';

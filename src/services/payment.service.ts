@@ -1,20 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Invoice } from '../entities/invoice.entity';
-import { Payment } from '../entities/payment.entity';
+import { Payment, PaymentMethod } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
+import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
+import type { IPaymentGatewayService } from './interfaces/payment-gateway.interface';
+import { CreateInvoiceDto, InvoiceResponseDto } from '../dto/invoice';
+import {
+  CreatePaymentDto,
+  PaymentResponseDto,
+  InitiateOnlinePaymentDto,
+  VNPayCallbackDto,
+  ProcessRefundDto,
+  GetPaymentHistoryQueryDto,
+} from '../dto/payment';
+import { VNPayService } from './vnpay.service';
+import { InvoiceService } from './invoice.service';
 
 /**
  * PaymentService (PaymentManager)
  *
  * Handles invoice generation from completed appointments.
  * Records payment transactions (cash, bank transfer, and online via VNPay).
- * Integrates with VNPay payment gateway for online credit/debit card and QR code payments.
+ * Integrates with payment gateways via IPaymentGatewayService interface.
  * Manages payment callbacks and transaction records.
+ * Uses Active Record pattern with business logic in entities.
  */
 @Injectable()
 export class PaymentService {
+  // Remove this for production
+  DEFAULT_GATEWAY = PaymentMethod.VNPAY;
+  TAX_RATE = 0.1;
+
   constructor(
     @InjectRepository(Invoice)
     private readonly invoiceRepository: Repository<Invoice>,
@@ -22,73 +44,225 @@ export class PaymentService {
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(PaymentGatewayArchive)
     private readonly paymentGatewayArchiveRepository: Repository<PaymentGatewayArchive>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
+    private readonly vnpayService: VNPayService,
+    private readonly invoiceService: InvoiceService,
   ) {}
+
+  getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
+    switch (paymentMethod) {
+      case PaymentMethod.VNPAY:
+        return this.vnpayService;
+      // case PaymentMethod.MOMO:
+      //   return this.momoService;
+      default:
+        return this.vnpayService; // Default gateway
+    }
+  }
 
   /**
    * Creates invoice from appointment with itemized charges.
+   * Delegates to InvoiceService for invoice creation.
    * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
    */
-  async generateInvoice(appointmentId: number): Promise<Invoice> {
-    // TODO: Implement generate invoice logic
-    // 1. Find appointment
-    // 2. Check if invoice already exists
-    // 3. Calculate total with service fees
-    // 4. Create invoice entity
-    throw new Error('Method not implemented');
+  async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
+    // Validate appointment status before generating invoice
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId: dto.appointmentId },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(
+        `Appointment with ID ${dto.appointmentId} not found`,
+      );
+    }
+
+    if (appointment.status !== AppointmentStatus.COMPLETED) {
+      throw new BadRequestException(
+        `Cannot generate invoice: appointment status is ${appointment.status}, expected COMPLETED`,
+      );
+    }
+
+    // Delegate invoice creation to InvoiceService
+    return this.invoiceService.createInvoice(dto);
   }
 
   /**
    * Processes cash/bank transfer payment and updates invoice status.
    * @throws PaymentProcessingException, InsufficientFundsException
    */
-  async processPayment(invoiceId: number, paymentData: any): Promise<Payment> {
-    // TODO: Implement process payment logic
+  async processPayment(dto: CreatePaymentDto): Promise<PaymentResponseDto> {
     // 1. Find invoice
-    // 2. Validate payment data
-    // 3. Create payment record
-    // 4. Update invoice status to PAID
-    // 5. Send receipt
-    throw new Error('Method not implemented');
+    const invoice = await this.invoiceRepository.findOne({
+      where: { invoiceId: dto.invoiceId },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
+    }
+
+    // 2. Validate invoice status
+    if (!invoice.canPayByCash()) {
+      throw new BadRequestException(
+        `Cannot process payment: invoice status is ${invoice.status}`,
+      );
+    }
+
+    // 3. Validate payment amount
+    if (dto.amount !== Number(invoice.totalAmount)) {
+      throw new BadRequestException(
+        `Payment amount (${dto.amount}) does not match invoice total (${invoice.totalAmount})`,
+      );
+    }
+
+    // 4. Validate payment method and create payment
+    if (dto.paymentMethod !== PaymentMethod.CASH) {
+      throw new BadRequestException(
+        `Use initiateOnlinePayment for ${dto.paymentMethod} payments`,
+      );
+    }
+
+    if (!dto.receivedBy) {
+      throw new BadRequestException('receivedBy is required for cash payments');
+    }
+
+    const payment = Payment.createCashPayment({
+      invoiceId: dto.invoiceId,
+      amount: dto.amount,
+      receivedBy: dto.receivedBy,
+      notes: dto.notes,
+    });
+
+    // Process cash payment immediately
+    payment.processCash();
+
+    // 5. Update invoice status
+    invoice.payByCash();
+
+    // 6. Persist changes (payment first, then invoice)
+    const savedPayment = await this.paymentRepository.save(payment);
+    await this.invoiceRepository.save(invoice);
+
+    // 7. Return payment DTO
+    return PaymentResponseDto.fromEntity(savedPayment);
   }
 
   /**
-   * Initiates VNPay online payment and returns payment URL (UC-23).
+   * Initiates online payment and returns payment URL.
    * @throws InvoiceNotFoundException, PaymentGatewayException
    */
-  async initiateOnlinePayment(invoiceId: number, amount: number): Promise<any> {
-    // TODO: Implement VNPay initiation logic
+  async initiateOnlinePayment(
+    dto: InitiateOnlinePaymentDto,
+  ): Promise<{ paymentUrl: string; paymentId: number }> {
     // 1. Find invoice
-    // 2. Build VNPay request
-    // 3. Generate secure hash
-    // 4. Return payment URL
-    throw new Error('Method not implemented');
+    const invoice = await this.invoiceRepository.findOne({
+      where: { invoiceId: dto.invoiceId },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
+    }
+
+    // 2. Validate invoice status
+    if (!invoice.canStartOnlinePayment()) {
+      throw new BadRequestException(
+        `Cannot start online payment: invoice status is ${invoice.status}`,
+      );
+    }
+
+    // 3. Generate idempotency key
+    const idempotencyKey = `${dto.invoiceId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // 4. Create payment (online payment)
+    const payment = Payment.createOnlinePayment({
+      invoiceId: dto.invoiceId,
+      amount: Number(invoice.totalAmount),
+      paymentMethod: dto.paymentMethod,
+      idempotencyKey,
+    });
+
+    // Start online payment process
+    payment.startOnlinePayment();
+    invoice.startOnlinePayment();
+
+    // 5. Persist payment and invoice updates
+    const savedPayment = await this.paymentRepository.save(payment);
+    await this.invoiceRepository.save(invoice);
+
+    // 6. Generate payment URL via gateway service
+    const paymentUrlResponse = await this.getGateway(
+      this.DEFAULT_GATEWAY,
+    ).generatePaymentUrl({
+      orderId: savedPayment.paymentId.toString(),
+      amount: Number(invoice.totalAmount),
+      orderDescription: `Payment for invoice ${invoice.invoiceNumber}`,
+      returnUrl: dto.returnUrl || '',
+      ipAddress: dto.ipAddress || '127.0.0.1',
+      locale: dto.locale || 'vn',
+    });
+
+    return {
+      paymentUrl: paymentUrlResponse.paymentUrl,
+      paymentId: savedPayment.paymentId,
+    };
   }
 
   /**
-   * Processes VNPay payment callback and updates invoice status (UC-23).
+   * Processes payment gateway callback and updates invoice status.
    * @throws InvalidCallbackException, InvoiceNotFoundException
    */
-  async handlePaymentCallback(transactionData: any): Promise<boolean> {
-    // TODO: Implement VNPay callback logic
-    // 1. Validate callback signature
-    // 2. Find invoice
-    // 3. Update payment status
-    // 4. Archive gateway response
-    // 5. Send confirmation
-    throw new Error('Method not implemented');
-  }
+  async handlePaymentCallback(
+    callbackDto: VNPayCallbackDto,
+  ): Promise<{ success: boolean; message: string }> {
+    // 1. Verify callback signature
 
-  /**
-   * Records online payment details including transaction ID and timestamp (UC-23).
-   * Updates invoice status to 'Paid' and stores payment method as 'VNPay'.
-   */
-  async recordOnlinePayment(
-    invoiceId: number,
-    transactionId: string,
-    timestamp: Date,
-  ): Promise<boolean> {
-    // TODO: Implement record online payment logic
-    throw new Error('Method not implemented');
+    const verification = await this.getGateway(
+      this.DEFAULT_GATEWAY,
+    ).verifyCallback(callbackDto as any);
+
+    if (!verification.isValid) {
+      throw new BadRequestException('Invalid callback signature');
+    }
+
+    // 2. Find payment by order ID (payment ID stored in vnp_TxnRef)
+    const paymentId = parseInt(callbackDto.vnp_TxnRef);
+    const payment = await this.paymentRepository.findOne({
+      where: { paymentId },
+      relations: ['invoice'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+    }
+
+    const invoice = payment.invoice;
+
+    // 3. Update payment and invoice based on callback result
+    if (verification.status === 'SUCCESS') {
+      payment.markSuccess(verification.transactionId!, verification.rawData);
+      invoice.markPaid();
+    } else {
+      payment.markFailed(verification.rawData);
+      invoice.markFailed();
+    }
+
+    // 4. Persist updates
+    await this.paymentRepository.save(payment);
+    await this.invoiceRepository.save(invoice);
+
+    // 5. Archive gateway response
+    await this.archiveGatewayResponse(
+      paymentId,
+      this.getGateway(this.DEFAULT_GATEWAY).getGatewayName(),
+      verification.rawData,
+      new Date(),
+    );
+
+    return {
+      success: verification.status === 'SUCCESS',
+      message: verification.message,
+    };
   }
 
   /**
@@ -97,100 +271,228 @@ export class PaymentService {
    */
   async processRefund(
     paymentId: number,
-    amount: number,
-    reason: string,
-  ): Promise<any> {
-    // TODO: Implement refund logic
+    dto: ProcessRefundDto,
+  ): Promise<PaymentResponseDto> {
     // 1. Find payment
-    // 2. Validate refund amount
-    // 3. Process refund through gateway
-    // 4. Update payment status
-    throw new Error('Method not implemented');
+    const payment = await this.paymentRepository.findOne({
+      where: { paymentId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+    }
+
+    // 2. Validate refund can be processed
+    if (!payment.canRefund()) {
+      throw new BadRequestException(
+        `Cannot refund: payment status is ${payment.paymentStatus}`,
+      );
+    }
+
+    // 3. Validate refund amount
+    if (dto.amount > Number(payment.amount)) {
+      throw new BadRequestException(
+        `Refund amount (${dto.amount}) cannot exceed payment amount (${payment.amount})`,
+      );
+    }
+
+    // 4. Process refund via gateway (if online payment)
+    if (payment.paymentMethod !== PaymentMethod.CASH && payment.transactionId) {
+      const refundResponse = await this.getGateway(
+        this.DEFAULT_GATEWAY,
+      ).initiateRefund({
+        transactionId: payment.transactionId,
+        amount: dto.amount,
+        reason: dto.reason,
+        orderId: paymentId.toString(),
+      });
+
+      if (!refundResponse.success) {
+        throw new BadRequestException(
+          `Refund failed: ${refundResponse.message}`,
+        );
+      }
+
+      // Archive refund gateway response
+      await this.archiveGatewayResponse(
+        paymentId,
+        this.getGateway(this.DEFAULT_GATEWAY).getGatewayName(),
+        refundResponse.rawData,
+        new Date(),
+      );
+    }
+
+    // 5. Update payment
+    payment.refund(dto.amount, dto.reason);
+
+    // 6. Persist changes
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    // 7. Return DTO
+    return PaymentResponseDto.fromEntity(savedPayment);
   }
 
   /**
    * Retrieves complete invoice details including line items.
+   * Delegates to InvoiceService.
    */
-  async getInvoiceById(invoiceId: number): Promise<Invoice> {
-    // TODO: Implement get invoice logic
-    throw new Error('Method not implemented');
+  async getInvoiceById(invoiceId: number): Promise<InvoiceResponseDto> {
+    return this.invoiceService.getInvoiceById(invoiceId);
   }
 
   /**
    * Retrieves invoices by status (Pending, Processing, Paid, Failed).
+   * Delegates to InvoiceService.
    */
-  async getInvoicesByStatus(status: string): Promise<Invoice[]> {
-    // TODO: Implement get invoices by status logic
-    throw new Error('Method not implemented');
+  async getInvoicesByStatus(status: string): Promise<InvoiceResponseDto[]> {
+    return this.invoiceService.getInvoicesByStatus(status);
   }
 
   /**
    * Retrieves payment history for date range.
    */
   async getPaymentHistory(
-    customerId: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<Payment[]> {
-    // TODO: Implement get payment history logic
-    throw new Error('Method not implemented');
+    query: GetPaymentHistoryQueryDto,
+  ): Promise<PaymentResponseDto[]> {
+    const whereClause: FindOptionsWhere<Payment> = {};
+
+    // Add date range filter
+    if (query.startDate && query.endDate) {
+      whereClause.paidAt = Between(
+        new Date(query.startDate),
+        new Date(query.endDate),
+      );
+    }
+
+    // Note: customerId filter would require joining through invoice -> appointment -> pet -> petOwner
+    // For simplicity, implementing basic date range filter
+    // TODO: Add customerId filter with proper joins
+
+    const payments = await this.paymentRepository.find({
+      where: whereClause,
+      relations: ['invoice'],
+      order: { paidAt: 'DESC' },
+    });
+
+    return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
   }
 
   /**
    * Generates payment receipt with transaction details.
    */
   async generateReceipt(paymentId: number): Promise<any> {
-    // TODO: Implement generate receipt logic
-    throw new Error('Method not implemented');
+    const payment = await this.paymentRepository.findOne({
+      where: { paymentId },
+      relations: [
+        'invoice',
+        'invoice.appointment',
+        'invoice.appointment.service',
+        'invoice.appointment.pet',
+      ],
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+    }
+
+    // Build receipt object
+    const receipt = {
+      receiptNumber: `RCP-${paymentId}`,
+      paymentId: payment.paymentId,
+      invoiceNumber: payment.invoice.invoiceNumber,
+      paymentDate: payment.paidAt,
+      paymentMethod: payment.paymentMethod,
+      amount: payment.amount,
+      transactionId: payment.transactionId,
+      status: payment.paymentStatus,
+      service: payment.invoice.appointment?.service?.serviceName,
+      petName: payment.invoice.appointment?.pet?.name,
+      notes: payment.notes,
+    };
+
+    return receipt;
   }
 
   /**
    * Verifies payment status with payment gateway.
    */
   async verifyPayment(paymentId: number): Promise<any> {
-    // TODO: Implement verify payment logic
-    throw new Error('Method not implemented');
+    const payment = await this.paymentRepository.findOne({
+      where: { paymentId },
+      relations: ['invoice'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+    }
+
+    // Only verify online payments
+    if (payment.paymentMethod === PaymentMethod.CASH) {
+      return {
+        verified: true,
+        status: payment.paymentStatus,
+        message: 'Cash payment - no gateway verification needed',
+      };
+    }
+
+    // Query gateway for transaction status
+    const queryResult = await this.getGateway(
+      this.DEFAULT_GATEWAY,
+    ).queryTransaction({
+      orderId: paymentId.toString(),
+      transactionDate: payment.createdAt,
+    });
+
+    return {
+      verified: queryResult.found,
+      status: queryResult.status,
+      transactionId: queryResult.transactionId,
+      amount: queryResult.amount,
+      gatewayData: queryResult.rawData,
+    };
   }
 
-  // Private helper methods
+  // ===== Private Helper Methods =====
 
   /**
-   * Validates payment method, amount, and information.
+   * Generates unique invoice number with format: INV-YYYYMMDD-XXXXX
    */
-  private validatePaymentData(paymentData: any): boolean {
-    // TODO: Implement validation logic
-    throw new Error('Method not implemented');
+  private async generateInvoiceNumber(): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+
+    // Count invoices created today
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    const count = await this.invoiceRepository.count({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+      },
+    });
+
+    // Generate sequential number (padded to 5 digits)
+    const sequenceNumber = String(count + 1).padStart(5, '0');
+
+    return `INV-${dateStr}-${sequenceNumber}`;
   }
 
   /**
-   * Calculates total with discounts and taxes.
+   * Archives gateway response for compliance and debugging
    */
-  private calculateTotalAmount(lineItems: any[], discount: number): number {
-    // TODO: Implement total calculation
-    throw new Error('Method not implemented');
-  }
+  private async archiveGatewayResponse(
+    paymentId: number,
+    gatewayName: string,
+    gatewayResponse: object,
+    transactionTimestamp: Date,
+  ): Promise<void> {
+    const archive = this.paymentGatewayArchiveRepository.create({
+      paymentId,
+      gatewayName,
+      gatewayResponse,
+      transactionTimestamp,
+    });
 
-  /**
-   * Encrypts sensitive payment information.
-   */
-  private encryptPaymentInfo(paymentData: any): string {
-    // TODO: Implement encryption logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Builds VNPay payment request with required parameters.
-   */
-  private buildVNPayRequest(invoiceId: number, amount: number): any {
-    // TODO: Implement VNPay request builder
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Validates VNPay callback signature and parameters.
-   */
-  private validateVNPayCallback(callbackData: any): boolean {
-    // TODO: Implement VNPay callback validation
-    throw new Error('Method not implemented');
+    await this.paymentGatewayArchiveRepository.save(archive);
   }
 }
