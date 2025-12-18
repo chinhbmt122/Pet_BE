@@ -2,14 +2,29 @@ import {
   Controller,
   Post,
   Get,
-  Put,
   Body,
   Param,
   Query,
-  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { PaymentService } from '../services/payment.service';
+import { CreateInvoiceDto, InvoiceResponseDto } from '../dto/invoice';
+import {
+  CreatePaymentDto,
+  PaymentResponseDto,
+  InitiateOnlinePaymentDto,
+  VNPayCallbackDto,
+  ProcessRefundDto,
+  GetPaymentHistoryQueryDto,
+} from '../dto/payment';
+import { InvoiceStatus } from '../entities/types/entity.types';
 
 /**
  * PaymentController
@@ -28,13 +43,18 @@ export class PaymentController {
    * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
    */
   @Post('invoices/generate')
-  @ApiOperation({ summary: 'Generate invoice' })
-  @ApiResponse({ status: 201, description: 'Invoice generated' })
+  @ApiOperation({ summary: 'Generate invoice from appointment' })
+  @ApiResponse({
+    status: 201,
+    description: 'Invoice generated',
+    type: InvoiceResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   @ApiResponse({ status: 409, description: 'Invoice already exists' })
-  async generateInvoice(@Body() invoiceDto: any) {
-    // TODO: Implement generate invoice logic
-    throw new Error('Method not implemented');
+  async generateInvoice(
+    @Body() dto: CreateInvoiceDto,
+  ): Promise<InvoiceResponseDto> {
+    return await this.paymentService.generateInvoice(dto);
   }
 
   /**
@@ -43,11 +63,17 @@ export class PaymentController {
    */
   @Get('invoices/:id')
   @ApiOperation({ summary: 'Get invoice by ID' })
-  @ApiResponse({ status: 200, description: 'Invoice retrieved' })
+  @ApiParam({ name: 'id', description: 'Invoice ID', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice retrieved',
+    type: InvoiceResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
-  async getInvoiceById(@Param('id') id: number) {
-    // TODO: Implement get invoice logic
-    throw new Error('Method not implemented');
+  async getInvoiceById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<InvoiceResponseDto> {
+    return await this.paymentService.getInvoiceById(id);
   }
 
   /**
@@ -56,10 +82,20 @@ export class PaymentController {
    */
   @Get('invoices')
   @ApiOperation({ summary: 'Get invoices by status' })
-  @ApiResponse({ status: 200, description: 'Invoices retrieved' })
-  async getInvoicesByStatus(@Query() query: any) {
-    // TODO: Implement get invoices by status logic
-    throw new Error('Method not implemented');
+  @ApiQuery({
+    name: 'status',
+    enum: InvoiceStatus,
+    description: 'Invoice status',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoices retrieved',
+    type: [InvoiceResponseDto],
+  })
+  async getInvoicesByStatus(
+    @Query('status') status: string,
+  ): Promise<InvoiceResponseDto[]> {
+    return await this.paymentService.getInvoicesByStatus(status);
   }
 
   /**
@@ -68,12 +104,17 @@ export class PaymentController {
    * @throws PaymentProcessingException, InsufficientFundsException
    */
   @Post('payments')
-  @ApiOperation({ summary: 'Process payment' })
-  @ApiResponse({ status: 201, description: 'Payment processed' })
+  @ApiOperation({ summary: 'Process cash payment' })
+  @ApiResponse({
+    status: 201,
+    description: 'Payment processed',
+    type: PaymentResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Payment processing failed' })
-  async processPayment(@Body() paymentDto: any) {
-    // TODO: Implement process payment logic
-    throw new Error('Method not implemented');
+  async processPayment(
+    @Body() dto: CreatePaymentDto,
+  ): Promise<PaymentResponseDto> {
+    return await this.paymentService.processPayment(dto);
   }
 
   /**
@@ -82,12 +123,13 @@ export class PaymentController {
    * @throws InvoiceNotFoundException, PaymentGatewayException
    */
   @Post('payments/online/initiate')
-  @ApiOperation({ summary: 'Initiate online payment' })
+  @ApiOperation({ summary: 'Initiate online payment (VNPay)' })
   @ApiResponse({ status: 200, description: 'Payment URL generated' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
-  async initiateOnlinePayment(@Body() onlinePaymentDto: any) {
-    // TODO: Implement initiate online payment logic
-    throw new Error('Method not implemented');
+  async initiateOnlinePayment(
+    @Body() dto: InitiateOnlinePaymentDto,
+  ): Promise<{ paymentUrl: string; paymentId: number }> {
+    return await this.paymentService.initiateOnlinePayment(dto);
   }
 
   /**
@@ -96,12 +138,13 @@ export class PaymentController {
    * @throws InvalidCallbackException, InvoiceNotFoundException
    */
   @Post('payments/vnpay/callback')
-  @ApiOperation({ summary: 'VNPay payment callback' })
+  @ApiOperation({ summary: 'VNPay payment callback (webhook)' })
   @ApiResponse({ status: 200, description: 'Callback processed' })
   @ApiResponse({ status: 400, description: 'Invalid callback' })
-  async handlePaymentCallback(@Body() callbackDto: any) {
-    // TODO: Implement payment callback logic
-    throw new Error('Method not implemented');
+  async handlePaymentCallback(
+    @Body() dto: VNPayCallbackDto,
+  ): Promise<{ success: boolean; message: string }> {
+    return await this.paymentService.handlePaymentCallback(dto);
   }
 
   /**
@@ -110,10 +153,15 @@ export class PaymentController {
    */
   @Get('payments/history')
   @ApiOperation({ summary: 'Get payment history' })
-  @ApiResponse({ status: 200, description: 'Payment history retrieved' })
-  async getPaymentHistory(@Query() query: any) {
-    // TODO: Implement get payment history logic
-    throw new Error('Method not implemented');
+  @ApiResponse({
+    status: 200,
+    description: 'Payment history retrieved',
+    type: [PaymentResponseDto],
+  })
+  async getPaymentHistory(
+    @Query() query: GetPaymentHistoryQueryDto,
+  ): Promise<PaymentResponseDto[]> {
+    return await this.paymentService.getPaymentHistory(query);
   }
 
   /**
@@ -123,11 +171,18 @@ export class PaymentController {
    */
   @Post('payments/:id/refund')
   @ApiOperation({ summary: 'Process refund' })
-  @ApiResponse({ status: 200, description: 'Refund processed' })
+  @ApiParam({ name: 'id', description: 'Payment ID', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Refund processed',
+    type: PaymentResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  async processRefund(@Param('id') id: number, @Body() refundDto: any) {
-    // TODO: Implement refund logic
-    throw new Error('Method not implemented');
+  async processRefund(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ProcessRefundDto,
+  ): Promise<PaymentResponseDto> {
+    return await this.paymentService.processRefund(id, dto);
   }
 
   /**
@@ -135,11 +190,24 @@ export class PaymentController {
    * Generates payment receipt with transaction details.
    */
   @Get('payments/:id/receipt')
-  @ApiOperation({ summary: 'Generate receipt' })
+  @ApiOperation({ summary: 'Generate payment receipt' })
+  @ApiParam({ name: 'id', description: 'Payment ID', type: Number })
   @ApiResponse({ status: 200, description: 'Receipt generated' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  async generateReceipt(@Param('id') id: number) {
-    // TODO: Implement generate receipt logic
-    throw new Error('Method not implemented');
+  async generateReceipt(@Param('id', ParseIntPipe) id: number): Promise<any> {
+    return await this.paymentService.generateReceipt(id);
+  }
+
+  /**
+   * GET /api/payments/:id/verify
+   * Verifies payment status with payment gateway.
+   */
+  @Get('payments/:id/verify')
+  @ApiOperation({ summary: 'Verify payment status' })
+  @ApiParam({ name: 'id', description: 'Payment ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Payment verified' })
+  @ApiResponse({ status: 404, description: 'Payment not found' })
+  async verifyPayment(@Param('id', ParseIntPipe) id: number): Promise<any> {
+    return await this.paymentService.verifyPayment(id);
   }
 }
