@@ -16,6 +16,7 @@
     "test": "jest --config ./tests/unit/jest.json",
     "test:all": "jest --config ./tests/unit/jest.json",
     "test:changed": "bash scripts/test-changed.sh",
+    "test:unit": "jest --config ./tests/unit/jest.json",
     "test:services": "jest --config ./tests/unit/jest.json tests/unit/services/",
     "test:controllers": "jest --config ./tests/unit/jest.json tests/unit/controllers/",
     "test:integration": "jest --config ./tests/integration/jest.json",
