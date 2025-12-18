@@ -36,13 +36,6 @@ export class PaymentResponseDto {
   transactionId: string | null;
 
   @ApiProperty({
-    description: 'Idempotency key',
-    example: 'unique-key-123',
-    nullable: true,
-  })
-  idempotencyKey: string | null;
-
-  @ApiProperty({
     description: 'Payment status',
     enum: PaymentStatus,
     example: PaymentStatus.SUCCESS,
@@ -62,13 +55,6 @@ export class PaymentResponseDto {
     nullable: true,
   })
   receivedBy: number | null;
-
-  @ApiProperty({
-    description: 'Gateway response data',
-    example: {},
-    nullable: true,
-  })
-  gatewayResponse: object | null;
 
   @ApiProperty({ description: 'Refund amount', example: 0 })
   refundAmount: number;
@@ -110,11 +96,10 @@ export class PaymentResponseDto {
     dto.paymentMethod = entity.paymentMethod;
     dto.amount = Number(entity.amount);
     dto.transactionId = entity.transactionId;
-    dto.idempotencyKey = entity.idempotencyKey;
+    // idempotencyKey and gatewayResponse excluded for security
     dto.paymentStatus = entity.paymentStatus;
     dto.paidAt = entity.paidAt;
     dto.receivedBy = entity.receivedBy;
-    dto.gatewayResponse = entity.gatewayResponse;
     dto.refundAmount = Number(entity.refundAmount);
     dto.refundDate = entity.refundDate;
     dto.refundReason = entity.refundReason;

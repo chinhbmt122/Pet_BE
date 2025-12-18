@@ -1,12 +1,11 @@
 import {
   Injectable,
-  Inject,
   NotFoundException,
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Payment, PaymentMethod } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
@@ -21,6 +20,7 @@ import {
   ProcessRefundDto,
   GetPaymentHistoryQueryDto,
 } from '../dto/payment';
+import { VNPayService } from './vnpay.service';
 
 /**
  * PaymentService (PaymentManager)
@@ -33,6 +33,10 @@ import {
  */
 @Injectable()
 export class PaymentService {
+  // Remove this for production
+  DEFAULT_GATEWAY = PaymentMethod.VNPAY;
+  TAX_RATE = 0.1;
+
   constructor(
     @InjectRepository(Invoice)
     private readonly invoiceRepository: Repository<Invoice>,
@@ -42,12 +46,23 @@ export class PaymentService {
     private readonly paymentGatewayArchiveRepository: Repository<PaymentGatewayArchive>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
-    @Inject('IPaymentGatewayService')
-    private readonly gatewayService: IPaymentGatewayService,
+    private readonly vnpayService: VNPayService,
   ) {}
+
+  getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
+    switch (paymentMethod) {
+      case PaymentMethod.VNPAY:
+        return this.vnpayService;
+      // case PaymentMethod.MOMO:
+      //   return this.momoService;
+      default:
+        return this.vnpayService; // Default gateway
+    }
+  }
 
   /**
    * Creates invoice from appointment with itemized charges.
+   * Auto-calculates amounts from appointment service prices.
    * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
    */
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
@@ -77,23 +92,44 @@ export class PaymentService {
       );
     }
 
-    // 4. Create invoice entity
+    // 4. Calculate invoice amounts from service
+    const servicePrice = Number(appointment.service.basePrice);
+    const subtotal = servicePrice;
+
+    // Apply discount (TODO: implement discount code lookup)
+    let discount = 0;
+    if (dto.discountCode) {
+      // TODO: Look up discount code and calculate discount amount
+      // For now, placeholder implementation
+      discount = 0;
+    }
+
+    // Calculate tax (10% VAT - should come from config)
+    const tax = (subtotal - discount) * this.TAX_RATE;
+
+    // Calculate total
+    const totalAmount = subtotal - discount + tax;
+
+    // 5. Auto-generate invoice number
+    const invoiceNumber = await this.generateInvoiceNumber();
+
+    // 6. Create invoice entity
     const invoice = this.invoiceRepository.create({
       appointmentId: dto.appointmentId,
-      invoiceNumber: dto.invoiceNumber,
+      invoiceNumber,
       issueDate: new Date(),
-      subtotal: dto.subtotal,
-      discount: dto.discount ?? 0,
-      tax: dto.tax ?? 0,
-      totalAmount: dto.totalAmount,
+      subtotal,
+      discount,
+      tax,
+      totalAmount,
       notes: dto.notes,
       status: InvoiceStatus.PENDING,
     });
 
-    // 5. Persist invoice
+    // 7. Persist invoice
     const savedInvoice = await this.invoiceRepository.save(invoice);
 
-    // 6. Return DTO
+    // 8. Return DTO
     return InvoiceResponseDto.fromEntity(savedInvoice);
   }
 
@@ -200,7 +236,9 @@ export class PaymentService {
     await this.invoiceRepository.save(invoice);
 
     // 6. Generate payment URL via gateway service
-    const paymentUrlResponse = await this.gatewayService.generatePaymentUrl({
+    const paymentUrlResponse = await this.getGateway(
+      this.DEFAULT_GATEWAY,
+    ).generatePaymentUrl({
       orderId: savedPayment.paymentId.toString(),
       amount: Number(invoice.totalAmount),
       orderDescription: `Payment for invoice ${invoice.invoiceNumber}`,
@@ -224,9 +262,9 @@ export class PaymentService {
   ): Promise<{ success: boolean; message: string }> {
     // 1. Verify callback signature
 
-    const verification = await this.gatewayService.verifyCallback(
-      callbackDto as any,
-    );
+    const verification = await this.getGateway(
+      this.DEFAULT_GATEWAY,
+    ).verifyCallback(callbackDto as any);
 
     if (!verification.isValid) {
       throw new BadRequestException('Invalid callback signature');
@@ -261,7 +299,7 @@ export class PaymentService {
     // 5. Archive gateway response
     await this.archiveGatewayResponse(
       paymentId,
-      this.gatewayService.getGatewayName(),
+      this.getGateway(this.DEFAULT_GATEWAY).getGatewayName(),
       verification.rawData,
       new Date(),
     );
@@ -305,7 +343,9 @@ export class PaymentService {
 
     // 4. Process refund via gateway (if online payment)
     if (payment.paymentMethod !== PaymentMethod.CASH && payment.transactionId) {
-      const refundResponse = await this.gatewayService.initiateRefund({
+      const refundResponse = await this.getGateway(
+        this.DEFAULT_GATEWAY,
+      ).initiateRefund({
         transactionId: payment.transactionId,
         amount: dto.amount,
         reason: dto.reason,
@@ -321,7 +361,7 @@ export class PaymentService {
       // Archive refund gateway response
       await this.archiveGatewayResponse(
         paymentId,
-        this.gatewayService.getGatewayName(),
+        this.getGateway(this.DEFAULT_GATEWAY).getGatewayName(),
         refundResponse.rawData,
         new Date(),
       );
@@ -376,10 +416,7 @@ export class PaymentService {
   async getPaymentHistory(
     query: GetPaymentHistoryQueryDto,
   ): Promise<PaymentResponseDto[]> {
-    interface WhereClause {
-      paidAt?: ReturnType<typeof Between>;
-    }
-    const whereClause: WhereClause = {};
+    const whereClause: FindOptionsWhere<Payment> = {};
 
     // Add date range filter
     if (query.startDate && query.endDate) {
@@ -461,7 +498,9 @@ export class PaymentService {
     }
 
     // Query gateway for transaction status
-    const queryResult = await this.gatewayService.queryTransaction({
+    const queryResult = await this.getGateway(
+      this.DEFAULT_GATEWAY,
+    ).queryTransaction({
       orderId: paymentId.toString(),
       transactionDate: payment.createdAt,
     });
@@ -476,6 +515,29 @@ export class PaymentService {
   }
 
   // ===== Private Helper Methods =====
+
+  /**
+   * Generates unique invoice number with format: INV-YYYYMMDD-XXXXX
+   */
+  private async generateInvoiceNumber(): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+
+    // Count invoices created today
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    const count = await this.invoiceRepository.count({
+      where: {
+        createdAt: Between(startOfDay, endOfDay),
+      },
+    });
+
+    // Generate sequential number (padded to 5 digits)
+    const sequenceNumber = String(count + 1).padStart(5, '0');
+
+    return `INV-${dateStr}-${sequenceNumber}`;
+  }
 
   /**
    * Archives gateway response for compliance and debugging

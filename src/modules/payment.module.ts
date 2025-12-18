@@ -26,13 +26,7 @@ import { Appointment } from '../entities/appointment.entity';
     ]),
   ],
   controllers: [PaymentController],
-  providers: [
-    PaymentService,
-    {
-      provide: 'IPaymentGatewayService',
-      useClass: VNPayService,
-    },
-  ],
+  providers: [PaymentService, VNPayService],
   exports: [PaymentService],
 })
 export class PaymentModule {}
