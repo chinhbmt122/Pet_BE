@@ -2,11 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
+import { Invoice } from '../entities/invoice.entity';
 import { Payment, PaymentMethod } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
@@ -21,6 +20,7 @@ import {
   GetPaymentHistoryQueryDto,
 } from '../dto/payment';
 import { VNPayService } from './vnpay.service';
+import { InvoiceService } from './invoice.service';
 
 /**
  * PaymentService (PaymentManager)
@@ -47,6 +47,7 @@ export class PaymentService {
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
     private readonly vnpayService: VNPayService,
+    private readonly invoiceService: InvoiceService,
   ) {}
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
@@ -62,14 +63,13 @@ export class PaymentService {
 
   /**
    * Creates invoice from appointment with itemized charges.
-   * Auto-calculates amounts from appointment service prices.
+   * Delegates to InvoiceService for invoice creation.
    * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
    */
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
-    // 1. Find appointment with service relation
+    // Validate appointment status before generating invoice
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId: dto.appointmentId },
-      relations: ['service', 'invoice'],
     });
 
     if (!appointment) {
@@ -78,59 +78,14 @@ export class PaymentService {
       );
     }
 
-    // 2. Check if invoice already exists
-    if (appointment.invoice) {
-      throw new ConflictException(
-        `Invoice already exists for appointment ${dto.appointmentId}`,
-      );
-    }
-
-    // 3. Validate appointment status
     if (appointment.status !== AppointmentStatus.COMPLETED) {
       throw new BadRequestException(
         `Cannot generate invoice: appointment status is ${appointment.status}, expected COMPLETED`,
       );
     }
 
-    // 4. Calculate invoice amounts from service
-    const servicePrice = Number(appointment.service.basePrice);
-    const subtotal = servicePrice;
-
-    // Apply discount (TODO: implement discount code lookup)
-    let discount = 0;
-    if (dto.discountCode) {
-      // TODO: Look up discount code and calculate discount amount
-      // For now, placeholder implementation
-      discount = 0;
-    }
-
-    // Calculate tax (10% VAT - should come from config)
-    const tax = (subtotal - discount) * this.TAX_RATE;
-
-    // Calculate total
-    const totalAmount = subtotal - discount + tax;
-
-    // 5. Auto-generate invoice number
-    const invoiceNumber = await this.generateInvoiceNumber();
-
-    // 6. Create invoice entity
-    const invoice = this.invoiceRepository.create({
-      appointmentId: dto.appointmentId,
-      invoiceNumber,
-      issueDate: new Date(),
-      subtotal,
-      discount,
-      tax,
-      totalAmount,
-      notes: dto.notes,
-      status: InvoiceStatus.PENDING,
-    });
-
-    // 7. Persist invoice
-    const savedInvoice = await this.invoiceRepository.save(invoice);
-
-    // 8. Return DTO
-    return InvoiceResponseDto.fromEntity(savedInvoice);
+    // Delegate invoice creation to InvoiceService
+    return this.invoiceService.createInvoice(dto);
   }
 
   /**
@@ -379,35 +334,18 @@ export class PaymentService {
 
   /**
    * Retrieves complete invoice details including line items.
+   * Delegates to InvoiceService.
    */
   async getInvoiceById(invoiceId: number): Promise<InvoiceResponseDto> {
-    const invoice = await this.invoiceRepository.findOne({
-      where: { invoiceId },
-      relations: ['appointment', 'appointment.service'],
-    });
-
-    if (!invoice) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
-    }
-
-    return InvoiceResponseDto.fromEntity(invoice);
+    return this.invoiceService.getInvoiceById(invoiceId);
   }
 
   /**
    * Retrieves invoices by status (Pending, Processing, Paid, Failed).
+   * Delegates to InvoiceService.
    */
   async getInvoicesByStatus(status: string): Promise<InvoiceResponseDto[]> {
-    // Validate status
-    if (!Object.values(InvoiceStatus).includes(status as InvoiceStatus)) {
-      throw new BadRequestException(`Invalid invoice status: ${status}`);
-    }
-
-    const invoices = await this.invoiceRepository.find({
-      where: { status: status as InvoiceStatus },
-      relations: ['appointment'],
-    });
-
-    return invoices.map((invoice) => InvoiceResponseDto.fromEntity(invoice));
+    return this.invoiceService.getInvoicesByStatus(status);
   }
 
   /**

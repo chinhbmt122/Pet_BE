@@ -190,7 +190,7 @@ export class EmployeeService {
     const entity = await this.getById(targetEmployeeId);
 
     // Authorization: Manager can update anyone, employee can update self
-    const isSelf = await this.isSameEmployee(callerAccountId, entity);
+    const isSelf = this.isSameEmployee(callerAccountId, entity);
     const isManager = await this.isManager(callerAccountId);
 
     if (!isSelf && !isManager) {
@@ -304,10 +304,7 @@ export class EmployeeService {
     return account?.userType === UserType.MANAGER;
   }
 
-  private async isSameEmployee(
-    accountId: number,
-    employee: Employee,
-  ): Promise<boolean> {
+  private isSameEmployee(accountId: number, employee: Employee): boolean {
     return employee.accountId === accountId;
   }
 }

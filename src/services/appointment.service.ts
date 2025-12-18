@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { Pet } from '../entities/pet.entity';
 import { Employee } from '../entities/employee.entity';
@@ -40,7 +40,9 @@ export class AppointmentService {
    */
   async createAppointment(dto: CreateAppointmentDto): Promise<Appointment> {
     // Validate pet exists
-    const pet = await this.petRepository.findOne({ where: { petId: dto.petId } });
+    const pet = await this.petRepository.findOne({
+      where: { petId: dto.petId },
+    });
     if (!pet) {
       throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
     }
@@ -50,7 +52,9 @@ export class AppointmentService {
       where: { employeeId: dto.employeeId },
     });
     if (!employee) {
-      throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+      throw new NotFoundException(
+        `Employee with ID ${dto.employeeId} not found`,
+      );
     }
 
     // Validate service exists
@@ -79,7 +83,8 @@ export class AppointmentService {
     if (conflict) {
       // Check time overlap
       if (
-        (dto.startTime >= conflict.startTime && dto.startTime < conflict.endTime) ||
+        (dto.startTime >= conflict.startTime &&
+          dto.startTime < conflict.endTime) ||
         (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
         (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
       ) {
@@ -97,8 +102,8 @@ export class AppointmentService {
       appointmentDate,
       startTime: dto.startTime,
       endTime: dto.endTime,
-      notes: dto.notes ?? null,
-      estimatedCost: dto.estimatedCost ?? service.price,
+      notes: dto.notes ?? undefined,
+      estimatedCost: dto.estimatedCost ?? service.basePrice,
       status: AppointmentStatus.PENDING,
     });
 
@@ -116,7 +121,9 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
 
     // Validate employee if being updated
@@ -125,7 +132,9 @@ export class AppointmentService {
         where: { employeeId: dto.employeeId },
       });
       if (!employee) {
-        throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+        throw new NotFoundException(
+          `Employee with ID ${dto.employeeId} not found`,
+        );
       }
     }
 
@@ -149,7 +158,9 @@ export class AppointmentService {
       relations: ['pet', 'employee', 'service'],
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
     return appointment;
   }
@@ -167,7 +178,9 @@ export class AppointmentService {
   /**
    * Gets appointments by status
    */
-  async getAppointmentsByStatus(status: AppointmentStatus): Promise<Appointment[]> {
+  async getAppointmentsByStatus(
+    status: AppointmentStatus,
+  ): Promise<Appointment[]> {
     return this.appointmentRepository.find({
       where: { status },
       relations: ['pet', 'employee', 'service'],
@@ -216,7 +229,9 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
 
     if (appointment.status !== AppointmentStatus.PENDING) {
@@ -238,7 +253,9 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
 
     if (appointment.status !== AppointmentStatus.PENDING) {
@@ -257,7 +274,9 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
 
     if (appointment.status !== AppointmentStatus.CONFIRMED) {
@@ -279,11 +298,15 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
 
     if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
-      throw new BadRequestException('Can only complete in-progress appointments');
+      throw new BadRequestException(
+        'Can only complete in-progress appointments',
+      );
     }
 
     appointment.status = AppointmentStatus.COMPLETED;
@@ -304,7 +327,9 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+      throw new NotFoundException(
+        `Appointment with ID ${appointmentId} not found`,
+      );
     }
 
     if (appointment.status === AppointmentStatus.COMPLETED) {

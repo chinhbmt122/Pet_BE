@@ -7,7 +7,7 @@ import { UserType } from '../entities/types/entity.types';
 import { AccountFactory } from '../factories/account.factory';
 import { PetOwnerFactory } from '../factories/pet-owner.factory';
 import { PetOwnerMapper } from '../mappers/pet-owner.mapper';
-import { RegisterPetOwnerDto, UpdatePetOwnerDto } from '../dto/pet-owner';
+import { RegisterPetOwnerDto } from '../dto/pet-owner';
 
 /**
  * PetOwnerService

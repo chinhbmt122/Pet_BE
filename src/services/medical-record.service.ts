@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, LessThanOrEqual } from 'typeorm';
 import { MedicalRecord } from '../entities/medical-record.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';

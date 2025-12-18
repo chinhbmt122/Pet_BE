@@ -160,6 +160,70 @@ export class Invoice {
       throw new Error('Discount cannot be negative');
     }
     this.discount = discount;
+    this.recalculateTotalAmount();
+  }
+
+  /**
+   * Update tax amount
+   */
+  updateTax(tax: number): void {
+    if (this.status !== InvoiceStatus.PENDING) {
+      throw new Error('Can only update tax for pending invoices');
+    }
+    if (tax < 0) {
+      throw new Error('Tax cannot be negative');
+    }
+    this.tax = tax;
+    this.recalculateTotalAmount();
+  }
+
+  /**
+   * Mark invoice as processing (transitioning to online payment)
+   * This is an alias for startOnlinePayment for backward compatibility
+   */
+  markAsProcessing(): void {
+    this.startOnlinePayment();
+  }
+
+  /**
+   * Mark invoice as paid with optional paid date
+   * Can be used directly for cash payments or after online payment success
+   */
+  markAsPaid(paidAt?: Date): void {
+    // Allow marking as paid from PENDING (cash) or PROCESSING_ONLINE (callback)
+    if (this.status === InvoiceStatus.PENDING) {
+      this.payByCash();
+    } else if (this.status === InvoiceStatus.PROCESSING_ONLINE) {
+      this.markPaid();
+    } else {
+      throw new Error(`Cannot mark as paid: current status is ${this.status}`);
+    }
+
+    if (paidAt) {
+      this.paidAt = paidAt;
+    }
+  }
+
+  /**
+   * Check if invoice is overdue (unpaid after 30 days)
+   */
+  isOverdue(): boolean {
+    if (this.status === InvoiceStatus.PAID) {
+      return false;
+    }
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    return new Date(this.issueDate) < thirtyDaysAgo;
+  }
+
+  /**
+   * Recalculate total amount based on subtotal, discount, and tax
+   * Private helper method
+   */
+  private recalculateTotalAmount(): void {
+    this.totalAmount = this.subtotal - this.discount + this.tax;
   }
 
   // ===== Guard Methods =====

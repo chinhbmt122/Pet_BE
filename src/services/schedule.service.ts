@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -164,18 +163,23 @@ export class ScheduleService {
     const whereClause: any = {};
 
     if (options?.onlyAvailable) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.isAvailable = true;
     }
 
     if (options?.startDate && options?.endDate) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.workDate = Between(options.startDate, options.endDate);
     } else if (options?.startDate) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.workDate = MoreThanOrEqual(options.startDate);
     } else if (options?.endDate) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.workDate = LessThanOrEqual(options.endDate);
     }
 
     const entities = await this.scheduleRepository.find({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       where: whereClause,
       order: { workDate: 'ASC', startTime: 'ASC' },
     });
@@ -195,14 +199,18 @@ export class ScheduleService {
     const whereClause: any = { employeeId };
 
     if (startDate && endDate) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.workDate = Between(startDate, endDate);
     } else if (startDate) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.workDate = MoreThanOrEqual(startDate);
     } else if (endDate) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       whereClause.workDate = LessThanOrEqual(endDate);
     }
 
     const entities = await this.scheduleRepository.find({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       where: whereClause,
       order: { workDate: 'ASC', startTime: 'ASC' },
     });

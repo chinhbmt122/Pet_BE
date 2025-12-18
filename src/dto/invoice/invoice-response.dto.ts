@@ -89,4 +89,11 @@ export class InvoiceResponseDto {
     dto.updatedAt = entity.updatedAt;
     return dto;
   }
+
+  /**
+   * Factory method to convert entity list to DTO list
+   */
+  static fromEntityList(entities: Invoice[]): InvoiceResponseDto[] {
+    return entities.map((entity) => InvoiceResponseDto.fromEntity(entity));
+  }
 }

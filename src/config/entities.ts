@@ -19,7 +19,6 @@ import { Payment } from '../entities/payment.entity';
 import { Invoice } from '../entities/invoice.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { AuditLog } from '../entities/audit-log.entity';
-import { ServiceCategory as SC } from '../entities/service-category.entity';
 
 export const entitiesOrdered = [
   Account,

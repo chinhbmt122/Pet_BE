@@ -5,6 +5,10 @@ import { ReportService } from '../services/report.service';
 import { Appointment } from '../entities/appointment.entity';
 import { Invoice } from '../entities/invoice.entity';
 import { Service } from '../entities/service.entity';
+import { Pet } from 'src/entities/pet.entity';
+import { PetOwner } from 'src/entities/pet-owner.entity';
+import { CageAssignment } from 'src/entities/cage-assignment.entity';
+import { Employee } from 'src/entities/employee.entity';
 
 /**
  * ReportModule
@@ -15,7 +19,17 @@ import { Service } from '../entities/service.entity';
  * Aggregates data from appointments and invoices repositories.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, Invoice, Service])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Appointment,
+      Invoice,
+      Service,
+      Pet,
+      PetOwner,
+      CageAssignment,
+      Employee,
+    ]),
+  ],
   controllers: [ReportController],
   providers: [ReportService],
   exports: [ReportService],

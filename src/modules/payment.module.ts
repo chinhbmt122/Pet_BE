@@ -7,6 +7,7 @@ import { Invoice } from '../entities/invoice.entity';
 import { Payment } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { Appointment } from '../entities/appointment.entity';
+import { InvoiceService } from 'src/services/invoice.service';
 
 /**
  * PaymentModule
@@ -26,7 +27,7 @@ import { Appointment } from '../entities/appointment.entity';
     ]),
   ],
   controllers: [PaymentController],
-  providers: [PaymentService, VNPayService],
+  providers: [PaymentService, VNPayService, InvoiceService],
   exports: [PaymentService],
 })
 export class PaymentModule {}

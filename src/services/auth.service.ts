@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { Account } from '../entities/account.entity';
 import { AccountDomainModel } from '../domain/account.domain';
 import { AccountMapper } from '../mappers/account.mapper';
@@ -98,7 +97,7 @@ export class AuthService {
   /**
    * Validates JWT token and returns payload.
    */
-  async validateToken(token: string): Promise<JwtPayload | null> {
+  validateToken(token: string): JwtPayload | null {
     try {
       return this.jwtService.verify<JwtPayload>(token);
     } catch {
