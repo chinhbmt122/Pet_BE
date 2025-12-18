@@ -1,194 +1,323 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Appointment } from '../entities/appointment.entity';
+import { Repository, Between, Not } from 'typeorm';
+import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
+import { Pet } from '../entities/pet.entity';
+import { Employee } from '../entities/employee.entity';
+import { Service } from '../entities/service.entity';
+import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 
 /**
- * AppointmentService (AppointmentManager)
+ * AppointmentService (Pure Anemic Pattern)
  *
- * Handles appointment booking, cancellation, and status updates.
- * Manages appointment lifecycle: Pending → Confirmed → In-Progress → Completed/Cancelled.
- * Coordinates with ScheduleManager for availability and NotificationService for confirmations.
+ * Manages appointments with business logic in service layer.
+ * Handles appointment lifecycle: PENDING → CONFIRMED → IN_PROGRESS → COMPLETED/CANCELLED.
  */
 @Injectable()
 export class AppointmentService {
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(Pet)
+    private readonly petRepository: Repository<Pet>,
+    @InjectRepository(Employee)
+    private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>,
   ) {}
 
+  // ============================================
+  // APPOINTMENT CRUD
+  // ============================================
+
   /**
-   * Creates new appointment with availability validation.
-   * @throws ScheduleConflictException, InvalidServiceException, ValidationException
+   * Creates new appointment with validation
    */
-  async bookAppointment(appointmentData: any): Promise<Appointment> {
-    // TODO: Implement booking logic
-    // 1. Validate appointment data
-    // 2. Check employee availability
-    // 3. Check schedule conflicts
-    // 4. Calculate estimated cost
-    // 5. Create appointment
-    // 6. Send confirmation notification
-    throw new Error('Method not implemented');
+  async createAppointment(dto: CreateAppointmentDto): Promise<Appointment> {
+    // Validate pet exists
+    const pet = await this.petRepository.findOne({ where: { petId: dto.petId } });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+    }
+
+    // Validate employee exists
+    const employee = await this.employeeRepository.findOne({
+      where: { employeeId: dto.employeeId },
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+    }
+
+    // Validate service exists
+    const service = await this.serviceRepository.findOne({
+      where: { serviceId: dto.serviceId },
+    });
+    if (!service) {
+      throw new NotFoundException(`Service with ID ${dto.serviceId} not found`);
+    }
+
+    // Validate time (end must be after start)
+    if (dto.endTime <= dto.startTime) {
+      throw new BadRequestException('End time must be after start time');
+    }
+
+    // Check for schedule conflicts
+    const appointmentDate = new Date(dto.appointmentDate);
+    const conflict = await this.appointmentRepository.findOne({
+      where: {
+        employeeId: dto.employeeId,
+        appointmentDate,
+        status: Not(AppointmentStatus.CANCELLED),
+      },
+    });
+
+    if (conflict) {
+      // Check time overlap
+      if (
+        (dto.startTime >= conflict.startTime && dto.startTime < conflict.endTime) ||
+        (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
+        (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
+      ) {
+        throw new ConflictException(
+          `Employee has a conflicting appointment at ${conflict.startTime} - ${conflict.endTime}`,
+        );
+      }
+    }
+
+    // Create appointment
+    const appointment = this.appointmentRepository.create({
+      petId: dto.petId,
+      employeeId: dto.employeeId,
+      serviceId: dto.serviceId,
+      appointmentDate,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      notes: dto.notes ?? null,
+      estimatedCost: dto.estimatedCost ?? service.price,
+      status: AppointmentStatus.PENDING,
+    });
+
+    return this.appointmentRepository.save(appointment);
   }
 
   /**
-   * Cancels appointment and updates status to CANCELLED.
-   * @throws AppointmentNotFoundException, InvalidStatusException
+   * Updates appointment details
+   */
+  async updateAppointment(
+    appointmentId: number,
+    dto: UpdateAppointmentDto,
+  ): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
+
+    // Validate employee if being updated
+    if (dto.employeeId && dto.employeeId !== appointment.employeeId) {
+      const employee = await this.employeeRepository.findOne({
+        where: { employeeId: dto.employeeId },
+      });
+      if (!employee) {
+        throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+      }
+    }
+
+    // Validate time if being updated
+    const startTime = dto.startTime ?? appointment.startTime;
+    const endTime = dto.endTime ?? appointment.endTime;
+    if (endTime <= startTime) {
+      throw new BadRequestException('End time must be after start time');
+    }
+
+    Object.assign(appointment, dto);
+    return this.appointmentRepository.save(appointment);
+  }
+
+  /**
+   * Gets appointment by ID
+   */
+  async getAppointmentById(appointmentId: number): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+      relations: ['pet', 'employee', 'service'],
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
+    return appointment;
+  }
+
+  /**
+   * Gets all appointments
+   */
+  async getAllAppointments(): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
+      relations: ['pet', 'employee', 'service'],
+      order: { appointmentDate: 'DESC', startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * Gets appointments by status
+   */
+  async getAppointmentsByStatus(status: AppointmentStatus): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
+      where: { status },
+      relations: ['pet', 'employee', 'service'],
+      order: { appointmentDate: 'DESC', startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * Gets appointments by pet ID
+   */
+  async getAppointmentsByPet(petId: number): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
+      where: { petId },
+      relations: ['employee', 'service'],
+      order: { appointmentDate: 'DESC', startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * Gets appointments by employee ID
+   */
+  async getAppointmentsByEmployee(employeeId: number): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
+      where: { employeeId },
+      relations: ['pet', 'service'],
+      order: { appointmentDate: 'DESC', startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * Gets appointments by date
+   */
+  async getAppointmentsByDate(date: Date): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
+      where: { appointmentDate: date },
+      relations: ['pet', 'employee', 'service'],
+      order: { startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * Deletes appointment (only if pending)
+   */
+  async deleteAppointment(appointmentId: number): Promise<void> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
+
+    if (appointment.status !== AppointmentStatus.PENDING) {
+      throw new BadRequestException('Can only delete pending appointments');
+    }
+
+    await this.appointmentRepository.remove(appointment);
+  }
+
+  // ============================================
+  // STATE TRANSITIONS
+  // ============================================
+
+  /**
+   * Confirms appointment (PENDING → CONFIRMED)
+   */
+  async confirmAppointment(appointmentId: number): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
+
+    if (appointment.status !== AppointmentStatus.PENDING) {
+      throw new BadRequestException('Can only confirm pending appointments');
+    }
+
+    appointment.status = AppointmentStatus.CONFIRMED;
+    return this.appointmentRepository.save(appointment);
+  }
+
+  /**
+   * Starts appointment (CONFIRMED → IN_PROGRESS)
+   */
+  async startAppointment(appointmentId: number): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
+
+    if (appointment.status !== AppointmentStatus.CONFIRMED) {
+      throw new BadRequestException('Can only start confirmed appointments');
+    }
+
+    appointment.status = AppointmentStatus.IN_PROGRESS;
+    return this.appointmentRepository.save(appointment);
+  }
+
+  /**
+   * Completes appointment (IN_PROGRESS → COMPLETED)
+   */
+  async completeAppointment(
+    appointmentId: number,
+    actualCost?: number,
+  ): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
+
+    if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
+      throw new BadRequestException('Can only complete in-progress appointments');
+    }
+
+    appointment.status = AppointmentStatus.COMPLETED;
+    if (actualCost !== undefined) {
+      appointment.actualCost = actualCost;
+    }
+    return this.appointmentRepository.save(appointment);
+  }
+
+  /**
+   * Cancels appointment (any status → CANCELLED)
    */
   async cancelAppointment(
     appointmentId: number,
-    reason: string,
-  ): Promise<boolean> {
-    // TODO: Implement cancellation logic
-    // 1. Find appointment by ID
-    // 2. Validate current status
-    // 3. Update status to CANCELLED
-    // 4. Send cancellation notification
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Reschedules appointment to new date/time with availability check.
-   * @throws ScheduleConflictException, AppointmentNotFoundException
-   */
-  async rescheduleAppointment(
-    appointmentId: number,
-    newDateTime: Date,
+    reason?: string,
   ): Promise<Appointment> {
-    // TODO: Implement rescheduling logic
-    // 1. Find appointment by ID
-    // 2. Check new time slot availability
-    // 3. Update appointment date/time
-    // 4. Send rescheduling notification
-    throw new Error('Method not implemented');
-  }
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+    });
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found`);
+    }
 
-  /**
-   * Changes appointment status from PENDING to CONFIRMED.
-   * @throws AppointmentNotFoundException, InvalidStatusException
-   */
-  async confirmAppointment(appointmentId: number): Promise<boolean> {
-    // TODO: Implement confirmation logic
-    // 1. Find appointment by ID
-    // 2. Validate status transition
-    // 3. Update status to CONFIRMED
-    // 4. Send confirmation notification
-    throw new Error('Method not implemented');
-  }
+    if (appointment.status === AppointmentStatus.COMPLETED) {
+      throw new BadRequestException('Cannot cancel completed appointments');
+    }
 
-  /**
-   * Retrieves appointment details by ID.
-   * @throws AppointmentNotFoundException
-   */
-  async getAppointmentById(appointmentId: number): Promise<Appointment> {
-    // TODO: Implement get appointment logic
-    // 1. Find appointment with relations (pet, employee, service)
-    throw new Error('Method not implemented');
-  }
+    if (appointment.status === AppointmentStatus.CANCELLED) {
+      throw new BadRequestException('Appointment is already cancelled');
+    }
 
-  /**
-   * Retrieves all appointments for a specific pet owner.
-   */
-  async getAppointmentsByPetOwner(ownerId: number): Promise<Appointment[]> {
-    // TODO: Implement get appointments by owner logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Retrieves all appointments scheduled for a specific date.
-   */
-  async getAppointmentsByDate(date: Date): Promise<Appointment[]> {
-    // TODO: Implement get appointments by date logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Filters appointments by status (PENDING, CONFIRMED, etc.).
-   */
-  async getAppointmentsByStatus(status: string): Promise<Appointment[]> {
-    // TODO: Implement get appointments by status logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Updates appointment status with validation.
-   * @throws InvalidStatusTransitionException
-   */
-  async updateAppointmentStatus(
-    appointmentId: number,
-    newStatus: string,
-  ): Promise<boolean> {
-    // TODO: Implement status update logic
-    // 1. Find appointment
-    // 2. Validate status transition
-    // 3. Update status
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Gets upcoming appointments within specified number of days.
-   */
-  async getUpcomingAppointments(
-    ownerId: number,
-    days: number,
-  ): Promise<Appointment[]> {
-    // TODO: Implement get upcoming appointments logic
-    throw new Error('Method not implemented');
-  }
-
-  // Private helper methods
-
-  /**
-   * Validates appointment data including date, time, pet, service.
-   */
-  private validateAppointmentData(appointmentData: any): boolean {
-    // TODO: Implement validation logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Checks for scheduling conflicts with existing appointments.
-   */
-  private async checkScheduleConflict(
-    employeeId: number,
-    dateTime: Date,
-    duration: number,
-  ): Promise<boolean> {
-    // TODO: Implement conflict detection logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Calculates estimated cost based on service and pet type.
-   */
-  private async calculateEstimatedCost(
-    serviceId: number,
-    petType: string,
-  ): Promise<number> {
-    // TODO: Implement cost calculation logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Sends notifications for booking, confirmation, reminders, cancellation.
-   */
-  private async sendAppointmentNotification(
-    appointment: Appointment,
-    notificationType: string,
-  ): Promise<void> {
-    // TODO: Implement notification logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * Validates state transitions (e.g., cannot go from CANCELLED to CONFIRMED).
-   */
-  private validateStatusTransition(
-    currentStatus: string,
-    newStatus: string,
-  ): boolean {
-    // TODO: Implement status transition validation
-    throw new Error('Method not implemented');
+    appointment.status = AppointmentStatus.CANCELLED;
+    appointment.cancellationReason = reason ?? null;
+    appointment.cancelledAt = new Date();
+    return this.appointmentRepository.save(appointment);
   }
 }
