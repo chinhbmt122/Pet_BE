@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { InvoiceStatus } from '../../entities/types/entity.types';
-import { InvoiceDomainModel } from '../../domain/invoice.domain';
+import { Invoice } from '../../entities/invoice.entity';
 
 /**
  * Invoice Response DTO
  *
  * Returned from invoice endpoints.
- * Includes factory method for conversion from domain model.
+ * Includes factory method for conversion from entity.
  */
 export class InvoiceResponseDto {
   @ApiProperty({ description: 'Invoice ID', example: 1 })
@@ -70,23 +70,23 @@ export class InvoiceResponseDto {
   updatedAt: Date;
 
   /**
-   * Factory method to convert domain model to DTO
+   * Factory method to convert entity to DTO
    */
-  static fromDomain(domain: InvoiceDomainModel): InvoiceResponseDto {
+  static fromEntity(entity: Invoice): InvoiceResponseDto {
     const dto = new InvoiceResponseDto();
-    dto.invoiceId = domain.id ?? 0;
-    dto.status = domain.status;
-    dto.appointmentId = domain.appointmentId;
-    dto.invoiceNumber = domain.invoiceNumber;
-    dto.issueDate = domain.issueDate;
-    dto.subtotal = domain.subtotal;
-    dto.discount = domain.discount;
-    dto.tax = domain.tax;
-    dto.totalAmount = domain.totalAmount;
-    dto.notes = domain.notes;
-    dto.paidAt = domain.paidAt;
-    dto.createdAt = domain.createdAt;
-    dto.updatedAt = domain.updatedAt;
+    dto.invoiceId = entity.invoiceId;
+    dto.status = entity.status;
+    dto.appointmentId = entity.appointmentId;
+    dto.invoiceNumber = entity.invoiceNumber;
+    dto.issueDate = entity.issueDate;
+    dto.subtotal = Number(entity.subtotal);
+    dto.discount = Number(entity.discount);
+    dto.tax = Number(entity.tax);
+    dto.totalAmount = Number(entity.totalAmount);
+    dto.notes = entity.notes;
+    dto.paidAt = entity.paidAt;
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
     return dto;
   }
 }

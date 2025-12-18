@@ -3,13 +3,13 @@ import {
   PaymentMethod,
   PaymentStatus,
 } from '../../entities/types/entity.types';
-import { PaymentDomainModel } from '../../domain/payment.domain';
+import { Payment } from '../../entities/payment.entity';
 
 /**
  * Payment Response DTO
  *
  * Returned from payment endpoints.
- * Includes factory method for conversion from domain model.
+ * Includes factory method for conversion from entity.
  */
 export class PaymentResponseDto {
   @ApiProperty({ description: 'Payment ID', example: 1 })
@@ -101,25 +101,25 @@ export class PaymentResponseDto {
   createdAt: Date;
 
   /**
-   * Factory method to convert domain model to DTO
+   * Factory method to convert entity to DTO
    */
-  static fromDomain(domain: PaymentDomainModel): PaymentResponseDto {
+  static fromEntity(entity: Payment): PaymentResponseDto {
     const dto = new PaymentResponseDto();
-    dto.paymentId = domain.id ?? 0;
-    dto.invoiceId = domain.invoiceId;
-    dto.paymentMethod = domain.paymentMethod;
-    dto.amount = domain.amount;
-    dto.transactionId = domain.transactionId;
-    dto.idempotencyKey = domain.idempotencyKey;
-    dto.paymentStatus = domain.paymentStatus;
-    dto.paidAt = domain.paidAt;
-    dto.receivedBy = domain.receivedBy;
-    dto.gatewayResponse = domain.gatewayResponse;
-    dto.refundAmount = domain.refundAmount;
-    dto.refundDate = domain.refundDate;
-    dto.refundReason = domain.refundReason;
-    dto.notes = domain.notes;
-    dto.createdAt = domain.createdAt;
+    dto.paymentId = entity.paymentId;
+    dto.invoiceId = entity.invoiceId;
+    dto.paymentMethod = entity.paymentMethod;
+    dto.amount = Number(entity.amount);
+    dto.transactionId = entity.transactionId;
+    dto.idempotencyKey = entity.idempotencyKey;
+    dto.paymentStatus = entity.paymentStatus;
+    dto.paidAt = entity.paidAt;
+    dto.receivedBy = entity.receivedBy;
+    dto.gatewayResponse = entity.gatewayResponse;
+    dto.refundAmount = Number(entity.refundAmount);
+    dto.refundDate = entity.refundDate;
+    dto.refundReason = entity.refundReason;
+    dto.notes = entity.notes;
+    dto.createdAt = entity.createdAt;
     return dto;
   }
 }

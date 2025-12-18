@@ -19,7 +19,10 @@ import {
   UpdateMedicalRecordDto,
   MedicalRecordResponseDto,
 } from '../dto/medical-record';
-import { CreateVaccinationDto, VaccinationResponseDto } from '../dto/vaccination';
+import {
+  CreateVaccinationDto,
+  VaccinationResponseDto,
+} from '../dto/vaccination';
 
 /**
  * MedicalRecordService (MedicalRecordManager)
@@ -99,7 +102,9 @@ export class MedicalRecordService {
       where: { recordId },
     });
     if (!entity) {
-      throw new NotFoundException(`Medical record with ID ${recordId} not found`);
+      throw new NotFoundException(
+        `Medical record with ID ${recordId} not found`,
+      );
     }
 
     // Convert to domain and update
@@ -122,13 +127,17 @@ export class MedicalRecordService {
   /**
    * Retrieves complete medical record by ID.
    */
-  async getMedicalRecordById(recordId: number): Promise<MedicalRecordResponseDto> {
+  async getMedicalRecordById(
+    recordId: number,
+  ): Promise<MedicalRecordResponseDto> {
     const entity = await this.medicalRecordRepository.findOne({
       where: { recordId },
       relations: ['pet', 'veterinarian'],
     });
     if (!entity) {
-      throw new NotFoundException(`Medical record with ID ${recordId} not found`);
+      throw new NotFoundException(
+        `Medical record with ID ${recordId} not found`,
+      );
     }
 
     const domain = MedicalRecordMapper.toDomain(entity);
@@ -138,7 +147,9 @@ export class MedicalRecordService {
   /**
    * Retrieves complete medical history for a pet in chronological order.
    */
-  async getMedicalHistoryByPet(petId: number): Promise<MedicalRecordResponseDto[]> {
+  async getMedicalHistoryByPet(
+    petId: number,
+  ): Promise<MedicalRecordResponseDto[]> {
     const entities = await this.medicalRecordRepository.find({
       where: { petId },
       order: { examinationDate: 'DESC' },
@@ -194,7 +205,8 @@ export class MedicalRecordService {
       reactions: dto.reactions,
       notes: dto.notes,
       medicalRecordId: dto.medicalRecordId,
-      vaccineBoosterIntervalMonths: vaccineType.boosterIntervalMonths ?? undefined,
+      vaccineBoosterIntervalMonths:
+        vaccineType.boosterIntervalMonths ?? undefined,
     });
 
     // 5. Convert to entity and save
@@ -214,7 +226,9 @@ export class MedicalRecordService {
   /**
    * Retrieves all vaccinations for a pet.
    */
-  async getVaccinationHistory(petId: number): Promise<VaccinationResponseDto[]> {
+  async getVaccinationHistory(
+    petId: number,
+  ): Promise<VaccinationResponseDto[]> {
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
       order: { administrationDate: 'DESC' },
@@ -258,7 +272,9 @@ export class MedicalRecordService {
   /**
    * Gets overdue vaccinations for a pet.
    */
-  async getOverdueVaccinations(petId: number): Promise<VaccinationResponseDto[]> {
+  async getOverdueVaccinations(
+    petId: number,
+  ): Promise<VaccinationResponseDto[]> {
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
       relations: ['vaccineType'],
@@ -273,7 +289,9 @@ export class MedicalRecordService {
   /**
    * Gets records with overdue follow-ups for a pet.
    */
-  async getOverdueFollowUps(petId: number): Promise<MedicalRecordResponseDto[]> {
+  async getOverdueFollowUps(
+    petId: number,
+  ): Promise<MedicalRecordResponseDto[]> {
     const entities = await this.medicalRecordRepository.find({
       where: { petId },
       relations: ['veterinarian'],

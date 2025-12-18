@@ -37,7 +37,9 @@ export class ServiceService {
       where: { serviceName: dto.serviceName },
     });
     if (existing) {
-      throw new ConflictException(`Service '${dto.serviceName}' already exists`);
+      throw new ConflictException(
+        `Service '${dto.serviceName}' already exists`,
+      );
     }
 
     // Verify category exists
@@ -45,7 +47,9 @@ export class ServiceService {
       where: { categoryId: dto.categoryId },
     });
     if (!category) {
-      throw new NotFoundException(`Category with ID ${dto.categoryId} not found`);
+      throw new NotFoundException(
+        `Category with ID ${dto.categoryId} not found`,
+      );
     }
 
     const entity = this.serviceRepository.create({
@@ -91,7 +95,9 @@ export class ServiceService {
         where: { serviceName: dto.serviceName },
       });
       if (existing) {
-        throw new ConflictException(`Service '${dto.serviceName}' already exists`);
+        throw new ConflictException(
+          `Service '${dto.serviceName}' already exists`,
+        );
       }
     }
 
@@ -101,7 +107,9 @@ export class ServiceService {
         where: { categoryId: dto.categoryId },
       });
       if (!category) {
-        throw new NotFoundException(`Category with ID ${dto.categoryId} not found`);
+        throw new NotFoundException(
+          `Category with ID ${dto.categoryId} not found`,
+        );
       }
     }
 
@@ -149,7 +157,9 @@ export class ServiceService {
   /**
    * Gets all available services.
    */
-  async getAllServices(includeUnavailable = false): Promise<ServiceResponseDto[]> {
+  async getAllServices(
+    includeUnavailable = false,
+  ): Promise<ServiceResponseDto[]> {
     const whereClause = includeUnavailable ? {} : { isAvailable: true };
 
     const entities = await this.serviceRepository.find({
@@ -164,7 +174,9 @@ export class ServiceService {
   /**
    * Gets services by category.
    */
-  async getServicesByCategory(categoryId: number): Promise<ServiceResponseDto[]> {
+  async getServicesByCategory(
+    categoryId: number,
+  ): Promise<ServiceResponseDto[]> {
     const entities = await this.serviceRepository.find({
       where: { categoryId, isAvailable: true },
       relations: ['serviceCategory'],
@@ -275,7 +287,9 @@ export class ServiceService {
   /**
    * Gets services by required staff type.
    */
-  async getServicesByStaffType(staffType: string): Promise<ServiceResponseDto[]> {
+  async getServicesByStaffType(
+    staffType: string,
+  ): Promise<ServiceResponseDto[]> {
     const entities = await this.serviceRepository.find({
       where: { requiredStaffType: staffType, isAvailable: true },
       relations: ['serviceCategory'],

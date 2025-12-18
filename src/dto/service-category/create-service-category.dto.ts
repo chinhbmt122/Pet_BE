@@ -10,7 +10,10 @@ export class CreateServiceCategoryDto {
   @IsNotEmpty()
   categoryName: string;
 
-  @ApiPropertyOptional({ description: 'Category description', example: 'Pet grooming and styling services' })
+  @ApiPropertyOptional({
+    description: 'Category description',
+    example: 'Pet grooming and styling services',
+  })
   @IsString()
   @IsOptional()
   description?: string;

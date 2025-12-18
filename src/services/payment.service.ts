@@ -12,10 +12,6 @@ import { Payment, PaymentMethod } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import type { IPaymentGatewayService } from './interfaces/payment-gateway.interface';
-import { InvoiceDomainModel } from '../domain/invoice.domain';
-import { PaymentDomainModel } from '../domain/payment.domain';
-import { InvoiceMapper } from '../mappers/invoice.mapper';
-import { PaymentMapper } from '../mappers/payment.mapper';
 import { CreateInvoiceDto, InvoiceResponseDto } from '../dto/invoice';
 import {
   CreatePaymentDto,
@@ -33,7 +29,7 @@ import {
  * Records payment transactions (cash, bank transfer, and online via VNPay).
  * Integrates with payment gateways via IPaymentGatewayService interface.
  * Manages payment callbacks and transaction records.
- * Follows DDD pattern with domain models and mappers.
+ * Uses Active Record pattern with business logic in entities.
  */
 @Injectable()
 export class PaymentService {
@@ -81,24 +77,24 @@ export class PaymentService {
       );
     }
 
-    // 4. Create invoice domain model
-    const invoiceDomain = InvoiceDomainModel.create({
+    // 4. Create invoice entity
+    const invoice = this.invoiceRepository.create({
       appointmentId: dto.appointmentId,
       invoiceNumber: dto.invoiceNumber,
+      issueDate: new Date(),
       subtotal: dto.subtotal,
-      discount: dto.discount,
-      tax: dto.tax,
+      discount: dto.discount ?? 0,
+      tax: dto.tax ?? 0,
       totalAmount: dto.totalAmount,
       notes: dto.notes,
+      status: InvoiceStatus.PENDING,
     });
 
     // 5. Persist invoice
-    const invoiceEntity = InvoiceMapper.toPersistence(invoiceDomain);
-    const savedInvoice = await this.invoiceRepository.save(invoiceEntity);
+    const savedInvoice = await this.invoiceRepository.save(invoice);
 
-    // 6. Convert to domain and return DTO
-    const savedDomain = InvoiceMapper.toDomain(savedInvoice);
-    return InvoiceResponseDto.fromDomain(savedDomain);
+    // 6. Return DTO
+    return InvoiceResponseDto.fromEntity(savedInvoice);
   }
 
   /**
@@ -107,66 +103,58 @@ export class PaymentService {
    */
   async processPayment(dto: CreatePaymentDto): Promise<PaymentResponseDto> {
     // 1. Find invoice
-    const invoiceEntity = await this.invoiceRepository.findOne({
+    const invoice = await this.invoiceRepository.findOne({
       where: { invoiceId: dto.invoiceId },
     });
 
-    if (!invoiceEntity) {
+    if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
     }
 
-    const invoiceDomain = InvoiceMapper.toDomain(invoiceEntity);
-
     // 2. Validate invoice status
-    if (!invoiceDomain.canPayByCash()) {
+    if (!invoice.canPayByCash()) {
       throw new BadRequestException(
-        `Cannot process payment: invoice status is ${invoiceDomain.status}`,
+        `Cannot process payment: invoice status is ${invoice.status}`,
       );
     }
 
     // 3. Validate payment amount
-    if (dto.amount !== invoiceDomain.totalAmount) {
+    if (dto.amount !== Number(invoice.totalAmount)) {
       throw new BadRequestException(
-        `Payment amount (${dto.amount}) does not match invoice total (${invoiceDomain.totalAmount})`,
+        `Payment amount (${dto.amount}) does not match invoice total (${invoice.totalAmount})`,
       );
     }
 
-    // 4. Create payment domain model (cash payment)
-    let paymentDomain: PaymentDomainModel;
-
-    if (dto.paymentMethod === PaymentMethod.CASH) {
-      if (!dto.receivedBy) {
-        throw new BadRequestException(
-          'receivedBy is required for cash payments',
-        );
-      }
-      paymentDomain = PaymentDomainModel.createCashPayment({
-        invoiceId: dto.invoiceId,
-        amount: dto.amount,
-        receivedBy: dto.receivedBy,
-        notes: dto.notes,
-      });
-      // Process cash payment immediately
-      paymentDomain.processCash();
-    } else {
+    // 4. Validate payment method and create payment
+    if (dto.paymentMethod !== PaymentMethod.CASH) {
       throw new BadRequestException(
         `Use initiateOnlinePayment for ${dto.paymentMethod} payments`,
       );
     }
 
+    if (!dto.receivedBy) {
+      throw new BadRequestException('receivedBy is required for cash payments');
+    }
+
+    const payment = Payment.createCashPayment({
+      invoiceId: dto.invoiceId,
+      amount: dto.amount,
+      receivedBy: dto.receivedBy,
+      notes: dto.notes,
+    });
+
+    // Process cash payment immediately
+    payment.processCash();
+
     // 5. Update invoice status
-    invoiceDomain.payByCash();
+    invoice.payByCash();
 
     // 6. Persist changes (payment first, then invoice)
-    const paymentEntity = PaymentMapper.toPersistence(paymentDomain);
-    const savedPayment = await this.paymentRepository.save(paymentEntity);
-
-    const invoiceUpdateEntity = InvoiceMapper.toPersistence(invoiceDomain);
-    await this.invoiceRepository.save(invoiceUpdateEntity);
+    const savedPayment = await this.paymentRepository.save(payment);
+    await this.invoiceRepository.save(invoice);
 
     // 7. Return payment DTO
-    const savedPaymentDomain = PaymentMapper.toDomain(savedPayment);
-    return PaymentResponseDto.fromDomain(savedPaymentDomain);
+    return PaymentResponseDto.fromEntity(savedPayment);
   }
 
   /**
@@ -177,50 +165,45 @@ export class PaymentService {
     dto: InitiateOnlinePaymentDto,
   ): Promise<{ paymentUrl: string; paymentId: number }> {
     // 1. Find invoice
-    const invoiceEntity = await this.invoiceRepository.findOne({
+    const invoice = await this.invoiceRepository.findOne({
       where: { invoiceId: dto.invoiceId },
     });
 
-    if (!invoiceEntity) {
+    if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
     }
 
-    const invoiceDomain = InvoiceMapper.toDomain(invoiceEntity);
-
     // 2. Validate invoice status
-    if (!invoiceDomain.canStartOnlinePayment()) {
+    if (!invoice.canStartOnlinePayment()) {
       throw new BadRequestException(
-        `Cannot start online payment: invoice status is ${invoiceDomain.status}`,
+        `Cannot start online payment: invoice status is ${invoice.status}`,
       );
     }
 
     // 3. Generate idempotency key
     const idempotencyKey = `${dto.invoiceId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-    // 4. Create payment domain model (online payment)
-    const paymentDomain = PaymentDomainModel.createOnlinePayment({
+    // 4. Create payment (online payment)
+    const payment = Payment.createOnlinePayment({
       invoiceId: dto.invoiceId,
-      amount: invoiceDomain.totalAmount,
+      amount: Number(invoice.totalAmount),
       paymentMethod: dto.paymentMethod,
       idempotencyKey,
     });
 
     // Start online payment process
-    paymentDomain.startOnlinePayment();
-    invoiceDomain.startOnlinePayment();
+    payment.startOnlinePayment();
+    invoice.startOnlinePayment();
 
     // 5. Persist payment and invoice updates
-    const paymentEntity = PaymentMapper.toPersistence(paymentDomain);
-    const savedPayment = await this.paymentRepository.save(paymentEntity);
-
-    const invoiceUpdateEntity = InvoiceMapper.toPersistence(invoiceDomain);
-    await this.invoiceRepository.save(invoiceUpdateEntity);
+    const savedPayment = await this.paymentRepository.save(payment);
+    await this.invoiceRepository.save(invoice);
 
     // 6. Generate payment URL via gateway service
     const paymentUrlResponse = await this.gatewayService.generatePaymentUrl({
       orderId: savedPayment.paymentId.toString(),
-      amount: invoiceDomain.totalAmount,
-      orderDescription: `Payment for invoice ${invoiceDomain.invoiceNumber}`,
+      amount: Number(invoice.totalAmount),
+      orderDescription: `Payment for invoice ${invoice.invoiceNumber}`,
       returnUrl: dto.returnUrl || '',
       ipAddress: dto.ipAddress || '127.0.0.1',
       locale: dto.locale || 'vn',
@@ -240,6 +223,7 @@ export class PaymentService {
     callbackDto: VNPayCallbackDto,
   ): Promise<{ success: boolean; message: string }> {
     // 1. Verify callback signature
+
     const verification = await this.gatewayService.verifyCallback(
       callbackDto as any,
     );
@@ -250,36 +234,29 @@ export class PaymentService {
 
     // 2. Find payment by order ID (payment ID stored in vnp_TxnRef)
     const paymentId = parseInt(callbackDto.vnp_TxnRef);
-    const paymentEntity = await this.paymentRepository.findOne({
+    const payment = await this.paymentRepository.findOne({
       where: { paymentId },
       relations: ['invoice'],
     });
 
-    if (!paymentEntity) {
+    if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
     }
 
-    const paymentDomain = PaymentMapper.toDomain(paymentEntity);
-    const invoiceDomain = InvoiceMapper.toDomain(paymentEntity.invoice);
+    const invoice = payment.invoice;
 
     // 3. Update payment and invoice based on callback result
     if (verification.status === 'SUCCESS') {
-      paymentDomain.markSuccess(
-        verification.transactionId!,
-        verification.rawData,
-      );
-      invoiceDomain.markPaid();
+      payment.markSuccess(verification.transactionId!, verification.rawData);
+      invoice.markPaid();
     } else {
-      paymentDomain.markFailed(verification.rawData);
-      invoiceDomain.markFailed();
+      payment.markFailed(verification.rawData);
+      invoice.markFailed();
     }
 
     // 4. Persist updates
-    const paymentUpdateEntity = PaymentMapper.toPersistence(paymentDomain);
-    await this.paymentRepository.save(paymentUpdateEntity);
-
-    const invoiceUpdateEntity = InvoiceMapper.toPersistence(invoiceDomain);
-    await this.invoiceRepository.save(invoiceUpdateEntity);
+    await this.paymentRepository.save(payment);
+    await this.invoiceRepository.save(invoice);
 
     // 5. Archive gateway response
     await this.archiveGatewayResponse(
@@ -304,37 +281,32 @@ export class PaymentService {
     dto: ProcessRefundDto,
   ): Promise<PaymentResponseDto> {
     // 1. Find payment
-    const paymentEntity = await this.paymentRepository.findOne({
+    const payment = await this.paymentRepository.findOne({
       where: { paymentId },
     });
 
-    if (!paymentEntity) {
+    if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
     }
 
-    const paymentDomain = PaymentMapper.toDomain(paymentEntity);
-
     // 2. Validate refund can be processed
-    if (!paymentDomain.canRefund()) {
+    if (!payment.canRefund()) {
       throw new BadRequestException(
-        `Cannot refund: payment status is ${paymentDomain.paymentStatus}`,
+        `Cannot refund: payment status is ${payment.paymentStatus}`,
       );
     }
 
     // 3. Validate refund amount
-    if (dto.amount > paymentDomain.amount) {
+    if (dto.amount > Number(payment.amount)) {
       throw new BadRequestException(
-        `Refund amount (${dto.amount}) cannot exceed payment amount (${paymentDomain.amount})`,
+        `Refund amount (${dto.amount}) cannot exceed payment amount (${payment.amount})`,
       );
     }
 
     // 4. Process refund via gateway (if online payment)
-    if (
-      paymentDomain.paymentMethod !== PaymentMethod.CASH &&
-      paymentDomain.transactionId
-    ) {
+    if (payment.paymentMethod !== PaymentMethod.CASH && payment.transactionId) {
       const refundResponse = await this.gatewayService.initiateRefund({
-        transactionId: paymentDomain.transactionId,
+        transactionId: payment.transactionId,
         amount: dto.amount,
         reason: dto.reason,
         orderId: paymentId.toString(),
@@ -355,33 +327,30 @@ export class PaymentService {
       );
     }
 
-    // 5. Update payment domain
-    paymentDomain.refund(dto.amount, dto.reason);
+    // 5. Update payment
+    payment.refund(dto.amount, dto.reason);
 
     // 6. Persist changes
-    const paymentUpdateEntity = PaymentMapper.toPersistence(paymentDomain);
-    const savedPayment = await this.paymentRepository.save(paymentUpdateEntity);
+    const savedPayment = await this.paymentRepository.save(payment);
 
     // 7. Return DTO
-    const savedPaymentDomain = PaymentMapper.toDomain(savedPayment);
-    return PaymentResponseDto.fromDomain(savedPaymentDomain);
+    return PaymentResponseDto.fromEntity(savedPayment);
   }
 
   /**
    * Retrieves complete invoice details including line items.
    */
   async getInvoiceById(invoiceId: number): Promise<InvoiceResponseDto> {
-    const invoiceEntity = await this.invoiceRepository.findOne({
+    const invoice = await this.invoiceRepository.findOne({
       where: { invoiceId },
       relations: ['appointment', 'appointment.service'],
     });
 
-    if (!invoiceEntity) {
+    if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    const invoiceDomain = InvoiceMapper.toDomain(invoiceEntity);
-    return InvoiceResponseDto.fromDomain(invoiceDomain);
+    return InvoiceResponseDto.fromEntity(invoice);
   }
 
   /**
@@ -393,15 +362,12 @@ export class PaymentService {
       throw new BadRequestException(`Invalid invoice status: ${status}`);
     }
 
-    const invoiceEntities = await this.invoiceRepository.find({
+    const invoices = await this.invoiceRepository.find({
       where: { status: status as InvoiceStatus },
       relations: ['appointment'],
     });
 
-    const invoiceDomains = InvoiceMapper.toDomainList(invoiceEntities);
-    return invoiceDomains.map((domain) =>
-      InvoiceResponseDto.fromDomain(domain),
-    );
+    return invoices.map((invoice) => InvoiceResponseDto.fromEntity(invoice));
   }
 
   /**
@@ -410,7 +376,10 @@ export class PaymentService {
   async getPaymentHistory(
     query: GetPaymentHistoryQueryDto,
   ): Promise<PaymentResponseDto[]> {
-    const whereClause: any = {};
+    interface WhereClause {
+      paidAt?: ReturnType<typeof Between>;
+    }
+    const whereClause: WhereClause = {};
 
     // Add date range filter
     if (query.startDate && query.endDate) {
@@ -424,23 +393,20 @@ export class PaymentService {
     // For simplicity, implementing basic date range filter
     // TODO: Add customerId filter with proper joins
 
-    const paymentEntities = await this.paymentRepository.find({
+    const payments = await this.paymentRepository.find({
       where: whereClause,
       relations: ['invoice'],
       order: { paidAt: 'DESC' },
     });
 
-    const paymentDomains = PaymentMapper.toDomainList(paymentEntities);
-    return paymentDomains.map((domain) =>
-      PaymentResponseDto.fromDomain(domain),
-    );
+    return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
   }
 
   /**
    * Generates payment receipt with transaction details.
    */
   async generateReceipt(paymentId: number): Promise<any> {
-    const paymentEntity = await this.paymentRepository.findOne({
+    const payment = await this.paymentRepository.findOne({
       where: { paymentId },
       relations: [
         'invoice',
@@ -450,23 +416,23 @@ export class PaymentService {
       ],
     });
 
-    if (!paymentEntity) {
+    if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
     }
 
     // Build receipt object
     const receipt = {
       receiptNumber: `RCP-${paymentId}`,
-      paymentId: paymentEntity.paymentId,
-      invoiceNumber: paymentEntity.invoice.invoiceNumber,
-      paymentDate: paymentEntity.paidAt,
-      paymentMethod: paymentEntity.paymentMethod,
-      amount: paymentEntity.amount,
-      transactionId: paymentEntity.transactionId,
-      status: paymentEntity.paymentStatus,
-      service: paymentEntity.invoice.appointment?.service?.serviceName,
-      petName: paymentEntity.invoice.appointment?.pet?.name,
-      notes: paymentEntity.notes,
+      paymentId: payment.paymentId,
+      invoiceNumber: payment.invoice.invoiceNumber,
+      paymentDate: payment.paidAt,
+      paymentMethod: payment.paymentMethod,
+      amount: payment.amount,
+      transactionId: payment.transactionId,
+      status: payment.paymentStatus,
+      service: payment.invoice.appointment?.service?.serviceName,
+      petName: payment.invoice.appointment?.pet?.name,
+      notes: payment.notes,
     };
 
     return receipt;
@@ -476,20 +442,20 @@ export class PaymentService {
    * Verifies payment status with payment gateway.
    */
   async verifyPayment(paymentId: number): Promise<any> {
-    const paymentEntity = await this.paymentRepository.findOne({
+    const payment = await this.paymentRepository.findOne({
       where: { paymentId },
       relations: ['invoice'],
     });
 
-    if (!paymentEntity) {
+    if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
     }
 
     // Only verify online payments
-    if (paymentEntity.paymentMethod === PaymentMethod.CASH) {
+    if (payment.paymentMethod === PaymentMethod.CASH) {
       return {
         verified: true,
-        status: paymentEntity.paymentStatus,
+        status: payment.paymentStatus,
         message: 'Cash payment - no gateway verification needed',
       };
     }
@@ -497,7 +463,7 @@ export class PaymentService {
     // Query gateway for transaction status
     const queryResult = await this.gatewayService.queryTransaction({
       orderId: paymentId.toString(),
-      transactionDate: paymentEntity.createdAt,
+      transactionDate: payment.createdAt,
     });
 
     return {

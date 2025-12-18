@@ -37,7 +37,11 @@ export class PetController {
   @Post()
   @ApiOperation({ summary: 'Register pet' })
   @ApiQuery({ name: 'ownerId', required: true, type: Number })
-  @ApiResponse({ status: 201, description: 'Pet registered', type: PetResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Pet registered',
+    type: PetResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Owner not found' })
   async registerPet(
@@ -54,9 +58,15 @@ export class PetController {
   @Get(':id')
   @ApiOperation({ summary: 'Get pet by ID' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Pet retrieved', type: PetResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Pet retrieved',
+    type: PetResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Pet not found' })
-  async getPetById(@Param('id', ParseIntPipe) id: number): Promise<PetResponseDto> {
+  async getPetById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<PetResponseDto> {
     return this.petService.getPetById(id);
   }
 
@@ -67,7 +77,11 @@ export class PetController {
   @Get('owner/:ownerId')
   @ApiOperation({ summary: 'Get pets by owner' })
   @ApiParam({ name: 'ownerId', type: Number })
-  @ApiResponse({ status: 200, description: 'Pets retrieved', type: [PetResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Pets retrieved',
+    type: [PetResponseDto],
+  })
   async getPetsByOwner(
     @Param('ownerId', ParseIntPipe) ownerId: number,
   ): Promise<PetResponseDto[]> {
@@ -81,7 +95,11 @@ export class PetController {
   @Put(':id')
   @ApiOperation({ summary: 'Update pet information' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Pet updated', type: PetResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Pet updated',
+    type: PetResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Pet not found' })
   async updatePetInfo(
     @Param('id', ParseIntPipe) id: number,
@@ -99,7 +117,9 @@ export class PetController {
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Pet deleted' })
   @ApiResponse({ status: 404, description: 'Pet not found' })
-  async deletePet(@Param('id', ParseIntPipe) id: number): Promise<{ deleted: boolean }> {
+  async deletePet(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ deleted: boolean }> {
     const result = await this.petService.deletePet(id);
     return { deleted: result };
   }
@@ -111,9 +131,15 @@ export class PetController {
   @Post(':id/restore')
   @ApiOperation({ summary: 'Restore deleted pet' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Pet restored', type: PetResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Pet restored',
+    type: PetResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Pet not found' })
-  async restorePet(@Param('id', ParseIntPipe) id: number): Promise<PetResponseDto> {
+  async restorePet(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<PetResponseDto> {
     return this.petService.restore(id);
   }
 
@@ -124,7 +150,11 @@ export class PetController {
   @Get('owner/:ownerId/deleted')
   @ApiOperation({ summary: 'Get deleted pets by owner' })
   @ApiParam({ name: 'ownerId', type: Number })
-  @ApiResponse({ status: 200, description: 'Deleted pets retrieved', type: [PetResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Deleted pets retrieved',
+    type: [PetResponseDto],
+  })
   async getDeletedPetsByOwner(
     @Param('ownerId', ParseIntPipe) ownerId: number,
   ): Promise<PetResponseDto[]> {
@@ -138,8 +168,14 @@ export class PetController {
   @Get('species/:species')
   @ApiOperation({ summary: 'Get pets by species' })
   @ApiParam({ name: 'species', type: String })
-  @ApiResponse({ status: 200, description: 'Pets retrieved', type: [PetResponseDto] })
-  async getPetsBySpecies(@Param('species') species: string): Promise<PetResponseDto[]> {
+  @ApiResponse({
+    status: 200,
+    description: 'Pets retrieved',
+    type: [PetResponseDto],
+  })
+  async getPetsBySpecies(
+    @Param('species') species: string,
+  ): Promise<PetResponseDto[]> {
     return this.petService.getPetsBySpecies(species);
   }
 
@@ -151,7 +187,11 @@ export class PetController {
   @ApiOperation({ summary: 'Transfer pet ownership' })
   @ApiParam({ name: 'id', type: Number })
   @ApiQuery({ name: 'newOwnerId', required: true, type: Number })
-  @ApiResponse({ status: 200, description: 'Ownership transferred', type: PetResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Ownership transferred',
+    type: PetResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Pet or new owner not found' })
   async transferOwnership(
     @Param('id', ParseIntPipe) id: number,

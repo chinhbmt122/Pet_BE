@@ -29,7 +29,10 @@ export class PetService {
   /**
    * Registers new pet with owner association and validation.
    */
-  async registerPet(dto: CreatePetDto, ownerId: number): Promise<PetResponseDto> {
+  async registerPet(
+    dto: CreatePetDto,
+    ownerId: number,
+  ): Promise<PetResponseDto> {
     // 1. Verify owner exists
     const owner = await this.petOwnerRepository.findOne({
       where: { petOwnerId: ownerId },
@@ -65,7 +68,10 @@ export class PetService {
   /**
    * Updates pet information using domain model.
    */
-  async updatePetInfo(petId: number, dto: UpdatePetDto): Promise<PetResponseDto> {
+  async updatePetInfo(
+    petId: number,
+    dto: UpdatePetDto,
+  ): Promise<PetResponseDto> {
     // 1. Find entity
     const entity = await this.petRepository.findOne({
       where: { petId },

@@ -2,7 +2,6 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
   OneToOne,
   OneToMany,
   JoinColumn,
@@ -78,4 +77,114 @@ export class Invoice {
    */
   @OneToMany(() => Payment, (payment) => payment.invoice)
   payments?: Payment[];
+
+  // ===== Business Logic Methods =====
+
+  /**
+   * Pay invoice with cash at counter.
+   * Transition: PENDING → PAID
+   * @throws Error if invoice is not in PENDING status
+   */
+  payByCash(): void {
+    if (!this.canPayByCash()) {
+      throw new Error(
+        `Cannot pay by cash: current status is ${this.status}, expected PENDING`,
+      );
+    }
+    this.status = InvoiceStatus.PAID;
+    this.paidAt = new Date();
+  }
+
+  /**
+   * Start online payment process (VNPay).
+   * Transition: PENDING → PROCESSING_ONLINE
+   * @throws Error if invoice is not in PENDING status
+   */
+  startOnlinePayment(): void {
+    if (!this.canStartOnlinePayment()) {
+      throw new Error(
+        `Cannot start online payment: current status is ${this.status}, expected PENDING`,
+      );
+    }
+    this.status = InvoiceStatus.PROCESSING_ONLINE;
+  }
+
+  /**
+   * Mark invoice as paid (after VNPay callback success).
+   * Transition: PROCESSING_ONLINE → PAID
+   * @throws Error if invoice is not in PROCESSING_ONLINE status
+   */
+  markPaid(): void {
+    if (!this.canMarkPaid()) {
+      throw new Error(
+        `Cannot mark as paid: current status is ${this.status}, expected PROCESSING_ONLINE`,
+      );
+    }
+    this.status = InvoiceStatus.PAID;
+    this.paidAt = new Date();
+  }
+
+  /**
+   * Mark invoice as failed (after VNPay callback failure).
+   * Transition: PROCESSING_ONLINE → FAILED
+   * @throws Error if invoice is not in PROCESSING_ONLINE status
+   */
+  markFailed(): void {
+    if (!this.canMarkFailed()) {
+      throw new Error(
+        `Cannot mark as failed: current status is ${this.status}, expected PROCESSING_ONLINE`,
+      );
+    }
+    this.status = InvoiceStatus.FAILED;
+  }
+
+  /**
+   * Update invoice notes
+   */
+  updateNotes(notes: string | null): void {
+    if (this.status === InvoiceStatus.PAID) {
+      throw new Error('Cannot update notes for paid invoice');
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.notes = notes as any;
+  }
+
+  /**
+   * Apply discount to invoice
+   */
+  applyDiscount(discount: number): void {
+    if (this.status !== InvoiceStatus.PENDING) {
+      throw new Error('Can only apply discount to pending invoices');
+    }
+    if (discount < 0) {
+      throw new Error('Discount cannot be negative');
+    }
+    this.discount = discount;
+  }
+
+  // ===== Guard Methods =====
+
+  canPayByCash(): boolean {
+    return this.status === InvoiceStatus.PENDING;
+  }
+
+  canStartOnlinePayment(): boolean {
+    return this.status === InvoiceStatus.PENDING;
+  }
+
+  canMarkPaid(): boolean {
+    return this.status === InvoiceStatus.PROCESSING_ONLINE;
+  }
+
+  canMarkFailed(): boolean {
+    return this.status === InvoiceStatus.PROCESSING_ONLINE;
+  }
+
+  isPaid(): boolean {
+    return this.status === InvoiceStatus.PAID;
+  }
+
+  isFailed(): boolean {
+    return this.status === InvoiceStatus.FAILED;
+  }
 }

@@ -39,7 +39,6 @@ export class PetMapper {
       color: domain.color ?? undefined,
       initialHealthStatus: domain.initialHealthStatus ?? undefined,
       specialNotes: domain.specialNotes ?? undefined,
-
     };
 
     if (domain.id !== null) {

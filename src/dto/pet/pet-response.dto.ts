@@ -32,8 +32,6 @@ export class PetResponseDto {
   @ApiProperty({ description: 'Computed age in years from birthDate' })
   age: number;
 
-
-
   @ApiProperty({ description: 'Created timestamp' })
   createdAt: Date;
 

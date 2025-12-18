@@ -20,7 +20,10 @@ export class ServiceCategoryResponseDto {
   @ApiProperty({ description: 'Created timestamp' })
   createdAt: Date;
 
-  static fromEntity(entity: ServiceCategory, serviceCount = 0): ServiceCategoryResponseDto {
+  static fromEntity(
+    entity: ServiceCategory,
+    serviceCount = 0,
+  ): ServiceCategoryResponseDto {
     const dto = new ServiceCategoryResponseDto();
     dto.id = entity.categoryId;
     dto.categoryName = entity.categoryName;
@@ -31,7 +34,9 @@ export class ServiceCategoryResponseDto {
     return dto;
   }
 
-  static fromEntityList(entities: ServiceCategory[]): ServiceCategoryResponseDto[] {
+  static fromEntityList(
+    entities: ServiceCategory[],
+  ): ServiceCategoryResponseDto[] {
     return entities.map((e) => ServiceCategoryResponseDto.fromEntity(e));
   }
 }

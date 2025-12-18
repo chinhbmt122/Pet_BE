@@ -41,7 +41,11 @@ export class ServiceCategoryController {
    */
   @Post()
   @ApiOperation({ summary: 'Create service category' })
-  @ApiResponse({ status: 201, description: 'Category created', type: ServiceCategoryResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Category created',
+    type: ServiceCategoryResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Category already exists' })
   async createCategory(
     @Body() dto: CreateServiceCategoryDto,
@@ -56,9 +60,14 @@ export class ServiceCategoryController {
   @Get()
   @ApiOperation({ summary: 'Get all service categories' })
   @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
-  @ApiResponse({ status: 200, description: 'Categories retrieved', type: [ServiceCategoryResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Categories retrieved',
+    type: [ServiceCategoryResponseDto],
+  })
   async getAllCategories(
-    @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe) includeInactive: boolean,
+    @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe)
+    includeInactive: boolean,
   ): Promise<ServiceCategoryResponseDto[]> {
     return this.categoryService.getAllCategories(includeInactive);
   }
@@ -70,7 +79,11 @@ export class ServiceCategoryController {
   @Get(':id')
   @ApiOperation({ summary: 'Get category by ID' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Category retrieved', type: ServiceCategoryResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Category retrieved',
+    type: ServiceCategoryResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Category not found' })
   async getCategoryById(
     @Param('id', ParseIntPipe) id: number,
@@ -85,7 +98,11 @@ export class ServiceCategoryController {
   @Put(':id')
   @ApiOperation({ summary: 'Update category' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Category updated', type: ServiceCategoryResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Category updated',
+    type: ServiceCategoryResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Category not found' })
   async updateCategory(
     @Param('id', ParseIntPipe) id: number,
@@ -101,7 +118,11 @@ export class ServiceCategoryController {
   @Put(':id/toggle-active')
   @ApiOperation({ summary: 'Toggle category active status' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Status toggled', type: ServiceCategoryResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Status toggled',
+    type: ServiceCategoryResponseDto,
+  })
   async toggleActive(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<ServiceCategoryResponseDto> {

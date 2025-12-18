@@ -34,13 +34,17 @@ export class ScheduleService {
   /**
    * Creates new work schedule for an employee.
    */
-  async createSchedule(dto: CreateWorkScheduleDto): Promise<WorkScheduleResponseDto> {
+  async createSchedule(
+    dto: CreateWorkScheduleDto,
+  ): Promise<WorkScheduleResponseDto> {
     // Verify employee exists
     const employee = await this.employeeRepository.findOne({
       where: { employeeId: dto.employeeId },
     });
     if (!employee) {
-      throw new NotFoundException(`Employee with ID ${dto.employeeId} not found`);
+      throw new NotFoundException(
+        `Employee with ID ${dto.employeeId} not found`,
+      );
     }
 
     // Check for conflicts on same date
@@ -95,11 +99,17 @@ export class ScheduleService {
     if (dto.startTime && dto.endTime) {
       domain.updateTimes(dto.startTime, dto.endTime);
     } else if (dto.startTime || dto.endTime) {
-      domain.updateTimes(dto.startTime ?? domain.startTime, dto.endTime ?? domain.endTime);
+      domain.updateTimes(
+        dto.startTime ?? domain.startTime,
+        dto.endTime ?? domain.endTime,
+      );
     }
 
     if (dto.breakStart !== undefined || dto.breakEnd !== undefined) {
-      domain.updateBreak(dto.breakStart ?? domain.breakStart, dto.breakEnd ?? domain.breakEnd);
+      domain.updateBreak(
+        dto.breakStart ?? domain.breakStart,
+        dto.breakEnd ?? domain.breakEnd,
+      );
     }
 
     if (dto.notes !== undefined) {
@@ -268,7 +278,10 @@ export class ScheduleService {
   /**
    * Marks schedule as unavailable.
    */
-  async markUnavailable(scheduleId: number, reason?: string): Promise<WorkScheduleResponseDto> {
+  async markUnavailable(
+    scheduleId: number,
+    reason?: string,
+  ): Promise<WorkScheduleResponseDto> {
     const entity = await this.scheduleRepository.findOne({
       where: { scheduleId },
     });

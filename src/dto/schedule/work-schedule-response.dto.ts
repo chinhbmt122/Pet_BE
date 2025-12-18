@@ -54,7 +54,9 @@ export class WorkScheduleResponseDto {
     return dto;
   }
 
-  static fromDomainList(domains: WorkScheduleDomainModel[]): WorkScheduleResponseDto[] {
+  static fromDomainList(
+    domains: WorkScheduleDomainModel[],
+  ): WorkScheduleResponseDto[] {
     return domains.map((d) => WorkScheduleResponseDto.fromDomain(d));
   }
 }

@@ -16,9 +16,9 @@ import { PetOwner } from '../entities/pet-owner.entity';
  * - Contact preferences
  */
 @Module({
-    imports: [TypeOrmModule.forFeature([Account, PetOwner])],
-    controllers: [PetOwnerController],
-    providers: [PetOwnerService, PetOwnerFactory, AccountFactory],
-    exports: [PetOwnerService, PetOwnerFactory],
+  imports: [TypeOrmModule.forFeature([Account, PetOwner])],
+  controllers: [PetOwnerController],
+  providers: [PetOwnerService, PetOwnerFactory, AccountFactory],
+  exports: [PetOwnerService, PetOwnerFactory],
 })
-export class PetOwnerModule { }
+export class PetOwnerModule {}

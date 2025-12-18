@@ -38,7 +38,7 @@ export class AccountService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
-  ) { }
+  ) {}
 
   /**
    * Gets account by ID.

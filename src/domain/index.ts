@@ -8,8 +8,6 @@ export * from './account.domain';
 export * from './employee.domain';
 export * from './pet-owner.domain';
 export * from './appointment.domain';
-export * from './invoice.domain';
-export * from './payment.domain';
 export * from './pet.domain';
 export * from './vaccination-history.domain';
 export * from './medical-record.domain';

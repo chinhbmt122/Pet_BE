@@ -14,13 +14,19 @@ export class VaccinationResponseDto {
   @ApiProperty({ description: 'Date vaccine was administered' })
   administrationDate: Date;
 
-  @ApiPropertyOptional({ description: 'Next due date (auto-calculated)', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Next due date (auto-calculated)',
+    nullable: true,
+  })
   nextDueDate: Date | null;
 
   @ApiProperty({ description: 'Is vaccination due (computed)' })
   isDue: boolean;
 
-  @ApiPropertyOptional({ description: 'Days until due (negative = overdue)', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Days until due (negative = overdue)',
+    nullable: true,
+  })
   daysUntilDue: number | null;
 
   @ApiPropertyOptional({ description: 'Vaccine batch number', nullable: true })
@@ -35,13 +41,18 @@ export class VaccinationResponseDto {
   @ApiPropertyOptional({ description: 'Notes', nullable: true })
   notes: string | null;
 
-  @ApiPropertyOptional({ description: 'Administered by (Vet ID)', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Administered by (Vet ID)',
+    nullable: true,
+  })
   administeredBy: number | null;
 
   @ApiProperty({ description: 'Created timestamp' })
   createdAt: Date;
 
-  static fromDomain(domain: VaccinationHistoryDomainModel): VaccinationResponseDto {
+  static fromDomain(
+    domain: VaccinationHistoryDomainModel,
+  ): VaccinationResponseDto {
     const dto = new VaccinationResponseDto();
     dto.id = domain.id!;
     dto.petId = domain.petId;
@@ -59,7 +70,9 @@ export class VaccinationResponseDto {
     return dto;
   }
 
-  static fromDomainList(domains: VaccinationHistoryDomainModel[]): VaccinationResponseDto[] {
+  static fromDomainList(
+    domains: VaccinationHistoryDomainModel[],
+  ): VaccinationResponseDto[] {
     return domains.map((d) => VaccinationResponseDto.fromDomain(d));
   }
 }

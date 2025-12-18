@@ -41,10 +41,16 @@ export class ServiceController {
    */
   @Post()
   @ApiOperation({ summary: 'Create service' })
-  @ApiResponse({ status: 201, description: 'Service created', type: ServiceResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Service created',
+    type: ServiceResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 409, description: 'Service already exists' })
-  async createService(@Body() dto: CreateServiceDto): Promise<ServiceResponseDto> {
+  async createService(
+    @Body() dto: CreateServiceDto,
+  ): Promise<ServiceResponseDto> {
     return this.serviceService.createService(dto);
   }
 
@@ -54,10 +60,20 @@ export class ServiceController {
    */
   @Get()
   @ApiOperation({ summary: 'Get all services' })
-  @ApiQuery({ name: 'includeUnavailable', required: false, type: Boolean, description: 'Include unavailable services' })
-  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  @ApiQuery({
+    name: 'includeUnavailable',
+    required: false,
+    type: Boolean,
+    description: 'Include unavailable services',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Services retrieved',
+    type: [ServiceResponseDto],
+  })
   async getAllServices(
-    @Query('includeUnavailable', new DefaultValuePipe(false), ParseBoolPipe) includeUnavailable: boolean,
+    @Query('includeUnavailable', new DefaultValuePipe(false), ParseBoolPipe)
+    includeUnavailable: boolean,
   ): Promise<ServiceResponseDto[]> {
     return this.serviceService.getAllServices(includeUnavailable);
   }
@@ -68,9 +84,20 @@ export class ServiceController {
    */
   @Get('search')
   @ApiOperation({ summary: 'Search services' })
-  @ApiQuery({ name: 'q', required: true, type: String, description: 'Search term' })
-  @ApiResponse({ status: 200, description: 'Services found', type: [ServiceResponseDto] })
-  async searchServices(@Query('q') searchTerm: string): Promise<ServiceResponseDto[]> {
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    type: String,
+    description: 'Search term',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Services found',
+    type: [ServiceResponseDto],
+  })
+  async searchServices(
+    @Query('q') searchTerm: string,
+  ): Promise<ServiceResponseDto[]> {
     return this.serviceService.searchServices(searchTerm);
   }
 
@@ -81,7 +108,11 @@ export class ServiceController {
   @Get('category/:categoryId')
   @ApiOperation({ summary: 'Get services by category' })
   @ApiParam({ name: 'categoryId', type: Number })
-  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Services retrieved',
+    type: [ServiceResponseDto],
+  })
   async getServicesByCategory(
     @Param('categoryId', ParseIntPipe) categoryId: number,
   ): Promise<ServiceResponseDto[]> {
@@ -96,7 +127,11 @@ export class ServiceController {
   @ApiOperation({ summary: 'Get services by price range' })
   @ApiQuery({ name: 'min', required: true, type: Number })
   @ApiQuery({ name: 'max', required: true, type: Number })
-  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Services retrieved',
+    type: [ServiceResponseDto],
+  })
   async getServicesByPriceRange(
     @Query('min', ParseIntPipe) minPrice: number,
     @Query('max', ParseIntPipe) maxPrice: number,
@@ -110,7 +145,11 @@ export class ServiceController {
    */
   @Get('boarding')
   @ApiOperation({ summary: 'Get boarding services' })
-  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Services retrieved',
+    type: [ServiceResponseDto],
+  })
   async getBoardingServices(): Promise<ServiceResponseDto[]> {
     return this.serviceService.getBoardingServices();
   }
@@ -121,8 +160,16 @@ export class ServiceController {
    */
   @Get('staff-type/:staffType')
   @ApiOperation({ summary: 'Get services by staff type' })
-  @ApiParam({ name: 'staffType', type: String, enum: ['Veterinarian', 'CareStaff', 'Any'] })
-  @ApiResponse({ status: 200, description: 'Services retrieved', type: [ServiceResponseDto] })
+  @ApiParam({
+    name: 'staffType',
+    type: String,
+    enum: ['Veterinarian', 'CareStaff', 'Any'],
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Services retrieved',
+    type: [ServiceResponseDto],
+  })
   async getServicesByStaffType(
     @Param('staffType') staffType: string,
   ): Promise<ServiceResponseDto[]> {
@@ -136,7 +183,11 @@ export class ServiceController {
   @Get(':id')
   @ApiOperation({ summary: 'Get service by ID' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Service retrieved', type: ServiceResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Service retrieved',
+    type: ServiceResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Service not found' })
   async getServiceById(
     @Param('id', ParseIntPipe) id: number,
@@ -151,7 +202,11 @@ export class ServiceController {
   @Put(':id')
   @ApiOperation({ summary: 'Update service' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Service updated', type: ServiceResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Service updated',
+    type: ServiceResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Service not found' })
   async updateService(
     @Param('id', ParseIntPipe) id: number,
@@ -183,7 +238,11 @@ export class ServiceController {
   @Put(':id/availability')
   @ApiOperation({ summary: 'Toggle service availability' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Availability updated', type: ServiceResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Availability updated',
+    type: ServiceResponseDto,
+  })
   async updateAvailability(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { isAvailable: boolean },
@@ -198,7 +257,12 @@ export class ServiceController {
   @Post(':id/calculate-price')
   @ApiOperation({ summary: 'Calculate service price' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiQuery({ name: 'petSize', required: false, type: String, enum: ['small', 'medium', 'large', 'extra-large'] })
+  @ApiQuery({
+    name: 'petSize',
+    required: false,
+    type: String,
+    enum: ['small', 'medium', 'large', 'extra-large'],
+  })
   @ApiResponse({ status: 200, description: 'Price calculated' })
   async calculatePrice(
     @Param('id', ParseIntPipe) id: number,

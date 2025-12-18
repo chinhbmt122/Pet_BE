@@ -39,7 +39,11 @@ export class ScheduleController {
    */
   @Post()
   @ApiOperation({ summary: 'Create work schedule' })
-  @ApiResponse({ status: 201, description: 'Schedule created', type: WorkScheduleResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Schedule created',
+    type: WorkScheduleResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 409, description: 'Schedule conflict' })
   async createSchedule(
@@ -55,7 +59,11 @@ export class ScheduleController {
   @Get(':id')
   @ApiOperation({ summary: 'Get schedule by ID' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Schedule retrieved', type: WorkScheduleResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedule retrieved',
+    type: WorkScheduleResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Schedule not found' })
   async getScheduleById(
     @Param('id', ParseIntPipe) id: number,
@@ -69,10 +77,29 @@ export class ScheduleController {
    */
   @Get()
   @ApiOperation({ summary: 'Get all schedules' })
-  @ApiQuery({ name: 'onlyAvailable', required: false, type: Boolean, description: 'Filter by available only' })
-  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Filter from date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Filter to date (YYYY-MM-DD)' })
-  @ApiResponse({ status: 200, description: 'Schedules retrieved', type: [WorkScheduleResponseDto] })
+  @ApiQuery({
+    name: 'onlyAvailable',
+    required: false,
+    type: Boolean,
+    description: 'Filter by available only',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Filter from date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'Filter to date (YYYY-MM-DD)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedules retrieved',
+    type: [WorkScheduleResponseDto],
+  })
   async getAllSchedules(
     @Query('onlyAvailable') onlyAvailable?: string,
     @Query('startDate') startDate?: string,
@@ -94,7 +121,11 @@ export class ScheduleController {
   @ApiParam({ name: 'employeeId', type: Number })
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Schedules retrieved', type: [WorkScheduleResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedules retrieved',
+    type: [WorkScheduleResponseDto],
+  })
   async getSchedulesByEmployee(
     @Param('employeeId', ParseIntPipe) employeeId: number,
     @Query('startDate') startDate?: string,
@@ -113,9 +144,19 @@ export class ScheduleController {
    */
   @Get('date/:date')
   @ApiOperation({ summary: 'Get schedules by date' })
-  @ApiParam({ name: 'date', type: String, description: 'Date in YYYY-MM-DD format' })
-  @ApiResponse({ status: 200, description: 'Schedules retrieved', type: [WorkScheduleResponseDto] })
-  async getSchedulesByDate(@Param('date') date: string): Promise<WorkScheduleResponseDto[]> {
+  @ApiParam({
+    name: 'date',
+    type: String,
+    description: 'Date in YYYY-MM-DD format',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedules retrieved',
+    type: [WorkScheduleResponseDto],
+  })
+  async getSchedulesByDate(
+    @Param('date') date: string,
+  ): Promise<WorkScheduleResponseDto[]> {
     return this.scheduleService.getSchedulesByDate(new Date(date));
   }
 
@@ -126,7 +167,11 @@ export class ScheduleController {
   @Put(':id')
   @ApiOperation({ summary: 'Update schedule' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Schedule updated', type: WorkScheduleResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedule updated',
+    type: WorkScheduleResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Schedule not found' })
   async updateSchedule(
     @Param('id', ParseIntPipe) id: number,
@@ -158,13 +203,21 @@ export class ScheduleController {
   @Get('availability/check')
   @ApiOperation({ summary: 'Check availability' })
   @ApiQuery({ name: 'employeeId', required: true, type: Number })
-  @ApiQuery({ name: 'dateTime', required: true, type: String, description: 'ISO date-time string' })
+  @ApiQuery({
+    name: 'dateTime',
+    required: true,
+    type: String,
+    description: 'ISO date-time string',
+  })
   @ApiResponse({ status: 200, description: 'Availability checked' })
   async checkAvailability(
     @Query('employeeId', ParseIntPipe) employeeId: number,
     @Query('dateTime') dateTime: string,
   ): Promise<{ available: boolean }> {
-    const available = await this.scheduleService.checkAvailability(employeeId, new Date(dateTime));
+    const available = await this.scheduleService.checkAvailability(
+      employeeId,
+      new Date(dateTime),
+    );
     return { available };
   }
 
@@ -175,13 +228,21 @@ export class ScheduleController {
   @Put(':id/break')
   @ApiOperation({ summary: 'Assign break time' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Break assigned', type: WorkScheduleResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Break assigned',
+    type: WorkScheduleResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Schedule not found' })
   async assignBreakTime(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { breakStart: string; breakEnd: string },
   ): Promise<WorkScheduleResponseDto> {
-    return this.scheduleService.assignBreakTime(id, body.breakStart, body.breakEnd);
+    return this.scheduleService.assignBreakTime(
+      id,
+      body.breakStart,
+      body.breakEnd,
+    );
   }
 
   /**
@@ -191,7 +252,11 @@ export class ScheduleController {
   @Put(':id/unavailable')
   @ApiOperation({ summary: 'Mark schedule unavailable' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Schedule marked unavailable', type: WorkScheduleResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedule marked unavailable',
+    type: WorkScheduleResponseDto,
+  })
   async markUnavailable(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { reason?: string },
@@ -206,7 +271,11 @@ export class ScheduleController {
   @Put(':id/available')
   @ApiOperation({ summary: 'Mark schedule available' })
   @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Schedule marked available', type: WorkScheduleResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Schedule marked available',
+    type: WorkScheduleResponseDto,
+  })
   async markAvailable(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<WorkScheduleResponseDto> {

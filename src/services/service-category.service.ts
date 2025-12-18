@@ -28,12 +28,16 @@ export class ServiceCategoryService {
   /**
    * Creates new service category.
    */
-  async createCategory(dto: CreateServiceCategoryDto): Promise<ServiceCategoryResponseDto> {
+  async createCategory(
+    dto: CreateServiceCategoryDto,
+  ): Promise<ServiceCategoryResponseDto> {
     const existing = await this.categoryRepository.findOne({
       where: { categoryName: dto.categoryName },
     });
     if (existing) {
-      throw new ConflictException(`Category '${dto.categoryName}' already exists`);
+      throw new ConflictException(
+        `Category '${dto.categoryName}' already exists`,
+      );
     }
 
     const entity = this.categoryRepository.create({
@@ -66,7 +70,9 @@ export class ServiceCategoryService {
         where: { categoryName: dto.categoryName },
       });
       if (existing) {
-        throw new ConflictException(`Category '${dto.categoryName}' already exists`);
+        throw new ConflictException(
+          `Category '${dto.categoryName}' already exists`,
+        );
       }
     }
 
@@ -77,7 +83,9 @@ export class ServiceCategoryService {
   /**
    * Gets category by ID.
    */
-  async getCategoryById(categoryId: number): Promise<ServiceCategoryResponseDto> {
+  async getCategoryById(
+    categoryId: number,
+  ): Promise<ServiceCategoryResponseDto> {
     const entity = await this.categoryRepository.findOne({
       where: { categoryId },
       relations: ['services'],
@@ -92,7 +100,9 @@ export class ServiceCategoryService {
   /**
    * Gets all active categories.
    */
-  async getAllCategories(includeInactive = false): Promise<ServiceCategoryResponseDto[]> {
+  async getAllCategories(
+    includeInactive = false,
+  ): Promise<ServiceCategoryResponseDto[]> {
     const whereClause = includeInactive ? {} : { isActive: true };
 
     const entities = await this.categoryRepository.find({
