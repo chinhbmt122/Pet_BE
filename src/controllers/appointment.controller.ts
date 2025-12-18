@@ -7,135 +7,152 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { AppointmentService } from '../services/appointment.service';
+import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
+import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 
 /**
  * AppointmentController
  *
- * Manages appointment booking, cancellation, and rescheduling endpoints.
- * Routes: GET /api/appointments, POST /api/appointments, PUT /api/appointments/:id
+ * Manages appointment booking, status transitions, and queries.
+ * Routes: /api/appointments
  */
-@ApiTags('Appointment')
+@ApiTags('Appointment Management')
 @Controller('api/appointments')
 export class AppointmentController {
   constructor(private readonly appointmentService: AppointmentService) {}
 
-  /**
-   * POST /api/appointments
-   * Creates new appointment with availability validation.
-   * @throws ScheduleConflictException, InvalidServiceException, ValidationException
-   */
+  // ============================================
+  // APPOINTMENT CRUD
+  // ============================================
+
   @Post()
-  @ApiOperation({ summary: 'Book appointment' })
-  @ApiResponse({ status: 201, description: 'Appointment created' })
+  @ApiOperation({ summary: 'Create new appointment' })
+  @ApiResponse({ status: 201, description: 'Appointment created', type: Appointment })
   @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 404, description: 'Pet, employee, or service not found' })
   @ApiResponse({ status: 409, description: 'Schedule conflict' })
-  async bookAppointment(@Body() appointmentDto: any) {
-    // TODO: Implement booking logic
-    throw new Error('Method not implemented');
+  async createAppointment(@Body() dto: CreateAppointmentDto): Promise<Appointment> {
+    return this.appointmentService.createAppointment(dto);
   }
 
-  /**
-   * GET /api/appointments/:id
-   * Retrieves appointment details by ID.
-   * @throws AppointmentNotFoundException
-   */
+  @Get()
+  @ApiOperation({ summary: 'Get all appointments' })
+  @ApiResponse({ status: 200, description: 'List of all appointments', type: [Appointment] })
+  async getAllAppointments(): Promise<Appointment[]> {
+    return this.appointmentService.getAllAppointments();
+  }
+
+  @Get('by-status')
+  @ApiOperation({ summary: 'Get appointments by status' })
+  @ApiQuery({ name: 'status', enum: AppointmentStatus })
+  @ApiResponse({ status: 200, description: 'List of appointments', type: [Appointment] })
+  async getAppointmentsByStatus(
+    @Query('status') status: AppointmentStatus,
+  ): Promise<Appointment[]> {
+    return this.appointmentService.getAppointmentsByStatus(status);
+  }
+
+  @Get('by-pet/:petId')
+  @ApiOperation({ summary: 'Get appointments by pet ID' })
+  @ApiParam({ name: 'petId', type: Number })
+  @ApiResponse({ status: 200, description: 'List of appointments', type: [Appointment] })
+  async getAppointmentsByPet(@Param('petId', ParseIntPipe) petId: number): Promise<Appointment[]> {
+    return this.appointmentService.getAppointmentsByPet(petId);
+  }
+
+  @Get('by-employee/:employeeId')
+  @ApiOperation({ summary: 'Get appointments by employee ID' })
+  @ApiParam({ name: 'employeeId', type: Number })
+  @ApiResponse({ status: 200, description: 'List of appointments', type: [Appointment] })
+  async getAppointmentsByEmployee(
+    @Param('employeeId', ParseIntPipe) employeeId: number,
+  ): Promise<Appointment[]> {
+    return this.appointmentService.getAppointmentsByEmployee(employeeId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get appointment by ID' })
-  @ApiResponse({ status: 200, description: 'Appointment retrieved' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment retrieved', type: Appointment })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
-  async getAppointmentById(@Param('id') id: number) {
-    // TODO: Implement get appointment logic
-    throw new Error('Method not implemented');
+  async getAppointmentById(@Param('id', ParseIntPipe) id: number): Promise<Appointment> {
+    return this.appointmentService.getAppointmentById(id);
   }
 
-  /**
-   * GET /api/appointments
-   * Retrieves appointments with optional filters (owner, date, status).
-   */
-  @Get()
-  @ApiOperation({ summary: 'Get appointments with filters' })
-  @ApiResponse({ status: 200, description: 'Appointments retrieved' })
-  async getAppointments(@Query() query: any) {
-    // TODO: Implement get appointments logic
-    throw new Error('Method not implemented');
-  }
-
-  /**
-   * PUT /api/appointments/:id/reschedule
-   * Reschedules appointment to new date/time with availability check.
-   * @throws ScheduleConflictException, AppointmentNotFoundException
-   */
-  @Put(':id/reschedule')
-  @ApiOperation({ summary: 'Reschedule appointment' })
-  @ApiResponse({ status: 200, description: 'Appointment rescheduled' })
+  @Put(':id')
+  @ApiOperation({ summary: 'Update appointment details' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment updated', type: Appointment })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
-  @ApiResponse({ status: 409, description: 'Schedule conflict' })
-  async rescheduleAppointment(
-    @Param('id') id: number,
-    @Body() rescheduleDto: any,
-  ) {
-    // TODO: Implement reschedule logic
-    throw new Error('Method not implemented');
+  async updateAppointment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAppointmentDto,
+  ): Promise<Appointment> {
+    return this.appointmentService.updateAppointment(id, dto);
   }
 
-  /**
-   * PUT /api/appointments/:id/cancel
-   * Cancels appointment and updates status to CANCELLED.
-   * @throws AppointmentNotFoundException, InvalidStatusException
-   */
-  @Put(':id/cancel')
-  @ApiOperation({ summary: 'Cancel appointment' })
-  @ApiResponse({ status: 200, description: 'Appointment cancelled' })
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete appointment (only if pending)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment deleted' })
+  @ApiResponse({ status: 400, description: 'Can only delete pending appointments' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
-  async cancelAppointment(@Param('id') id: number, @Body() cancelDto: any) {
-    // TODO: Implement cancel logic
-    throw new Error('Method not implemented');
+  async deleteAppointment(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+    await this.appointmentService.deleteAppointment(id);
+    return { message: 'Appointment deleted successfully' };
   }
 
-  /**
-   * PUT /api/appointments/:id/confirm
-   * Changes appointment status from PENDING to CONFIRMED.
-   * @throws AppointmentNotFoundException, InvalidStatusException
-   */
+  // ============================================
+  // STATE TRANSITIONS
+  // ============================================
+
   @Put(':id/confirm')
-  @ApiOperation({ summary: 'Confirm appointment' })
-  @ApiResponse({ status: 200, description: 'Appointment confirmed' })
+  @ApiOperation({ summary: 'Confirm appointment (PENDING → CONFIRMED)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment confirmed', type: Appointment })
+  @ApiResponse({ status: 400, description: 'Can only confirm pending appointments' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
-  async confirmAppointment(@Param('id') id: number) {
-    // TODO: Implement confirm logic
-    throw new Error('Method not implemented');
+  async confirmAppointment(@Param('id', ParseIntPipe) id: number): Promise<Appointment> {
+    return this.appointmentService.confirmAppointment(id);
   }
 
-  /**
-   * PUT /api/appointments/:id/status
-   * Updates appointment status with validation.
-   * @throws InvalidStatusTransitionException
-   */
-  @Put(':id/status')
-  @ApiOperation({ summary: 'Update appointment status' })
-  @ApiResponse({ status: 200, description: 'Status updated' })
-  @ApiResponse({ status: 400, description: 'Invalid status transition' })
-  async updateAppointmentStatus(
-    @Param('id') id: number,
-    @Body() statusDto: any,
-  ) {
-    // TODO: Implement status update logic
-    throw new Error('Method not implemented');
+  @Put(':id/start')
+  @ApiOperation({ summary: 'Start appointment (CONFIRMED → IN_PROGRESS)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment started', type: Appointment })
+  @ApiResponse({ status: 400, description: 'Can only start confirmed appointments' })
+  @ApiResponse({ status: 404, description: 'Appointment not found' })
+  async startAppointment(@Param('id', ParseIntPipe) id: number): Promise<Appointment> {
+    return this.appointmentService.startAppointment(id);
   }
 
-  /**
-   * GET /api/appointments/upcoming
-   * Gets upcoming appointments within specified number of days.
-   */
-  @Get('upcoming')
-  @ApiOperation({ summary: 'Get upcoming appointments' })
-  @ApiResponse({ status: 200, description: 'Appointments retrieved' })
-  async getUpcomingAppointments(@Query() query: any) {
-    // TODO: Implement upcoming appointments logic
-    throw new Error('Method not implemented');
+  @Put(':id/complete')
+  @ApiOperation({ summary: 'Complete appointment (IN_PROGRESS → COMPLETED)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment completed', type: Appointment })
+  @ApiResponse({ status: 400, description: 'Can only complete in-progress appointments' })
+  @ApiResponse({ status: 404, description: 'Appointment not found' })
+  async completeAppointment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('actualCost') actualCost?: number,
+  ): Promise<Appointment> {
+    return this.appointmentService.completeAppointment(id, actualCost);
+  }
+
+  @Put(':id/cancel')
+  @ApiOperation({ summary: 'Cancel appointment (any status → CANCELLED)' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({ status: 200, description: 'Appointment cancelled', type: Appointment })
+  @ApiResponse({ status: 400, description: 'Cannot cancel completed appointments' })
+  @ApiResponse({ status: 404, description: 'Appointment not found' })
+  async cancelAppointment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('reason') reason?: string,
+  ): Promise<Appointment> {
+    return this.appointmentService.cancelAppointment(id, reason);
   }
 }

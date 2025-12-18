@@ -20,9 +20,14 @@ export class ReportController {
   @Get('financial')
   @ApiOperation({ summary: 'Generate financial report' })
   @ApiResponse({ status: 200, description: 'Financial report generated' })
-  async generateFinancialReport(@Query() query: any) {
-    // TODO: Implement financial report logic
-    throw new Error('Method not implemented');
+  async generateFinancialReport(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportService.generateFinancialReport(
+      new Date(startDate),
+      new Date(endDate),
+    );
   }
 
   /**
@@ -32,9 +37,11 @@ export class ReportController {
   @Get('revenue')
   @ApiOperation({ summary: 'Get revenue by period' })
   @ApiResponse({ status: 200, description: 'Revenue data retrieved' })
-  async getRevenueByPeriod(@Query() query: any) {
-    // TODO: Implement revenue by period logic
-    throw new Error('Method not implemented');
+  async getRevenueByPeriod(
+    @Query('period') period: 'month' | 'quarter' | 'year',
+    @Query('year') year: number,
+  ) {
+    return this.reportService.getRevenueByPeriod(period, year);
   }
 
   /**
@@ -44,9 +51,14 @@ export class ReportController {
   @Get('appointments')
   @ApiOperation({ summary: 'Get appointment statistics' })
   @ApiResponse({ status: 200, description: 'Appointment statistics retrieved' })
-  async getAppointmentStatistics(@Query() query: any) {
-    // TODO: Implement appointment statistics logic
-    throw new Error('Method not implemented');
+  async getAppointmentStatistics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportService.getAppointmentStatistics(
+      new Date(startDate),
+      new Date(endDate),
+    );
   }
 
   /**
@@ -56,9 +68,35 @@ export class ReportController {
   @Get('services/top')
   @ApiOperation({ summary: 'Get top services' })
   @ApiResponse({ status: 200, description: 'Top services retrieved' })
-  async getTopServices(@Query() query: any) {
-    // TODO: Implement top services logic
-    throw new Error('Method not implemented');
+  async getTopServices(
+    @Query('limit') limit: number = 10,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('sortBy') sortBy: 'count' | 'revenue' = 'revenue',
+  ) {
+    return this.reportService.getTopServices(
+      limit,
+      new Date(startDate),
+      new Date(endDate),
+      sortBy,
+    );
+  }
+
+  /**
+   * GET /api/reports/services/performance
+   * Gets service performance analysis.
+   */
+  @Get('services/performance')
+  @ApiOperation({ summary: 'Get service performance report' })
+  @ApiResponse({ status: 200, description: 'Service performance retrieved' })
+  async getServicePerformance(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportService.getServicePerformanceReport(
+      new Date(startDate),
+      new Date(endDate),
+    );
   }
 
   /**
@@ -68,32 +106,41 @@ export class ReportController {
   @Get('employees/workload')
   @ApiOperation({ summary: 'Get employee workload report' })
   @ApiResponse({ status: 200, description: 'Workload report generated' })
-  async getEmployeeWorkloadReport(@Query() query: any) {
-    // TODO: Implement employee workload report logic
-    throw new Error('Method not implemented');
+  async getEmployeeWorkloadReport(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportService.getEmployeeWorkloadReport(
+      new Date(startDate),
+      new Date(endDate),
+    );
   }
 
   /**
-   * GET /api/reports/export
-   * Exports report in specified format (PDF, Excel, CSV).
+   * GET /api/reports/customers/retention
+   * Gets customer retention and behavior metrics.
    */
-  @Get('export')
-  @ApiOperation({ summary: 'Export report' })
-  @ApiResponse({ status: 200, description: 'Report exported' })
-  async exportReport(@Query() query: any) {
-    // TODO: Implement export report logic
-    throw new Error('Method not implemented');
+  @Get('customers/retention')
+  @ApiOperation({ summary: 'Get customer retention report' })
+  @ApiResponse({ status: 200, description: 'Customer retention data retrieved' })
+  async getCustomerRetention(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportService.getCustomerRetentionReport(
+      new Date(startDate),
+      new Date(endDate),
+    );
   }
 
   /**
-   * GET /api/dashboard
+   * GET /api/reports/dashboard
    * Gets dashboard overview with key metrics.
    */
   @Get('dashboard')
   @ApiOperation({ summary: 'Get dashboard data' })
   @ApiResponse({ status: 200, description: 'Dashboard data retrieved' })
   async getDashboard() {
-    // TODO: Implement dashboard logic
-    throw new Error('Method not implemented');
+    return this.reportService.getDashboard();
   }
 }
