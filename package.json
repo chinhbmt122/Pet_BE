@@ -26,7 +26,9 @@
     "test:cov:all": "npm run test:cov && npm run test:integration && npm run test:e2e",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./tests/e2e/jest.json",
-    "test:e2e:with-db": "docker-compose -f docker-compose.e2e.yml up -d && npx wait-on tcp:5433 && npm run test:e2e && docker-compose -f docker-compose.e2e.yml down"
+    "test:e2e:with-db": "docker-compose -f docker-compose.e2e.yml up -d && npx wait-on tcp:5433 && npm run test:e2e && docker-compose -f docker-compose.e2e.yml down",
+    "seed": "ts-node -r tsconfig-paths/register src/database/run-seed.ts",
+    "seed:refresh": "ts-node -r tsconfig-paths/register src/database/run-seed.ts --refresh"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

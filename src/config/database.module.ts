@@ -21,14 +21,11 @@ import { entitiesOrdered } from './entities';
         username: configService.get('DATABASE_USER'),
         password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME'),
-        entities:
-          configService.get('USE_ORDERED_ENTITIES') === 'true'
-            ? entitiesOrdered
-            : [__dirname + '/../**/*.entity.js'],
+        entities: entitiesOrdered, // Always use explicit entity list for ts-node/seeder compatibility
         synchronize: configService.get('NODE_ENV') === 'development', // Disable in production
         logging: configService.get('NODE_ENV') === 'development',
       }),
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }
