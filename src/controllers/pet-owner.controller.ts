@@ -23,6 +23,7 @@ import {
   PetOwnerResponseDto,
 } from '../dto/pet-owner';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { UserType } from '../entities/account.entity';
 
 /**
  * PetOwnerController
@@ -57,7 +58,12 @@ export class PetOwnerController {
    * Get PetOwner by account ID
    */
   @Get(':accountId')
-  @RouteConfig({ message: 'Get pet owner profile', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get pet owner profile',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.MANAGER, UserType.RECEPTIONIST],
+    // TODO: Service layer should validate PET_OWNER can only see their own profile
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pet owner by account ID' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
@@ -73,7 +79,12 @@ export class PetOwnerController {
    * Update PetOwner profile
    */
   @Put(':accountId/profile')
-  @RouteConfig({ message: 'Update pet owner profile', requiresAuth: true })
+  @RouteConfig({
+    message: 'Update pet owner profile',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.MANAGER],
+    // TODO: Service layer should validate PET_OWNER can only update their own profile
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet owner profile' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
@@ -90,7 +101,12 @@ export class PetOwnerController {
    * Update PetOwner contact preferences
    */
   @Put(':accountId/preferences')
-  @RouteConfig({ message: 'Update pet owner preferences', requiresAuth: true })
+  @RouteConfig({
+    message: 'Update pet owner preferences',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.MANAGER],
+    // TODO: Service layer should validate PET_OWNER can only update their own preferences
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet owner contact preferences' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })

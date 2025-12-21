@@ -6,6 +6,7 @@ import { PetOwner } from '../entities/pet-owner.entity';
 import { PetDomainModel } from '../domain/pet.domain';
 import { PetMapper } from '../mappers/pet.mapper';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
+import { UserType } from '../entities/account.entity';
 
 /**
  * PetService (PetManager)
@@ -102,8 +103,12 @@ export class PetService {
 
   /**
    * Retrieves complete pet profile by ID.
+   * If PET_OWNER, validates they own the pet.
    */
-  async getPetById(petId: number): Promise<PetResponseDto> {
+  async getPetById(
+    petId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<PetResponseDto> {
     const entity = await this.petRepository.findOne({
       where: { petId },
       relations: ['owner'],
@@ -112,14 +117,38 @@ export class PetService {
       throw new NotFoundException(`Pet with ID ${petId} not found`);
     }
 
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || entity.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Pet with ID ${petId} not found`);
+      }
+    }
+
     const domain = PetMapper.toDomain(entity);
     return PetResponseDto.fromDomain(domain);
   }
 
   /**
    * Retrieves all pets belonging to a specific owner.
+   * If PET_OWNER, validates they're requesting their own pets.
    */
-  async getPetsByOwner(ownerId: number): Promise<PetResponseDto[]> {
+  async getPetsByOwner(
+    ownerId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<PetResponseDto[]> {
+    // If PET_OWNER, ensure they can only get their own pets
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || petOwner.petOwnerId !== ownerId) {
+        return []; // Return empty if not their pets
+      }
+    }
+
     const entities = await this.petRepository.find({
       where: { ownerId },
       order: { createdAt: 'DESC' },

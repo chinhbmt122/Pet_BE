@@ -8,11 +8,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Appointment } from '../entities/appointment.entity';
+import { PetOwner } from '../entities/pet-owner.entity';
 import {
   CreateInvoiceDto,
   InvoiceResponseDto,
   UpdateInvoiceDto,
 } from '../dto/invoice';
+import { UserType } from '../entities/account.entity';
 
 /**
  * InvoiceService (Active Record Pattern)
@@ -27,6 +29,8 @@ export class InvoiceService {
     private readonly invoiceRepository: Repository<Invoice>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(PetOwner)
+    private readonly petOwnerRepository: Repository<PetOwner>,
   ) {}
 
   /**
@@ -155,13 +159,31 @@ export class InvoiceService {
 
   /**
    * Gets invoice by ID
+   * If PET_OWNER, validates they own the related pet
    */
-  async getInvoiceById(invoiceId: number): Promise<InvoiceResponseDto> {
+  async getInvoiceById(
+    invoiceId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
     });
     if (!entity) {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+    }
+
+    // If PET_OWNER, validate ownership via appointment → pet → owner
+    if (user && user.userType === UserType.PET_OWNER) {
+      const appointment = await this.appointmentRepository.findOne({
+        where: { appointmentId: entity.appointmentId },
+        relations: ['pet'],
+      });
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || !appointment || appointment.pet?.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      }
     }
 
     return InvoiceResponseDto.fromEntity(entity);
@@ -203,8 +225,42 @@ export class InvoiceService {
 
   /**
    * Gets all invoices
+   * If PET_OWNER, returns only their invoices (via appointment → pet → owner)
    */
-  async getAllInvoices(): Promise<InvoiceResponseDto[]> {
+  async getAllInvoices(
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto[]> {
+    // If PET_OWNER, filter to only their own invoices
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+        relations: ['pets'],
+      });
+      if (!petOwner || !petOwner.pets?.length) {
+        return [];
+      }
+      const petIds = petOwner.pets.map((pet) => pet.petId);
+
+      // Find all appointments for these pets
+      const appointments = await this.appointmentRepository.find({
+        where: petIds.map((id) => ({ petId: id })),
+      });
+      if (!appointments.length) {
+        return [];
+      }
+      const appointmentIds = appointments.map((a) => a.appointmentId);
+
+      // Get invoices for those appointments
+      const entities = await this.invoiceRepository
+        .createQueryBuilder('invoice')
+        .where('invoice.appointmentId IN (:...appointmentIds)', { appointmentIds })
+        .orderBy('invoice.issueDate', 'DESC')
+        .getMany();
+
+      return InvoiceResponseDto.fromEntityList(entities);
+    }
+
+    // Staff sees all
     const entities = await this.invoiceRepository.find({
       order: { issueDate: 'DESC' },
     });
@@ -214,8 +270,42 @@ export class InvoiceService {
 
   /**
    * Gets invoices by status
+   * If PET_OWNER, returns only their invoices with that status
    */
-  async getInvoicesByStatus(status: string): Promise<InvoiceResponseDto[]> {
+  async getInvoicesByStatus(
+    status: string,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto[]> {
+    // If PET_OWNER, filter to only their own invoices
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+        relations: ['pets'],
+      });
+      if (!petOwner || !petOwner.pets?.length) {
+        return [];
+      }
+      const petIds = petOwner.pets.map((pet) => pet.petId);
+
+      const appointments = await this.appointmentRepository.find({
+        where: petIds.map((id) => ({ petId: id })),
+      });
+      if (!appointments.length) {
+        return [];
+      }
+      const appointmentIds = appointments.map((a) => a.appointmentId);
+
+      const entities = await this.invoiceRepository
+        .createQueryBuilder('invoice')
+        .where('invoice.appointmentId IN (:...appointmentIds)', { appointmentIds })
+        .andWhere('invoice.status = :status', { status })
+        .orderBy('invoice.issueDate', 'DESC')
+        .getMany();
+
+      return InvoiceResponseDto.fromEntityList(entities);
+    }
+
+    // Staff sees all
     const entities = await this.invoiceRepository.find({
       where: { status: status as InvoiceStatus },
       order: { issueDate: 'DESC' },

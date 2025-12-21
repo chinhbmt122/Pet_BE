@@ -6,6 +6,7 @@ import { Appointment } from '../entities/appointment.entity';
 import { Pet } from '../entities/pet.entity';
 import { Employee } from '../entities/employee.entity';
 import { Service } from '../entities/service.entity';
+import { PetOwner } from '../entities/pet-owner.entity';
 import { AppointmentFactory } from '../factories/appointment.factory';
 
 /**
@@ -16,7 +17,7 @@ import { AppointmentFactory } from '../factories/appointment.factory';
  * Coordinates with ScheduleManager for availability and NotificationService for confirmations.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, Pet, Employee, Service])],
+  imports: [TypeOrmModule.forFeature([Appointment, Pet, Employee, Service, PetOwner])],
   controllers: [AppointmentController],
   providers: [AppointmentService, AppointmentFactory],
   exports: [AppointmentService, AppointmentFactory],

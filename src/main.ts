@@ -18,7 +18,7 @@ async function bootstrap() {
   );
   app.enableCors({
     credentials: true,
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:4200'],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:4200'],
   });
 
   // LƯU Ý: ==================================================

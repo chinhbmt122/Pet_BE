@@ -10,7 +10,9 @@ import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { Pet } from '../entities/pet.entity';
 import { Employee } from '../entities/employee.entity';
 import { Service } from '../entities/service.entity';
+import { PetOwner } from '../entities/pet-owner.entity';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
+import { UserType } from '../entities/account.entity';
 
 /**
  * AppointmentService (Pure Anemic Pattern)
@@ -29,6 +31,8 @@ export class AppointmentService {
     private readonly employeeRepository: Repository<Employee>,
     @InjectRepository(Service)
     private readonly serviceRepository: Repository<Service>,
+    @InjectRepository(PetOwner)
+    private readonly petOwnerRepository: Repository<PetOwner>,
   ) {}
 
   // ============================================
@@ -151,24 +155,66 @@ export class AppointmentService {
 
   /**
    * Gets appointment by ID
+   * If user is PET_OWNER, validates they own the pet
    */
-  async getAppointmentById(appointmentId: number): Promise<Appointment> {
+  async getAppointmentById(
+    appointmentId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: ['pet', 'employee', 'service'],
+      relations: ['pet', 'employee', 'service', 'pet.owner'],
     });
     if (!appointment) {
       throw new NotFoundException(
         `Appointment with ID ${appointmentId} not found`,
       );
     }
+
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || appointment.pet?.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(
+          `Appointment with ID ${appointmentId} not found`,
+        );
+      }
+    }
+
     return appointment;
   }
 
   /**
    * Gets all appointments
+   * If user is PET_OWNER, returns only their pet's appointments
    */
-  async getAllAppointments(): Promise<Appointment[]> {
+  async getAllAppointments(
+    user?: { accountId: number; userType: UserType },
+  ): Promise<Appointment[]> {
+    // If PET_OWNER, filter to only their pets' appointments
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+        relations: ['pets'],
+      });
+      if (!petOwner || !petOwner.pets?.length) {
+        return [];
+      }
+      const petIds = petOwner.pets.map((pet) => pet.petId);
+      return this.appointmentRepository
+        .createQueryBuilder('appointment')
+        .leftJoinAndSelect('appointment.pet', 'pet')
+        .leftJoinAndSelect('appointment.employee', 'employee')
+        .leftJoinAndSelect('appointment.service', 'service')
+        .where('appointment.petId IN (:...petIds)', { petIds })
+        .orderBy('appointment.appointmentDate', 'DESC')
+        .addOrderBy('appointment.startTime', 'ASC')
+        .getMany();
+    }
+
+    // Staff sees all
     return this.appointmentRepository.find({
       relations: ['pet', 'employee', 'service'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },

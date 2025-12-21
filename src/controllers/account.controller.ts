@@ -24,7 +24,7 @@ import {
   ChangePasswordDto,
 } from '../dto/account';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { Account } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
 
@@ -80,7 +80,11 @@ export class AccountController {
    * GET /api/auth/account/:id
    */
   @Get('account/:id')
-  @RouteConfig({ message: 'Get account by ID', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get account by ID',
+    requiresAuth: true,
+    // TODO: Service layer should validate user can only see their own account (or MANAGER sees all)
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get account by ID' })
   @ApiResponse({ status: 200, type: AccountResponseDto })
@@ -133,7 +137,11 @@ export class AccountController {
    * PUT /api/auth/account/:id/activate
    */
   @Put('account/:id/activate')
-  @RouteConfig({ message: 'Activate account', requiresAuth: true })
+  @RouteConfig({
+    message: 'Activate account (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Activate an account' })
   @ApiResponse({ status: 200, type: AccountResponseDto })
@@ -148,7 +156,11 @@ export class AccountController {
    * PUT /api/auth/account/:id/deactivate
    */
   @Put('account/:id/deactivate')
-  @RouteConfig({ message: 'Deactivate account', requiresAuth: true })
+  @RouteConfig({
+    message: 'Deactivate account (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deactivate an account' })
   @ApiResponse({ status: 200, type: AccountResponseDto })

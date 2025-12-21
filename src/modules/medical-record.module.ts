@@ -7,6 +7,7 @@ import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
 import { Pet } from '../entities/pet.entity';
 import { Veterinarian } from '../entities/veterinarian.entity';
+import { PetOwner } from '../entities/pet-owner.entity';
 
 /**
  * MedicalRecordModule
@@ -24,6 +25,7 @@ import { Veterinarian } from '../entities/veterinarian.entity';
       VaccinationHistory,
       Pet,
       Veterinarian,
+      PetOwner,
     ]),
   ],
   controllers: [MedicalRecordController],

@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ScheduleService } from '../services/schedule.service';
 import {
@@ -22,6 +23,8 @@ import {
   UpdateWorkScheduleDto,
   WorkScheduleResponseDto,
 } from '../dto/schedule';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { UserType } from '../entities/account.entity';
 
 /**
  * ScheduleController
@@ -38,6 +41,12 @@ export class ScheduleController {
    * Creates new work schedule for an employee.
    */
   @Post()
+  @RouteConfig({
+    message: 'Create work schedule (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create work schedule' })
   @ApiResponse({
     status: 201,
@@ -57,6 +66,12 @@ export class ScheduleController {
    * Retrieves schedule by ID.
    */
   @Get(':id')
+  @RouteConfig({
+    message: 'Get schedule by ID',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.CARE_STAFF, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get schedule by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -76,6 +91,12 @@ export class ScheduleController {
    * Retrieves all schedules with optional filters.
    */
   @Get()
+  @RouteConfig({
+    message: 'Get all schedules',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all schedules' })
   @ApiQuery({
     name: 'onlyAvailable',
@@ -117,6 +138,12 @@ export class ScheduleController {
    * Retrieves employee schedules for optional date range.
    */
   @Get('employee/:employeeId')
+  @RouteConfig({
+    message: 'Get schedules by employee',
+    requiresAuth: true,
+    // TODO: Staff should only see their own schedule unless Manager/Receptionist
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get schedules by employee' })
   @ApiParam({ name: 'employeeId', type: Number })
   @ApiQuery({ name: 'startDate', required: false, type: String })
@@ -143,6 +170,12 @@ export class ScheduleController {
    * Gets all employee schedules for a specific date.
    */
   @Get('date/:date')
+  @RouteConfig({
+    message: 'Get schedules by date',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get schedules by date' })
   @ApiParam({
     name: 'date',
@@ -165,6 +198,12 @@ export class ScheduleController {
    * Updates existing schedule.
    */
   @Put(':id')
+  @RouteConfig({
+    message: 'Update schedule (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update schedule' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -185,6 +224,12 @@ export class ScheduleController {
    * Removes schedule.
    */
   @Delete(':id')
+  @RouteConfig({
+    message: 'Delete schedule (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete schedule' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Schedule deleted' })
@@ -201,6 +246,10 @@ export class ScheduleController {
    * Checks if employee is available at specific date/time.
    */
   @Get('availability/check')
+  @RouteConfig({
+    message: 'Check availability (for booking)',
+    requiresAuth: false, // Public for scheduling appointments
+  })
   @ApiOperation({ summary: 'Check availability' })
   @ApiQuery({ name: 'employeeId', required: true, type: Number })
   @ApiQuery({
@@ -226,6 +275,12 @@ export class ScheduleController {
    * Assigns break time to schedule.
    */
   @Put(':id/break')
+  @RouteConfig({
+    message: 'Assign break time',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Assign break time' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -250,6 +305,12 @@ export class ScheduleController {
    * Marks schedule as unavailable.
    */
   @Put(':id/unavailable')
+  @RouteConfig({
+    message: 'Mark schedule unavailable',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark schedule unavailable' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -269,6 +330,12 @@ export class ScheduleController {
    * Marks schedule as available.
    */
   @Put(':id/available')
+  @RouteConfig({
+    message: 'Mark schedule available',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark schedule available' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({

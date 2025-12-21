@@ -52,6 +52,7 @@ export class EmployeeController {
   @RouteConfig({
     message: 'Create employee (Manager only)',
     requiresAuth: true,
+    roles: [UserType.MANAGER],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new employee (Manager only)' })
@@ -70,7 +71,11 @@ export class EmployeeController {
    * Get all employees
    */
   @Get()
-  @RouteConfig({ message: 'Get all employees', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get all employees',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all employees' })
   @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
@@ -83,7 +88,11 @@ export class EmployeeController {
    * Get available employees
    */
   @Get('available')
-  @RouteConfig({ message: 'Get available employees', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get available employees',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get available employees' })
   @ApiQuery({ name: 'role', required: false, enum: UserType })
@@ -100,7 +109,11 @@ export class EmployeeController {
    * Get employees by role
    */
   @Get('by-role/:role')
-  @RouteConfig({ message: 'Get employees by role', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get employees by role',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get employees by role type' })
   @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
@@ -113,7 +126,11 @@ export class EmployeeController {
    * Get employee by ID
    */
   @Get(':id')
-  @RouteConfig({ message: 'Get employee by ID', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get employee by ID',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN, UserType.CARE_STAFF],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get employee by ID' })
   @ApiResponse({ status: 200, type: EmployeeResponseDto })
@@ -127,7 +144,11 @@ export class EmployeeController {
    * Update employee
    */
   @Put(':id')
-  @RouteConfig({ message: 'Update employee', requiresAuth: true })
+  @RouteConfig({
+    message: 'Update employee',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update employee (self or Manager)' })
   @ApiResponse({ status: 200, type: EmployeeResponseDto })
@@ -147,7 +168,11 @@ export class EmployeeController {
    * Mark employee as available
    */
   @Put(':id/available')
-  @RouteConfig({ message: 'Mark employee available', requiresAuth: true })
+  @RouteConfig({
+    message: 'Mark employee available',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark employee as available' })
   @ApiResponse({ status: 200, type: EmployeeResponseDto })
@@ -162,7 +187,11 @@ export class EmployeeController {
    * Mark employee as unavailable
    */
   @Put(':id/unavailable')
-  @RouteConfig({ message: 'Mark employee unavailable', requiresAuth: true })
+  @RouteConfig({
+    message: 'Mark employee unavailable',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark employee as unavailable' })
   @ApiResponse({ status: 200, type: EmployeeResponseDto })
