@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -62,16 +63,18 @@ export class PetOwnerController {
     message: 'Get pet owner profile',
     requiresAuth: true,
     roles: [UserType.PET_OWNER, UserType.MANAGER, UserType.RECEPTIONIST],
-    // TODO: Service layer should validate PET_OWNER can only see their own profile
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pet owner by account ID' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
   @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async getByAccountId(
     @Param('accountId', ParseIntPipe) accountId: number,
+    @Req() req: any,
   ): Promise<PetOwner> {
-    return this.petOwnerService.getByAccountId(accountId);
+    const user = req.user;
+    return this.petOwnerService.getByAccountId(accountId, user);
   }
 
   /**
@@ -83,17 +86,19 @@ export class PetOwnerController {
     message: 'Update pet owner profile',
     requiresAuth: true,
     roles: [UserType.PET_OWNER, UserType.MANAGER],
-    // TODO: Service layer should validate PET_OWNER can only update their own profile
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet owner profile' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
   @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async updateProfile(
     @Param('accountId', ParseIntPipe) accountId: number,
     @Body() dto: UpdatePetOwnerDto,
+    @Req() req: any,
   ): Promise<PetOwner> {
-    return this.petOwnerService.updateProfile(accountId, dto);
+    const user = req.user;
+    return this.petOwnerService.updateProfile(accountId, dto, user);
   }
 
   /**
@@ -105,19 +110,21 @@ export class PetOwnerController {
     message: 'Update pet owner preferences',
     requiresAuth: true,
     roles: [UserType.PET_OWNER, UserType.MANAGER],
-    // TODO: Service layer should validate PET_OWNER can only update their own preferences
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet owner contact preferences' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
   @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async updatePreferences(
     @Param('accountId', ParseIntPipe) accountId: number,
     @Body() dto: UpdatePetOwnerDto,
+    @Req() req: any,
   ): Promise<PetOwner> {
+    const user = req.user;
     return this.petOwnerService.updatePreferences(accountId, {
       preferredContactMethod: dto.preferredContactMethod,
       emergencyContact: dto.emergencyContact,
-    });
+    }, user);
   }
 }

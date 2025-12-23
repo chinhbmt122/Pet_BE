@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -83,16 +84,18 @@ export class AccountController {
   @RouteConfig({
     message: 'Get account by ID',
     requiresAuth: true,
-    // TODO: Service layer should validate user can only see their own account (or MANAGER sees all)
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get account by ID' })
   @ApiResponse({ status: 200, type: AccountResponseDto })
   @ApiResponse({ status: 404, description: 'Account not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async getAccountById(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
   ): Promise<Account> {
-    return this.accountService.getAccountById(id);
+    const user = req.user;
+    return this.accountService.getAccountById(id, user);
   }
 
   /**
@@ -104,10 +107,13 @@ export class AccountController {
   @ApiOperation({ summary: 'Get account with profile (PetOwner or Employee)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'Account not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async getFullProfile(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
   ): Promise<{ account: Account; profile: PetOwner | Employee | null }> {
-    return this.accountService.getFullProfile(id);
+    const user = req.user;
+    return this.accountService.getFullProfile(id, user);
   }
 
   /**
@@ -121,14 +127,18 @@ export class AccountController {
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
   @ApiResponse({ status: 400, description: 'Invalid password' })
   @ApiResponse({ status: 401, description: 'Old password incorrect' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async changePassword(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ChangePasswordDto,
+    @Req() req: any,
   ): Promise<{ message: string }> {
+    const user = req.user;
     await this.accountService.changePassword(
       id,
       dto.oldPassword,
       dto.newPassword,
+      user,
     );
     return { message: 'Password changed successfully' };
   }
