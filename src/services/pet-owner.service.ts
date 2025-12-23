@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Account } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
+import { Appointment } from '../entities/appointment.entity';
+import { Invoice } from '../entities/invoice.entity';
+import { Pet } from '../entities/pet.entity';
 import { UserType } from '../entities/types/entity.types';
 import { AccountFactory } from '../factories/account.factory';
 import { PetOwnerFactory } from '../factories/pet-owner.factory';
@@ -24,6 +27,12 @@ export class PetOwnerService {
     private readonly accountRepository: Repository<Account>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(Invoice)
+    private readonly invoiceRepository: Repository<Invoice>,
+    @InjectRepository(Pet)
+    private readonly petRepository: Repository<Pet>,
     private readonly accountFactory: AccountFactory,
     private readonly petOwnerFactory: PetOwnerFactory,
     private readonly dataSource: DataSource,
@@ -142,5 +151,118 @@ export class PetOwnerService {
     // 4. Convert back and save
     const updated = PetOwnerMapper.toPersistence(domain);
     return this.petOwnerRepository.save(updated);
+  }
+
+  /**
+   * Gets all pet owners with optional search criteria.
+   */
+  async getAllPetOwners(criteria?: {
+    fullName?: string;
+    phoneNumber?: string;
+    email?: string;
+  }): Promise<PetOwner[]> {
+    const queryBuilder = this.petOwnerRepository
+      .createQueryBuilder('petOwner')
+      .leftJoinAndSelect('petOwner.account', 'account');
+
+    if (criteria?.fullName) {
+      queryBuilder.andWhere('petOwner.fullName ILIKE :fullName', {
+        fullName: `%${criteria.fullName}%`,
+      });
+    }
+
+    if (criteria?.phoneNumber) {
+      queryBuilder.andWhere('petOwner.phoneNumber LIKE :phoneNumber', {
+        phoneNumber: `%${criteria.phoneNumber}%`,
+      });
+    }
+
+    if (criteria?.email) {
+      queryBuilder.andWhere('account.email ILIKE :email', {
+        email: `%${criteria.email}%`,
+      });
+    }
+
+    return queryBuilder.orderBy('petOwner.fullName', 'ASC').getMany();
+  }
+
+  /**
+   * Gets all appointments for a pet owner.
+   */
+  async getAppointments(petOwnerId: number, status?: string): Promise<any[]> {
+    // Verify pet owner exists
+    const petOwner = await this.petOwnerRepository.findOne({
+      where: { petOwnerId },
+    });
+    if (!petOwner) {
+      throw new NotFoundException('Pet owner not found');
+    }
+
+    // Get all pets for this owner
+    const pets = await this.petRepository.find({
+      where: { ownerId: petOwnerId },
+      select: ['petId'],
+    });
+
+    if (pets.length === 0) {
+      return [];
+    }
+
+    const petIds = pets.map((p) => p.petId);
+
+    // Build query for appointments
+    const queryBuilder = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.pet', 'pet')
+      .leftJoinAndSelect('appointment.employee', 'employee')
+      .leftJoinAndSelect('appointment.service', 'service')
+      .where('appointment.petId IN (:...petIds)', { petIds });
+
+    if (status) {
+      queryBuilder.andWhere('appointment.status = :status', { status });
+    }
+
+    return queryBuilder
+      .orderBy('appointment.appointmentDate', 'DESC')
+      .addOrderBy('appointment.startTime', 'DESC')
+      .getMany();
+  }
+
+  /**
+   * Gets all invoices for a pet owner.
+   */
+  async getInvoices(petOwnerId: number, status?: string): Promise<any[]> {
+    // Verify pet owner exists
+    const petOwner = await this.petOwnerRepository.findOne({
+      where: { petOwnerId },
+    });
+    if (!petOwner) {
+      throw new NotFoundException('Pet owner not found');
+    }
+
+    // Get all pets for this owner
+    const pets = await this.petRepository.find({
+      where: { ownerId: petOwnerId },
+      select: ['petId'],
+    });
+
+    if (pets.length === 0) {
+      return [];
+    }
+
+    const petIds = pets.map((p) => p.petId);
+
+    // Build query for invoices through appointments
+    const queryBuilder = this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.appointment', 'appointment')
+      .leftJoinAndSelect('appointment.pet', 'pet')
+      .where('appointment.petId IN (:...petIds)', { petIds });
+
+    if (status) {
+      queryBuilder.andWhere('invoice.status = :status', { status });
+    }
+
+    return queryBuilder.orderBy('invoice.issueDate', 'DESC').getMany();
   }
 }

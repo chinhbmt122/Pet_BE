@@ -202,12 +202,36 @@ export class InvoiceService {
   }
 
   /**
-   * Gets all invoices
+   * Gets all invoices with optional filters
    */
-  async getAllInvoices(): Promise<InvoiceResponseDto[]> {
-    const entities = await this.invoiceRepository.find({
-      order: { issueDate: 'DESC' },
-    });
+  async getAllInvoices(filters?: {
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<InvoiceResponseDto[]> {
+    const queryBuilder = this.invoiceRepository.createQueryBuilder('invoice');
+
+    if (filters?.status) {
+      queryBuilder.andWhere('invoice.status = :status', {
+        status: filters.status,
+      });
+    }
+
+    if (filters?.startDate) {
+      queryBuilder.andWhere('invoice.issueDate >= :startDate', {
+        startDate: new Date(filters.startDate),
+      });
+    }
+
+    if (filters?.endDate) {
+      queryBuilder.andWhere('invoice.issueDate <= :endDate', {
+        endDate: new Date(filters.endDate),
+      });
+    }
+
+    const entities = await queryBuilder
+      .orderBy('invoice.issueDate', 'DESC')
+      .getMany();
 
     return InvoiceResponseDto.fromEntityList(entities);
   }

@@ -57,14 +57,25 @@ export class InvoiceController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all invoices' })
+  @ApiOperation({ summary: 'Get all invoices with optional filters' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING', 'PROCESSING_ONLINE', 'PAID', 'FAILED'],
+  })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'List of all invoices',
     type: [InvoiceResponseDto],
   })
-  async getAllInvoices(): Promise<InvoiceResponseDto[]> {
-    return this.invoiceService.getAllInvoices();
+  async getAllInvoices(
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<InvoiceResponseDto[]> {
+    return this.invoiceService.getAllInvoices({ status, startDate, endDate });
   }
 
   @Get('overdue')

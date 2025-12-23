@@ -495,4 +495,48 @@ export class PaymentService {
 
     await this.paymentGatewayArchiveRepository.save(archive);
   }
+
+  /**
+   * Gets all payments with optional filters.
+   */
+  async getAllPayments(filters: {
+    status?: string;
+    method?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<PaymentResponseDto[]> {
+    const queryBuilder = this.paymentRepository
+      .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.invoice', 'invoice');
+
+    if (filters.status) {
+      queryBuilder.andWhere('payment.status = :status', {
+        status: filters.status,
+      });
+    }
+
+    if (filters.method) {
+      queryBuilder.andWhere('payment.paymentMethod = :method', {
+        method: filters.method,
+      });
+    }
+
+    if (filters.startDate) {
+      queryBuilder.andWhere('payment.createdAt >= :startDate', {
+        startDate: new Date(filters.startDate),
+      });
+    }
+
+    if (filters.endDate) {
+      queryBuilder.andWhere('payment.createdAt <= :endDate', {
+        endDate: new Date(filters.endDate),
+      });
+    }
+
+    const entities = await queryBuilder
+      .orderBy('payment.createdAt', 'DESC')
+      .getMany();
+
+    return entities.map((entity) => PaymentResponseDto.fromEntity(entity));
+  }
 }

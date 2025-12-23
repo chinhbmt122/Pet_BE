@@ -67,15 +67,48 @@ export class EmployeeController {
 
   /**
    * GET /api/employees
-   * Get all employees
+   * Get all employees with optional filters
    */
   @Get()
   @RouteConfig({ message: 'Get all employees', requiresAuth: true })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all employees' })
+  @ApiOperation({ summary: 'Get all employees with optional filters' })
+  @ApiQuery({ name: 'role', required: false, enum: UserType })
+  @ApiQuery({ name: 'available', required: false, type: Boolean })
+  @ApiQuery({ name: 'fullName', required: false, type: String })
   @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
-  async getAll(): Promise<Employee[]> {
-    return this.employeeService.getAll();
+  async getAll(
+    @Query('role') role?: UserType,
+    @Query('available') available?: boolean,
+    @Query('fullName') fullName?: string,
+  ): Promise<Employee[]> {
+    return this.employeeService.getAll({ role, available, fullName });
+  }
+
+  /**
+   * GET /api/employees/veterinarians
+   * Get all veterinarians
+   */
+  @Get('veterinarians')
+  @RouteConfig({ message: 'Get veterinarians', requiresAuth: true })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all veterinarians' })
+  @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
+  async getVeterinarians(): Promise<Employee[]> {
+    return this.employeeService.getByRole(UserType.VETERINARIAN);
+  }
+
+  /**
+   * GET /api/employees/care-staff
+   * Get all care staff
+   */
+  @Get('care-staff')
+  @RouteConfig({ message: 'Get care staff', requiresAuth: true })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all care staff' })
+  @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
+  async getCareStaff(): Promise<Employee[]> {
+    return this.employeeService.getByRole(UserType.CARE_STAFF);
   }
 
   /**
@@ -89,10 +122,7 @@ export class EmployeeController {
   @ApiQuery({ name: 'role', required: false, enum: UserType })
   @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
   async getAvailable(@Query('role') role?: UserType): Promise<Employee[]> {
-    if (role) {
-      return this.employeeService.getAvailableByRole(role);
-    }
-    return this.employeeService.getAvailable();
+    return this.employeeService.getAll({ role, available: true });
   }
 
   /**

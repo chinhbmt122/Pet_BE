@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, FindOptionsWhere } from 'typeorm';
 import { Pet } from '../entities/pet.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
+import { Appointment } from '../entities/appointment.entity';
+import { MedicalRecord } from '../entities/medical-record.entity';
 import { PetDomainModel } from '../domain/pet.domain';
 import { PetMapper } from '../mappers/pet.mapper';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
@@ -20,6 +22,10 @@ export class PetService {
     private readonly petRepository: Repository<Pet>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(MedicalRecord)
+    private readonly medicalRecordRepository: Repository<MedicalRecord>,
   ) {}
 
   /**
@@ -191,44 +197,6 @@ export class PetService {
   }
 
   /**
-   * Searches pets by name, breed, species, or owner.
-   */
-  async searchPets(searchCriteria: {
-    name?: string;
-    species?: string;
-    breed?: string;
-    ownerId?: number;
-  }): Promise<PetResponseDto[]> {
-    const where: any = {};
-
-    if (searchCriteria.name) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      where.name = Like(`%${searchCriteria.name}%`);
-    }
-    if (searchCriteria.species) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      where.species = searchCriteria.species;
-    }
-    if (searchCriteria.breed) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      where.breed = Like(`%${searchCriteria.breed}%`);
-    }
-    if (searchCriteria.ownerId) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      where.ownerId = searchCriteria.ownerId;
-    }
-
-    const entities = await this.petRepository.find({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      where,
-      order: { createdAt: 'DESC' },
-    });
-
-    const domains = PetMapper.toDomainList(entities);
-    return PetResponseDto.fromDomainList(domains);
-  }
-
-  /**
    * Transfers pet ownership to a different owner.
    */
   async transferPetOwnership(
@@ -268,5 +236,78 @@ export class PetService {
 
     const domains = PetMapper.toDomainList(entities);
     return PetResponseDto.fromDomainList(domains);
+  }
+
+  /**
+   * Retrieves all pets with optional filtering.
+   */
+  async getAllPets(searchCriteria?: {
+    name?: string;
+    species?: string;
+    breed?: string;
+    ownerId?: number;
+  }): Promise<PetResponseDto[]> {
+    const where: FindOptionsWhere<Pet> = {};
+
+    if (searchCriteria?.name) {
+      where.name = Like(`%${searchCriteria.name}%`);
+    }
+    if (searchCriteria?.species) {
+      where.species = searchCriteria.species;
+    }
+    if (searchCriteria?.breed) {
+      where.breed = Like(`%${searchCriteria.breed}%`);
+    }
+    if (searchCriteria?.ownerId) {
+      where.ownerId = searchCriteria.ownerId;
+    }
+
+    const entities = await this.petRepository.find({
+      where: Object.keys(where).length > 0 ? where : undefined,
+      order: { createdAt: 'DESC' },
+    });
+
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
+  }
+
+  /**
+   * Retrieves complete medical history for a specific pet.
+   */
+  async getPetMedicalHistory(petId: number): Promise<any[]> {
+    // Verify pet exists
+    const pet = await this.petRepository.findOne({ where: { petId } });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // Get all medical records for this pet
+    const records = await this.medicalRecordRepository.find({
+      where: { petId },
+      relations: ['veterinarian', 'appointment'],
+      order: { examinationDate: 'DESC' },
+    });
+
+    return records;
+  }
+
+  /**
+   * Retrieves all appointments for a specific pet.
+   */
+  async getPetAppointments(petId: number): Promise<any[]> {
+    // Verify pet exists
+    const pet = await this.petRepository.findOne({ where: { petId } });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // Get all appointments for this pet
+    const appointments = await this.appointmentRepository.find({
+      where: { petId },
+      relations: ['employee', 'service'],
+      order: { appointmentDate: 'DESC', startTime: 'DESC' },
+    });
+
+    return appointments;
   }
 }

@@ -327,4 +327,45 @@ export class ScheduleService {
     const savedDomain = WorkScheduleMapper.toDomain(saved);
     return WorkScheduleResponseDto.fromDomain(savedDomain);
   }
+
+  /**
+   * Gets available employees for a specific date/time range.
+   */
+  async getAvailableEmployees(params: {
+    date: Date;
+    startTime?: string;
+    endTime?: string;
+    role?: string;
+  }): Promise<any[]> {
+    const queryBuilder = this.scheduleRepository
+      .createQueryBuilder('schedule')
+      .leftJoinAndSelect('schedule.employee', 'employee')
+      .leftJoinAndSelect('employee.account', 'account')
+      .where('schedule.workDate = :date', { date: params.date })
+      .andWhere('schedule.isAvailable = :isAvailable', { isAvailable: true });
+
+    if (params.startTime && params.endTime) {
+      queryBuilder
+        .andWhere('schedule.startTime <= :startTime', {
+          startTime: params.startTime,
+        })
+        .andWhere('schedule.endTime >= :endTime', { endTime: params.endTime });
+    }
+
+    if (params.role) {
+      queryBuilder.andWhere('account.userType = :role', { role: params.role });
+    }
+
+    const schedules = await queryBuilder.getMany();
+
+    // Return employee information from schedules
+    return schedules.map((schedule) => ({
+      employeeId: schedule.employee.employeeId,
+      fullName: schedule.employee.fullName,
+      phoneNumber: schedule.employee.phoneNumber,
+      scheduleId: schedule.scheduleId,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+    }));
+  }
 }

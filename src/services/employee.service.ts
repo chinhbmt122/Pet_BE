@@ -110,10 +110,34 @@ export class EmployeeService {
   // ==================== Read ====================
 
   /**
-   * Gets all employees.
+   * Gets all employees with optional filters.
    */
-  async getAll(): Promise<Employee[]> {
-    return this.employeeRepository.find();
+  async getAll(filters?: {
+    role?: UserType;
+    available?: boolean;
+    fullName?: string;
+  }): Promise<Employee[]> {
+    const queryBuilder = this.employeeRepository
+      .createQueryBuilder('employee')
+      .leftJoinAndSelect('employee.account', 'account');
+
+    if (filters?.role) {
+      queryBuilder.andWhere('account.userType = :role', { role: filters.role });
+    }
+
+    if (filters?.available !== undefined) {
+      queryBuilder.andWhere('employee.isAvailable = :available', {
+        available: filters.available,
+      });
+    }
+
+    if (filters?.fullName) {
+      queryBuilder.andWhere('employee.fullName ILIKE :fullName', {
+        fullName: `%${filters.fullName}%`,
+      });
+    }
+
+    return queryBuilder.orderBy('employee.fullName', 'ASC').getMany();
   }
 
   /**
@@ -151,27 +175,6 @@ export class EmployeeService {
       .createQueryBuilder('employee')
       .innerJoin('employee.account', 'account')
       .where('account.userType = :role', { role })
-      .getMany();
-  }
-
-  /**
-   * Gets available employees.
-   */
-  async getAvailable(): Promise<Employee[]> {
-    return this.employeeRepository.find({
-      where: { isAvailable: true },
-    });
-  }
-
-  /**
-   * Gets available employees by role.
-   */
-  async getAvailableByRole(role: UserType): Promise<Employee[]> {
-    return this.employeeRepository
-      .createQueryBuilder('employee')
-      .innerJoin('employee.account', 'account')
-      .where('account.userType = :role', { role })
-      .andWhere('employee.isAvailable = :isAvailable', { isAvailable: true })
       .getMany();
   }
 

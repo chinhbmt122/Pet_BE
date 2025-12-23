@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, FindOptionsWhere } from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { Pet } from '../entities/pet.entity';
 import { Employee } from '../entities/employee.entity';
@@ -166,10 +166,31 @@ export class AppointmentService {
   }
 
   /**
-   * Gets all appointments
+   * Gets all appointments with optional filters
    */
-  async getAllAppointments(): Promise<Appointment[]> {
+  async getAllAppointments(filters?: {
+    status?: AppointmentStatus;
+    petId?: number;
+    employeeId?: number;
+    date?: Date;
+  }): Promise<Appointment[]> {
+    const where: FindOptionsWhere<Appointment> = {};
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+    if (filters?.petId) {
+      where.petId = filters.petId;
+    }
+    if (filters?.employeeId) {
+      where.employeeId = filters.employeeId;
+    }
+    if (filters?.date) {
+      where.appointmentDate = filters.date;
+    }
+
     return this.appointmentRepository.find({
+      where: Object.keys(where).length > 0 ? where : undefined,
       relations: ['pet', 'employee', 'service'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
@@ -344,5 +365,33 @@ export class AppointmentService {
     appointment.cancellationReason = reason ?? null;
     appointment.cancelledAt = new Date();
     return this.appointmentRepository.save(appointment);
+  }
+
+  /**
+   * Gets appointments by date range
+   */
+  async getAppointmentsByDateRange(
+    startDate: Date,
+    endDate: Date,
+    employeeId?: number,
+  ): Promise<Appointment[]> {
+    const queryBuilder = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.pet', 'pet')
+      .leftJoinAndSelect('appointment.employee', 'employee')
+      .leftJoinAndSelect('appointment.service', 'service')
+      .where('appointment.appointmentDate >= :startDate', { startDate })
+      .andWhere('appointment.appointmentDate <= :endDate', { endDate });
+
+    if (employeeId) {
+      queryBuilder.andWhere('appointment.employeeId = :employeeId', {
+        employeeId,
+      });
+    }
+
+    return queryBuilder
+      .orderBy('appointment.appointmentDate', 'ASC')
+      .addOrderBy('appointment.startTime', 'ASC')
+      .getMany();
   }
 }

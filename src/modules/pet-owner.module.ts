@@ -6,6 +6,9 @@ import { PetOwnerFactory } from '../factories/pet-owner.factory';
 import { AccountFactory } from '../factories/account.factory';
 import { Account } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
+import { Appointment } from '../entities/appointment.entity';
+import { Invoice } from '../entities/invoice.entity';
+import { Pet } from '../entities/pet.entity';
 
 /**
  * PetOwnerModule
@@ -16,7 +19,9 @@ import { PetOwner } from '../entities/pet-owner.entity';
  * - Contact preferences
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Account, PetOwner])],
+  imports: [
+    TypeOrmModule.forFeature([Account, PetOwner, Appointment, Invoice, Pet]),
+  ],
   controllers: [PetOwnerController],
   providers: [PetOwnerService, PetOwnerFactory, AccountFactory],
   exports: [PetOwnerService, PetOwnerFactory],
