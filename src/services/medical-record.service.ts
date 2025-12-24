@@ -259,10 +259,23 @@ export class MedicalRecordService {
 
   /**
    * Retrieves all vaccinations for a pet.
+   * If PET_OWNER, validates they own the pet.
    */
   async getVaccinationHistory(
     petId: number,
+    user?: { accountId: number; userType: UserType },
   ): Promise<VaccinationResponseDto[]> {
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      const pet = await this.petRepository.findOne({ where: { petId } });
+      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException('Pet not found');
+      }
+    }
+
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
       order: { administrationDate: 'DESC' },
@@ -275,11 +288,24 @@ export class MedicalRecordService {
 
   /**
    * Gets vaccinations due within specified days.
+   * If PET_OWNER, validates they own the pet.
    */
   async getUpcomingVaccinations(
     petId: number,
     daysAhead: number,
+    user?: { accountId: number; userType: UserType },
   ): Promise<VaccinationResponseDto[]> {
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      const pet = await this.petRepository.findOne({ where: { petId } });
+      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException('Pet not found');
+      }
+    }
+
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + daysAhead);
@@ -305,10 +331,23 @@ export class MedicalRecordService {
 
   /**
    * Gets overdue vaccinations for a pet.
+   * If PET_OWNER, validates they own the pet.
    */
   async getOverdueVaccinations(
     petId: number,
+    user?: { accountId: number; userType: UserType },
   ): Promise<VaccinationResponseDto[]> {
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      const pet = await this.petRepository.findOne({ where: { petId } });
+      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException('Pet not found');
+      }
+    }
+
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
       relations: ['vaccineType'],

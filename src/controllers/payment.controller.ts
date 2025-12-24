@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -87,8 +88,10 @@ export class PaymentController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceById(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
   ): Promise<InvoiceResponseDto> {
-    return await this.paymentService.getInvoiceById(id);
+    const user = req.user;
+    return await this.paymentService.getInvoiceById(id, user);
   }
 
   /**
@@ -115,8 +118,10 @@ export class PaymentController {
   })
   async getInvoicesByStatus(
     @Query('status') status: string,
+    @Req() req: any,
   ): Promise<InvoiceResponseDto[]> {
-    return await this.paymentService.getInvoicesByStatus(status);
+    const user = req.user;
+    return await this.paymentService.getInvoicesByStatus(status, user);
   }
 
   /**
@@ -161,8 +166,10 @@ export class PaymentController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async initiateOnlinePayment(
     @Body() dto: InitiateOnlinePaymentDto,
+    @Req() req: any,
   ): Promise<{ paymentUrl: string; paymentId: number }> {
-    return await this.paymentService.initiateOnlinePayment(dto);
+    const user = req.user;
+    return await this.paymentService.initiateOnlinePayment(dto, user);
   }
 
   /**
@@ -250,8 +257,12 @@ export class PaymentController {
   @ApiParam({ name: 'id', description: 'Payment ID', type: Number })
   @ApiResponse({ status: 200, description: 'Receipt generated' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  async generateReceipt(@Param('id', ParseIntPipe) id: number): Promise<any> {
-    return await this.paymentService.generateReceipt(id);
+  async generateReceipt(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ): Promise<any> {
+    const user = req.user;
+    return await this.paymentService.generateReceipt(id, user);
   }
 
   /**

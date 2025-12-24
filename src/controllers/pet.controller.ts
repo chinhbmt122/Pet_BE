@@ -57,8 +57,10 @@ export class PetController {
   async registerPet(
     @Body() dto: CreatePetDto,
     @Query('ownerId', ParseIntPipe) ownerId: number,
+    @Req() req: any,
   ): Promise<PetResponseDto> {
-    return this.petService.registerPet(dto, ownerId);
+    const user = req.user;
+    return this.petService.registerPet(dto, ownerId, user);
   }
 
   /**
@@ -136,8 +138,10 @@ export class PetController {
   async updatePetInfo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePetDto,
+    @Req() req: any,
   ): Promise<PetResponseDto> {
-    return this.petService.updatePetInfo(id, dto);
+    const user = req.user;
+    return this.petService.updatePetInfo(id, dto, user);
   }
 
   /**

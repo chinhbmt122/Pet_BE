@@ -213,7 +213,7 @@ export class MedicalRecordController {
   @RouteConfig({
     message: 'Get vaccination history',
     requiresAuth: true,
-    // TODO: Service layer should validate PET_OWNER can only see their own pet's records
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get vaccination history' })
@@ -225,8 +225,10 @@ export class MedicalRecordController {
   })
   async getVaccinationHistory(
     @Param('petId', ParseIntPipe) petId: number,
+    @Req() req: any,
   ): Promise<VaccinationResponseDto[]> {
-    return this.medicalRecordService.getVaccinationHistory(petId);
+    const user = req.user;
+    return this.medicalRecordService.getVaccinationHistory(petId, user);
   }
 
   /**
@@ -237,7 +239,7 @@ export class MedicalRecordController {
   @RouteConfig({
     message: 'Get upcoming vaccinations',
     requiresAuth: true,
-    // TODO: Service layer should validate PET_OWNER can only see their own pet's records
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get upcoming vaccinations' })
@@ -256,8 +258,10 @@ export class MedicalRecordController {
   async getUpcomingVaccinations(
     @Param('petId', ParseIntPipe) petId: number,
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) daysAhead: number,
+    @Req() req: any,
   ): Promise<VaccinationResponseDto[]> {
-    return this.medicalRecordService.getUpcomingVaccinations(petId, daysAhead);
+    const user = req.user;
+    return this.medicalRecordService.getUpcomingVaccinations(petId, daysAhead, user);
   }
 
   /**
@@ -268,7 +272,7 @@ export class MedicalRecordController {
   @RouteConfig({
     message: 'Get overdue vaccinations',
     requiresAuth: true,
-    // TODO: Service layer should validate PET_OWNER can only see their own pet's records
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get overdue vaccinations' })
@@ -280,7 +284,9 @@ export class MedicalRecordController {
   })
   async getOverdueVaccinations(
     @Param('petId', ParseIntPipe) petId: number,
+    @Req() req: any,
   ): Promise<VaccinationResponseDto[]> {
-    return this.medicalRecordService.getOverdueVaccinations(petId);
+    const user = req.user;
+    return this.medicalRecordService.getOverdueVaccinations(petId, user);
   }
 }

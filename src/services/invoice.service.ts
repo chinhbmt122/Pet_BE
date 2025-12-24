@@ -191,15 +191,30 @@ export class InvoiceService {
 
   /**
    * Gets invoice by invoice number
+   * If PET_OWNER, validates they own the related pet
    */
-  async getInvoiceByNumber(invoiceNumber: string): Promise<InvoiceResponseDto> {
+  async getInvoiceByNumber(
+    invoiceNumber: string,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceNumber },
+      relations: ['appointment', 'appointment.pet'],
     });
     if (!entity) {
       throw new NotFoundException(
         `Invoice with number ${invoiceNumber} not found`,
       );
+    }
+
+    // If PET_OWNER, validate they own the pet
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || entity.appointment?.pet?.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Invoice with number ${invoiceNumber} not found`);
+      }
     }
 
     return InvoiceResponseDto.fromEntity(entity);
@@ -369,13 +384,28 @@ export class InvoiceService {
 
   /**
    * Marks invoice as processing (online payment in progress)
+   * If PET_OWNER, validates they own the related pet
    */
-  async markAsProcessing(invoiceId: number): Promise<InvoiceResponseDto> {
+  async markAsProcessing(
+    invoiceId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
+      relations: ['appointment', 'appointment.pet'],
     });
     if (!entity) {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+    }
+
+    // If PET_OWNER, validate they own the pet
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || entity.appointment?.pet?.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      }
     }
 
     // Use entity business method

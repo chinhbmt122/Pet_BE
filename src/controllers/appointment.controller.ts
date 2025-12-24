@@ -60,8 +60,10 @@ export class AppointmentController {
   @ApiResponse({ status: 409, description: 'Schedule conflict' })
   async createAppointment(
     @Body() dto: CreateAppointmentDto,
+    @Req() req: any,
   ): Promise<Appointment> {
-    return this.appointmentService.createAppointment(dto);
+    const user = req.user;
+    return this.appointmentService.createAppointment(dto, user);
   }
 
   @Get()
@@ -138,8 +140,10 @@ export class AppointmentController {
   })
   async getAppointmentsByEmployee(
     @Param('employeeId', ParseIntPipe) employeeId: number,
+    @Req() req: any,
   ): Promise<Appointment[]> {
-    return this.appointmentService.getAppointmentsByEmployee(employeeId);
+    const user = req.user;
+    return this.appointmentService.getAppointmentsByEmployee(employeeId, user);
   }
 
   @Get(':id')
@@ -311,7 +315,9 @@ export class AppointmentController {
   async cancelAppointment(
     @Param('id', ParseIntPipe) id: number,
     @Body('reason') reason?: string,
+    @Req() req?: any,
   ): Promise<Appointment> {
-    return this.appointmentService.cancelAppointment(id, reason);
+    const user = req?.user;
+    return this.appointmentService.cancelAppointment(id, reason, user);
   }
 }

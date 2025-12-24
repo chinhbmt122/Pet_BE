@@ -166,14 +166,17 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceByNumber(
     @Param('invoiceNumber') invoiceNumber: string,
+    @Req() req: any,
   ): Promise<InvoiceResponseDto> {
-    return this.invoiceService.getInvoiceByNumber(invoiceNumber);
+    const user = req.user;
+    return this.invoiceService.getInvoiceByNumber(invoiceNumber, user);
   }
 
   @Get('appointment/:appointmentId')
   @RouteConfig({
     message: 'Get invoice by appointment',
     requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get invoice by appointment ID' })
@@ -303,7 +306,9 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async markAsProcessing(
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
   ): Promise<InvoiceResponseDto> {
-    return this.invoiceService.markAsProcessing(id);
+    const user = req.user;
+    return this.invoiceService.markAsProcessing(id, user);
   }
 }

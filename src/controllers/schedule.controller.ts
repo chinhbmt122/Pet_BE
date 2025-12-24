@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -136,12 +137,13 @@ export class ScheduleController {
   /**
    * GET /api/schedules/employee/:employeeId
    * Retrieves employee schedules for optional date range.
+   * VET/CARE_STAFF can only view their own schedules.
    */
   @Get('employee/:employeeId')
   @RouteConfig({
     message: 'Get schedules by employee',
     requiresAuth: true,
-    // TODO: Staff should only see their own schedule unless Manager/Receptionist
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN, UserType.CARE_STAFF],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get schedules by employee' })
@@ -157,11 +159,14 @@ export class ScheduleController {
     @Param('employeeId', ParseIntPipe) employeeId: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Req() req?: any,
   ): Promise<WorkScheduleResponseDto[]> {
+    const user = req?.user;
     return this.scheduleService.getSchedulesByEmployee(
       employeeId,
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined,
+      user,
     );
   }
 

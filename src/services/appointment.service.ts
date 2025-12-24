@@ -40,15 +40,29 @@ export class AppointmentService {
   // ============================================
 
   /**
-   * Creates new appointment with validation
+   * Creates new appointment with validation.
+   * If PET_OWNER, validates they own the pet.
    */
-  async createAppointment(dto: CreateAppointmentDto): Promise<Appointment> {
+  async createAppointment(
+    dto: CreateAppointmentDto,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<Appointment> {
     // Validate pet exists
     const pet = await this.petRepository.findOne({
       where: { petId: dto.petId },
     });
     if (!pet) {
       throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+    }
+
+    // If PET_OWNER, validate they own the pet
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || pet.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+      }
     }
 
     // Validate employee exists
@@ -246,9 +260,27 @@ export class AppointmentService {
   }
 
   /**
-   * Gets appointments by employee ID
+   * Gets appointments by employee ID.
+   * VET/CARE_STAFF can only see their own appointments.
    */
-  async getAppointmentsByEmployee(employeeId: number): Promise<Appointment[]> {
+  async getAppointmentsByEmployee(
+    employeeId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<Appointment[]> {
+    // VET/CARE_STAFF can only see their own appointments
+    if (
+      user &&
+      (user.userType === UserType.VETERINARIAN ||
+        user.userType === UserType.CARE_STAFF)
+    ) {
+      const employee = await this.employeeRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!employee || employee.employeeId !== employeeId) {
+        throw new NotFoundException('Appointments not found');
+      }
+    }
+
     return this.appointmentRepository.find({
       where: { employeeId },
       relations: ['pet', 'service'],
@@ -364,18 +396,33 @@ export class AppointmentService {
 
   /**
    * Cancels appointment (any status → CANCELLED)
+   * If PET_OWNER, validates they own the pet.
    */
   async cancelAppointment(
     appointmentId: number,
     reason?: string,
+    user?: { accountId: number; userType: UserType },
   ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
+      relations: ['pet'],
     });
     if (!appointment) {
       throw new NotFoundException(
         `Appointment with ID ${appointmentId} not found`,
       );
+    }
+
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || appointment.pet?.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(
+          `Appointment with ID ${appointmentId} not found`,
+        );
+      }
     }
 
     if (appointment.status === AppointmentStatus.COMPLETED) {
