@@ -276,6 +276,46 @@ export class ScheduleController {
   }
 
   /**
+   * GET /api/schedules/available-employees
+   * Gets all available employees for a specific date/time range.
+   */
+  @Get('available-employees')
+  @ApiOperation({ summary: 'Get available employees' })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    type: String,
+    description: 'Date in YYYY-MM-DD format',
+  })
+  @ApiQuery({
+    name: 'startTime',
+    required: false,
+    type: String,
+    description: 'Start time in HH:mm format',
+  })
+  @ApiQuery({
+    name: 'endTime',
+    required: false,
+    type: String,
+    description: 'End time in HH:mm format',
+  })
+  @ApiQuery({ name: 'role', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Available employees retrieved' })
+  async getAvailableEmployees(
+    @Query('date') date: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+    @Query('role') role?: string,
+  ): Promise<any[]> {
+    return this.scheduleService.getAvailableEmployees({
+      date: new Date(date),
+      startTime,
+      endTime,
+      role,
+    });
+  }
+
+  /**
    * PUT /api/schedules/:id/break
    * Assigns break time to schedule.
    */

@@ -98,20 +98,52 @@ export class CageService {
   }
 
   /**
-   * Gets all cages
+   * Gets all cages with optional filters
    */
-  async getAllCages(): Promise<Cage[]> {
-    return this.cageRepository.find({ order: { cageNumber: 'ASC' } });
+  async getAllCages(filters?: {
+    size?: string;
+    isAvailable?: boolean;
+  }): Promise<Cage[]> {
+    const queryBuilder = this.cageRepository.createQueryBuilder('cage');
+
+    if (filters?.size) {
+      queryBuilder.andWhere('cage.size = :size', { size: filters.size });
+    }
+
+    if (filters?.isAvailable !== undefined) {
+      if (filters.isAvailable) {
+        queryBuilder.andWhere('cage.status = :status', {
+          status: CageStatus.AVAILABLE,
+        });
+      } else {
+        queryBuilder.andWhere('cage.status != :status', {
+          status: CageStatus.AVAILABLE,
+        });
+      }
+    }
+
+    return queryBuilder.orderBy('cage.cageNumber', 'ASC').getMany();
   }
 
   /**
-   * Gets available cages
+   * Gets available cages with optional filters
    */
-  async getAvailableCages(): Promise<Cage[]> {
-    return this.cageRepository.find({
-      where: { status: CageStatus.AVAILABLE },
-      order: { cageNumber: 'ASC' },
-    });
+  async getAvailableCages(filters?: {
+    size?: string;
+    dateRange?: string;
+  }): Promise<Cage[]> {
+    const queryBuilder = this.cageRepository
+      .createQueryBuilder('cage')
+      .where('cage.status = :status', { status: CageStatus.AVAILABLE });
+
+    if (filters?.size) {
+      queryBuilder.andWhere('cage.size = :size', { size: filters.size });
+    }
+
+    // Note: dateRange filtering would require checking cage assignments
+    // For now, just return available cages by size
+
+    return queryBuilder.orderBy('cage.cageNumber', 'ASC').getMany();
   }
 
   /**

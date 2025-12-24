@@ -35,6 +35,54 @@ export class PetController {
   constructor(private readonly petService: PetService) {}
 
   /**
+   * GET /api/pets
+   * Retrieves all pets with optional query parameters for filtering.
+   */
+  @Get()
+  @ApiOperation({ summary: 'Get all pets with optional filters' })
+  @ApiQuery({ name: 'name', required: false, type: String })
+  @ApiQuery({ name: 'species', required: false, type: String })
+  @ApiQuery({ name: 'breed', required: false, type: String })
+  @ApiQuery({ name: 'ownerId', required: false, type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Pets retrieved',
+    type: [PetResponseDto],
+  })
+  async getAllPets(
+    @Query('name') name?: string,
+    @Query('species') species?: string,
+    @Query('breed') breed?: string,
+    @Query('ownerId', new ParseIntPipe({ optional: true })) ownerId?: number,
+  ): Promise<PetResponseDto[]> {
+    return this.petService.getAllPets({ name, species, breed, ownerId });
+  }
+
+  /**
+   * GET /api/pets/search
+   * Search pets by multiple criteria.
+   */
+  @Get('search')
+  @ApiOperation({ summary: 'Search pets by criteria' })
+  @ApiQuery({ name: 'name', required: false, type: String })
+  @ApiQuery({ name: 'species', required: false, type: String })
+  @ApiQuery({ name: 'breed', required: false, type: String })
+  @ApiQuery({ name: 'ownerId', required: false, type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Search results',
+    type: [PetResponseDto],
+  })
+  async searchPets(
+    @Query('name') name?: string,
+    @Query('species') species?: string,
+    @Query('breed') breed?: string,
+    @Query('ownerId', new ParseIntPipe({ optional: true })) ownerId?: number,
+  ): Promise<PetResponseDto[]> {
+    return this.petService.getAllPets({ name, species, breed, ownerId });
+  }
+
+  /**
    * POST /api/pets
    * Registers new pet with owner association.
    */
@@ -264,5 +312,41 @@ export class PetController {
     @Query('newOwnerId', ParseIntPipe) newOwnerId: number,
   ): Promise<PetResponseDto> {
     return this.petService.transferPetOwnership(id, newOwnerId);
+  }
+
+  /**
+   * GET /api/pets/:id/medical-history
+   * Retrieves complete medical history for a specific pet.
+   */
+  @Get(':id/medical-history')
+  @ApiOperation({ summary: 'Get pet medical history' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Medical history retrieved',
+  })
+  @ApiResponse({ status: 404, description: 'Pet not found' })
+  async getPetMedicalHistory(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<any[]> {
+    return this.petService.getPetMedicalHistory(id);
+  }
+
+  /**
+   * GET /api/pets/:id/appointments
+   * Retrieves all appointments for a specific pet.
+   */
+  @Get(':id/appointments')
+  @ApiOperation({ summary: 'Get pet appointments' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Appointments retrieved',
+  })
+  @ApiResponse({ status: 404, description: 'Pet not found' })
+  async getPetAppointments(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<any[]> {
+    return this.petService.getPetAppointments(id);
   }
 }

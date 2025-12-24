@@ -73,15 +73,27 @@ export class InvoiceController {
     roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all invoices' })
+  @ApiOperation({ summary: 'Get all invoices with optional filters' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING', 'PROCESSING_ONLINE', 'PAID', 'FAILED'],
+  })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'List of all invoices',
     type: [InvoiceResponseDto],
   })
-  async getAllInvoices(@Req() req: any): Promise<InvoiceResponseDto[]> {
+  async getAllInvoices(
+    @Req() req: any,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<InvoiceResponseDto[]> {
     const user = req.user;
-    return this.invoiceService.getAllInvoices(user);
+    return this.invoiceService.getAllInvoices(user, { status, startDate, endDate });
   }
 
   @Get('overdue')

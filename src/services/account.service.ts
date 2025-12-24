@@ -186,9 +186,7 @@ export class AccountService {
     return account?.userType === requiredRole;
   }
 
-  // ==================== Private Helpers ====================
-
-  private async fetchProfile(
+  async fetchProfile(
     accountId: number,
     userType: UserType,
   ): Promise<PetOwner | Employee | null> {

@@ -4,6 +4,8 @@ import { PetController } from '../controllers/pet.controller';
 import { PetService } from '../services/pet.service';
 import { Pet } from '../entities/pet.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
+import { Appointment } from '../entities/appointment.entity';
+import { MedicalRecord } from '../entities/medical-record.entity';
 
 /**
  * PetModule
@@ -13,7 +15,9 @@ import { PetOwner } from '../entities/pet-owner.entity';
  * Supports multiple pets per owner account and maintains pet-owner relationships.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Pet, PetOwner])],
+  imports: [
+    TypeOrmModule.forFeature([Pet, PetOwner, Appointment, MedicalRecord]),
+  ],
   controllers: [PetController],
   providers: [PetService],
   exports: [PetService],

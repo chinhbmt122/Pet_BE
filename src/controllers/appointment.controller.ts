@@ -73,15 +73,58 @@ export class AppointmentController {
     roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all appointments' })
+  @ApiOperation({ summary: 'Get all appointments with optional filters' })
+  @ApiQuery({ name: 'status', enum: AppointmentStatus, required: false })
+  @ApiQuery({ name: 'petId', type: Number, required: false })
+  @ApiQuery({ name: 'employeeId', type: Number, required: false })
+  @ApiQuery({ name: 'date', type: String, required: false })
   @ApiResponse({
     status: 200,
     description: 'List of all appointments',
     type: [Appointment],
   })
-  async getAllAppointments(@Req() req: any): Promise<Appointment[]> {
+  async getAllAppointments(
+    @Req() req: any,
+    @Query('status') status?: AppointmentStatus,
+    @Query('petId', new ParseIntPipe({ optional: true })) petId?: number,
+    @Query('employeeId', new ParseIntPipe({ optional: true })) employeeId?: number,
+    @Query('date') date?: string,
+  ): Promise<Appointment[]> {
     const user = req.user;
-    return this.appointmentService.getAllAppointments(user);
+    return this.appointmentService.getAllAppointments(user, {
+      status,
+      petId,
+      employeeId,
+      date: date ? new Date(date) : undefined,
+    });
+  }
+
+  @Get('by-date-range')
+  @RouteConfig({
+    message: 'Get appointments by date range',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get appointments by date range' })
+  @ApiQuery({ name: 'startDate', type: String, required: true })
+  @ApiQuery({ name: 'endDate', type: String, required: true })
+  @ApiQuery({ name: 'employeeId', type: Number, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'List of appointments',
+    type: [Appointment],
+  })
+  async getAppointmentsByDateRange(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('employeeId', new ParseIntPipe({ optional: true })) employeeId?: number,
+  ): Promise<Appointment[]> {
+    return this.appointmentService.getAppointmentsByDateRange(
+      new Date(startDate),
+      new Date(endDate),
+      employeeId,
+    );
   }
 
   @Get('by-status')

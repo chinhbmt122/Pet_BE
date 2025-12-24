@@ -150,6 +150,35 @@ export class PaymentController {
   }
 
   /**
+   * GET /api/payments
+   * Gets all payments with optional filters.
+   */
+  @Get('payments')
+  @ApiOperation({ summary: 'Get all payments' })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'method', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'Payments retrieved',
+    type: [PaymentResponseDto],
+  })
+  async getAllPayments(
+    @Query('status') status?: string,
+    @Query('method') method?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<PaymentResponseDto[]> {
+    return await this.paymentService.getAllPayments({
+      status,
+      method,
+      startDate,
+      endDate,
+    });
+  }
+
+  /**
    * POST /api/payments/online/initiate
    * Initiates VNPay online payment and returns payment URL (UC-23).
    * @throws InvoiceNotFoundException, PaymentGatewayException

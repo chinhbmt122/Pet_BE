@@ -28,6 +28,8 @@ import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
+import { GetUser } from 'src/middleware/decorators/user.decorator';
+import { AccountMapper } from '../mappers/account.mapper';
 
 /**
  * AccountController
@@ -73,6 +75,26 @@ export class AccountController {
   async logout(@Body() body: { token?: string }): Promise<{ message: string }> {
     await this.authService.logout(body.token || '');
     return { message: 'Logout successful' };
+  }
+
+  /**
+   * GET /api/auth/me
+   * Get current authenticated user's account information
+   */
+  @Get('me')
+  @RouteConfig({ message: 'Get current user', requiresAuth: true })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiResponse({ status: 200, type: AccountResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getCurrentUser(@GetUser() user: Account): Promise<AccountResponseDto> {
+    // Fetch the user's profile (PetOwner or Employee)
+    const profile = await this.accountService.fetchProfile(
+      user.accountId,
+      user.userType,
+    );
+    // Map account + profile to response DTO
+    return AccountMapper.toResponseDto(user, profile);
   }
 
   // ==================== Account Endpoints (AccountService) ====================

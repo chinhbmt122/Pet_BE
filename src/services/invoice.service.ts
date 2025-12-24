@@ -239,11 +239,16 @@ export class InvoiceService {
   }
 
   /**
-   * Gets all invoices
+   * Gets all invoices with optional filters
    * If PET_OWNER, returns only their invoices (via appointment → pet → owner)
    */
   async getAllInvoices(
     user?: { accountId: number; userType: UserType },
+    filters?: {
+      status?: string;
+      startDate?: string;
+      endDate?: string;
+    },
   ): Promise<InvoiceResponseDto[]> {
     // If PET_OWNER, filter to only their own invoices
     if (user && user.userType === UserType.PET_OWNER) {
@@ -265,20 +270,39 @@ export class InvoiceService {
       }
       const appointmentIds = appointments.map((a) => a.appointmentId);
 
-      // Get invoices for those appointments
-      const entities = await this.invoiceRepository
+      // Build query with filters
+      const qb = this.invoiceRepository
         .createQueryBuilder('invoice')
-        .where('invoice.appointmentId IN (:...appointmentIds)', { appointmentIds })
-        .orderBy('invoice.issueDate', 'DESC')
-        .getMany();
+        .where('invoice.appointmentId IN (:...appointmentIds)', { appointmentIds });
 
+      if (filters?.status) {
+        qb.andWhere('invoice.status = :status', { status: filters.status });
+      }
+      if (filters?.startDate) {
+        qb.andWhere('invoice.issueDate >= :startDate', { startDate: new Date(filters.startDate) });
+      }
+      if (filters?.endDate) {
+        qb.andWhere('invoice.issueDate <= :endDate', { endDate: new Date(filters.endDate) });
+      }
+
+      const entities = await qb.orderBy('invoice.issueDate', 'DESC').getMany();
       return InvoiceResponseDto.fromEntityList(entities);
     }
 
-    // Staff sees all
-    const entities = await this.invoiceRepository.find({
-      order: { issueDate: 'DESC' },
-    });
+    // Staff sees all with filters
+    const queryBuilder = this.invoiceRepository.createQueryBuilder('invoice');
+
+    if (filters?.status) {
+      queryBuilder.andWhere('invoice.status = :status', { status: filters.status });
+    }
+    if (filters?.startDate) {
+      queryBuilder.andWhere('invoice.issueDate >= :startDate', { startDate: new Date(filters.startDate) });
+    }
+    if (filters?.endDate) {
+      queryBuilder.andWhere('invoice.issueDate <= :endDate', { endDate: new Date(filters.endDate) });
+    }
+
+    const entities = await queryBuilder.orderBy('invoice.issueDate', 'DESC').getMany();
 
     return InvoiceResponseDto.fromEntityList(entities);
   }

@@ -6,9 +6,17 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { CageService } from '../services/cage.service';
 import { CreateCageDto, UpdateCageDto, AssignCageDto } from '../dto/cage';
 import { Cage } from '../entities/cage.entity';
@@ -52,10 +60,15 @@ export class CageController {
     roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
   })
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all cages' })
+  @ApiOperation({ summary: 'Get all cages with optional filters' })
+  @ApiQuery({ name: 'size', required: false, type: String })
+  @ApiQuery({ name: 'isAvailable', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'List of all cages', type: [Cage] })
-  async getAllCages(): Promise<Cage[]> {
-    return this.cageService.getAllCages();
+  async getAllCages(
+    @Query('size') size?: string,
+    @Query('isAvailable') isAvailable?: boolean,
+  ): Promise<Cage[]> {
+    return this.cageService.getAllCages({ size, isAvailable });
   }
 
   @Get('available')
@@ -66,13 +79,18 @@ export class CageController {
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get available cages' })
+  @ApiQuery({ name: 'size', required: false, type: String })
+  @ApiQuery({ name: 'dateRange', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'List of available cages',
     type: [Cage],
   })
-  async getAvailableCages(): Promise<Cage[]> {
-    return this.cageService.getAvailableCages();
+  async getAvailableCages(
+    @Query('size') size?: string,
+    @Query('dateRange') dateRange?: string,
+  ): Promise<Cage[]> {
+    return this.cageService.getAvailableCages({ size, dateRange });
   }
 
   @Get(':id')

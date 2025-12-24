@@ -9,6 +9,9 @@
 
 import { Account } from '../entities/account.entity';
 import { AccountDomainModel } from '../domain/account.domain';
+import { AccountResponseDto } from '../dto/account';
+import { PetOwner } from '../entities/pet-owner.entity';
+import { Employee } from '../entities/employee.entity';
 
 export class AccountMapper {
   /**
@@ -54,5 +57,26 @@ export class AccountMapper {
    */
   static toDomainList(entities: Account[]): AccountDomainModel[] {
     return entities.map((entity) => this.toDomain(entity));
+  }
+
+  /**
+   * Convert Account entity to AccountResponseDto
+   * Maps account + profile data to response DTO for API responses
+   */
+  static toResponseDto(
+    account: Account,
+    profile?: PetOwner | Employee | null,
+  ): AccountResponseDto {
+    return {
+      accountId: account.accountId,
+      email: account.email,
+      userType: account.userType,
+      fullName: profile?.fullName ?? '',
+      phoneNumber: profile?.phoneNumber ?? '',
+      address: profile?.address ?? null,
+      isActive: account.isActive,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    };
   }
 }
