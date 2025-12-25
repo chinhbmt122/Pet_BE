@@ -11,11 +11,17 @@ import { ServiceCategory } from '../entities/service-category.entity';
 import { Service } from '../entities/service.entity';
 import { Cage } from '../entities/cage.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
+import { Appointment } from '../entities/appointment.entity';
+import { CageAssignment } from '../entities/cage-assignment.entity';
+import { Invoice } from '../entities/invoice.entity';
 import {
   UserType,
   CageSize,
   CageStatus,
   VaccineCategory,
+  AppointmentStatus,
+  CageAssignmentStatus,
+  InvoiceStatus,
 } from '../entities/types/entity.types';
 
 /**
@@ -28,8 +34,11 @@ import {
  * 4. Pets (depends on PetOwner)
  * 5. ServiceCategories (independent)
  * 6. Services (depends on ServiceCategory)
- * 7. Cages (independent)
- * 8. VaccineTypes (independent)
+ * 7. Appointments (depends on Pets, Employees, Services)
+ * 8. Cages (independent)
+ * 9. CageAssignments (depends on Cages, Pets, Employees)
+ * 10. Invoices (depends on Appointments)
+ * 11. VaccineTypes (independent)
  */
 export async function seedDatabase(dataSource: DataSource): Promise<void> {
   console.log('🌱 Starting database seeding...');
@@ -39,6 +48,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
   await queryRunner.startTransaction();
 
   try {
+    // TODO: Seed appointments
     // ====== 1. ACCOUNTS ======
     console.log('📦 Seeding accounts...');
     const accountRepo = queryRunner.manager.getRepository(Account);
@@ -434,7 +444,187 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
     ]);
     console.log(`✅ Created ${services.length} services`);
 
-    // ====== 7. CAGES ======
+    // ====== 7. APPOINTMENTS ======
+    console.log('📦 Seeding appointments...');
+    const appointmentRepo = queryRunner.manager.getRepository(Appointment);
+
+    // Helper function to format time
+    const formatTime = (hours: number, minutes: number = 0): string => {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    };
+
+    // Helper function to get date offset from today
+    const getDateOffset = (daysOffset: number): Date => {
+      const date = new Date();
+      date.setDate(date.getDate() + daysOffset);
+      return date;
+    };
+
+    const appointments: Appointment[] = await appointmentRepo.save([
+      // Pending Appointments
+      {
+        petId: pets[0].petId, // Miu (Cat)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan
+        serviceId: services[0].serviceId, // Khám tổng quát
+        appointmentDate: getDateOffset(1),
+        startTime: formatTime(9, 0),
+        endTime: formatTime(9, 30),
+        status: AppointmentStatus.PENDING,
+        notes: 'Kiểm tra sức khỏe định kỳ',
+        estimatedCost: services[0].basePrice,
+      },
+      {
+        petId: pets[2].petId, // Bông (Dog)
+        employeeId: vets[1].employeeId, // BS. Phạm Minh Tuấn
+        serviceId: services[2].serviceId, // Tiêm vaccine 5 bệnh
+        appointmentDate: getDateOffset(2),
+        startTime: formatTime(10, 0),
+        endTime: formatTime(10, 15),
+        status: AppointmentStatus.PENDING,
+        notes: 'Tiêm phòng lần đầu',
+        estimatedCost: services[2].basePrice,
+      },
+      {
+        petId: pets[1].petId, // Lucky (Dog)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng
+        serviceId: services[7].serviceId, // Combo Spa Full
+        appointmentDate: getDateOffset(3),
+        startTime: formatTime(14, 0),
+        endTime: formatTime(16, 0),
+        status: AppointmentStatus.PENDING,
+        notes: 'Yêu cầu cắt lông ngắn',
+        estimatedCost: services[7].basePrice,
+      },
+
+      // Confirmed Appointments
+      {
+        petId: pets[3].petId, // Rex (Husky)
+        employeeId: careStaff[1].employeeId, // Trần Văn Nam
+        serviceId: services[5].serviceId, // Tắm + Sấy khô
+        appointmentDate: getDateOffset(1),
+        startTime: formatTime(13, 0),
+        endTime: formatTime(14, 0),
+        status: AppointmentStatus.CONFIRMED,
+        notes: 'Sử dụng sản phẩm dành cho lông dày',
+        estimatedCost: services[5].basePrice,
+      },
+      {
+        petId: pets[4].petId, // Mèo Mun (Cat)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan
+        serviceId: services[3].serviceId, // Tiêm vaccine dại
+        appointmentDate: getDateOffset(2),
+        startTime: formatTime(11, 0),
+        endTime: formatTime(11, 15),
+        status: AppointmentStatus.CONFIRMED,
+        notes: 'Tiêm vaccine dại định kỳ',
+        estimatedCost: services[3].basePrice,
+      },
+      {
+        petId: pets[1].petId, // Lucky (Dog)
+        employeeId: vets[1].employeeId, // BS. Phạm Minh Tuấn
+        serviceId: services[4].serviceId, // Xét nghiệm máu
+        appointmentDate: getDateOffset(4),
+        startTime: formatTime(9, 30),
+        endTime: formatTime(9, 50),
+        status: AppointmentStatus.CONFIRMED,
+        notes: 'Xét nghiệm trước phẫu thuật',
+        estimatedCost: services[4].basePrice,
+      },
+
+      // In Progress Appointments
+      {
+        petId: pets[2].petId, // Bông (Dog)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng
+        serviceId: services[6].serviceId, // Cắt tỉa tạo kiểu
+        appointmentDate: getDateOffset(0),
+        startTime: formatTime(10, 0),
+        endTime: formatTime(11, 30),
+        status: AppointmentStatus.IN_PROGRESS,
+        notes: 'Cắt kiểu Poodle Teddy Bear',
+        estimatedCost: services[6].basePrice,
+      },
+      {
+        petId: pets[0].petId, // Miu (Cat)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan
+        serviceId: services[1].serviceId, // Khám chuyên khoa
+        appointmentDate: getDateOffset(0),
+        startTime: formatTime(14, 30),
+        endTime: formatTime(15, 15),
+        status: AppointmentStatus.IN_PROGRESS,
+        notes: 'Khám da liễu - ngứa nhiều',
+        estimatedCost: services[1].basePrice,
+      },
+
+      // Completed Appointments
+      {
+        petId: pets[3].petId, // Rex (Husky)
+        employeeId: vets[1].employeeId, // BS. Phạm Minh Tuấn
+        serviceId: services[0].serviceId, // Khám tổng quát
+        appointmentDate: getDateOffset(-3),
+        startTime: formatTime(10, 0),
+        endTime: formatTime(10, 30),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Sức khỏe tốt, đã tiêm phòng đầy đủ',
+        estimatedCost: services[0].basePrice,
+        actualCost: services[0].basePrice,
+      },
+      {
+        petId: pets[1].petId, // Lucky (Dog)
+        employeeId: careStaff[1].employeeId, // Trần Văn Nam
+        serviceId: services[5].serviceId, // Tắm + Sấy khô
+        appointmentDate: getDateOffset(-5),
+        startTime: formatTime(15, 0),
+        endTime: formatTime(16, 0),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Hoàn thành tốt, thú cưng rất ngoan',
+        estimatedCost: services[5].basePrice,
+        actualCost: services[5].basePrice,
+      },
+      {
+        petId: pets[4].petId, // Mèo Mun (Cat)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan
+        serviceId: services[2].serviceId, // Tiêm vaccine 5 bệnh
+        appointmentDate: getDateOffset(-7),
+        startTime: formatTime(9, 0),
+        endTime: formatTime(9, 15),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Đã tiêm vaccine, hẹn tiêm nhắc lại sau 1 tháng',
+        estimatedCost: services[2].basePrice,
+        actualCost: services[2].basePrice,
+      },
+      {
+        petId: pets[2].petId, // Bông (Dog)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng
+        serviceId: services[7].serviceId, // Combo Spa Full
+        appointmentDate: getDateOffset(-10),
+        startTime: formatTime(13, 0),
+        endTime: formatTime(15, 0),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Spa toàn diện, thú cưng rất thích thú',
+        estimatedCost: services[7].basePrice,
+        actualCost: 380000, // Có phụ phí dịch vụ thêm
+      },
+
+      // Cancelled Appointment
+      {
+        petId: pets[0].petId, // Miu (Cat)
+        employeeId: vets[1].employeeId, // BS. Phạm Minh Tuấn
+        serviceId: services[1].serviceId, // Khám chuyên khoa
+        appointmentDate: getDateOffset(-2),
+        startTime: formatTime(16, 0),
+        endTime: formatTime(16, 45),
+        status: AppointmentStatus.CANCELLED,
+        notes: 'Đã đặt lịch khám',
+        cancellationReason: 'Chủ thú cưng bận đột xuất',
+        estimatedCost: services[1].basePrice,
+        cancelledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      },
+    ]);
+    console.log(`✅ Created ${appointments.length} appointments`);
+
+    console.log(`✅ Created ${appointments.length} appointments`);
+
+    // ====== 8. CAGES ======
     console.log('📦 Seeding cages...');
     const cageRepo = queryRunner.manager.getRepository(Cage);
 
@@ -491,7 +681,159 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
     ]);
     console.log(`✅ Created ${cages.length} cages`);
 
-    // ====== 8. VACCINE TYPES ======
+    // ====== 9. CAGE ASSIGNMENTS ======
+    console.log('📦 Seeding cage assignments...');
+    const cageAssignmentRepo =
+      queryRunner.manager.getRepository(CageAssignment);
+
+    const cageAssignments = await cageAssignmentRepo.save([
+      // Active Assignment 1: Rex (Husky) in Medium Cage
+      {
+        cageId: cages[2].cageId, // M-01
+        petId: pets[3].petId, // Rex (Husky)
+        checkInDate: getDateOffset(-3), // Checked in 3 days ago
+        expectedCheckOutDate: getDateOffset(4), // Expected checkout in 4 days
+        dailyRate: cages[2].dailyRate,
+        assignedById: careStaff[1].employeeId, // Trần Văn Nam
+        status: CageAssignmentStatus.ACTIVE,
+        notes: 'Cần không gian thoáng mát, dắt dạo 2 lần/ngày',
+      },
+      // Active Assignment 2: Bông (Poodle) in Small Cage
+      {
+        cageId: cages[1].cageId, // S-02
+        petId: pets[2].petId, // Bông (Poodle)
+        checkInDate: getDateOffset(-1), // Checked in yesterday
+        expectedCheckOutDate: getDateOffset(5), // Expected checkout in 5 days
+        dailyRate: cages[1].dailyRate,
+        assignedById: careStaff[0].employeeId, // Lê Thị Hồng
+        status: CageAssignmentStatus.ACTIVE,
+        notes: 'Thú cưng rất ngoan, không kén ăn',
+      },
+      // Active Assignment 3: Mèo Mun in Small Cage (VIP treatment)
+      {
+        cageId: cages[6].cageId, // VIP-01
+        petId: pets[4].petId, // Mèo Mun
+        checkInDate: getDateOffset(0), // Checked in today
+        expectedCheckOutDate: getDateOffset(7), // 7 days stay
+        dailyRate: cages[6].dailyRate,
+        assignedById: careStaff[1].employeeId, // Trần Văn Nam
+        status: CageAssignmentStatus.ACTIVE,
+        notes: 'Khách VIP - chú ý chăm sóc đặc biệt, thức ăn cao cấp',
+      },
+      // Completed Assignment 1: Lucky was here before
+      {
+        cageId: cages[3].cageId, // M-02
+        petId: pets[1].petId, // Lucky (Golden Retriever)
+        checkInDate: getDateOffset(-15),
+        expectedCheckOutDate: getDateOffset(-8),
+        actualCheckOutDate: getDateOffset(-8),
+        dailyRate: cages[3].dailyRate,
+        assignedById: careStaff[1].employeeId,
+        status: CageAssignmentStatus.COMPLETED,
+        notes: 'Lưu trú trong kỳ nghỉ của chủ - đã trả thú cưng',
+      },
+      // Completed Assignment 2: Miu's previous stay
+      {
+        cageId: cages[0].cageId, // S-01
+        petId: pets[0].petId, // Miu (Cat)
+        checkInDate: getDateOffset(-20),
+        expectedCheckOutDate: getDateOffset(-17),
+        actualCheckOutDate: getDateOffset(-17),
+        dailyRate: cages[0].dailyRate,
+        assignedById: careStaff[0].employeeId,
+        status: CageAssignmentStatus.COMPLETED,
+        notes: 'Lưu trú ngắn ngày - hoàn thành tốt',
+      },
+    ]);
+
+    // Update cage statuses to OCCUPIED for active assignments
+    await queryRunner.manager.update(
+      Cage,
+      { cageId: cages[1].cageId },
+      { status: CageStatus.OCCUPIED },
+    );
+    await queryRunner.manager.update(
+      Cage,
+      { cageId: cages[2].cageId },
+      { status: CageStatus.OCCUPIED },
+    );
+    await queryRunner.manager.update(
+      Cage,
+      { cageId: cages[6].cageId },
+      { status: CageStatus.OCCUPIED },
+    );
+
+    console.log(`✅ Created ${cageAssignments.length} cage assignments`);
+
+    // ====== 10. INVOICES ======
+    console.log('📦 Seeding invoices...');
+    const invoiceRepo = queryRunner.manager.getRepository(Invoice);
+
+    // Helper function to generate invoice number
+    const generateInvoiceNumber = (index: number): string => {
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const num = String(index).padStart(4, '0');
+      return `INV-${year}${month}-${num}`;
+    };
+
+    const invoices = await invoiceRepo.save([
+      // Invoice for completed appointment 1 (Rex - Khám tổng quát) - PAID
+      {
+        appointmentId: appointments[8].appointmentId,
+        invoiceNumber: generateInvoiceNumber(1),
+        issueDate: getDateOffset(-3),
+        subtotal: services[0].basePrice,
+        discount: 0,
+        tax: 0,
+        totalAmount: services[0].basePrice,
+        status: InvoiceStatus.PAID,
+        notes: 'Thanh toán bằng tiền mặt',
+        paidAt: getDateOffset(-3),
+      },
+      // Invoice for completed appointment 2 (Lucky - Tắm + Sấy) - PAID
+      {
+        appointmentId: appointments[9].appointmentId,
+        invoiceNumber: generateInvoiceNumber(2),
+        issueDate: getDateOffset(-5),
+        subtotal: services[5].basePrice,
+        discount: 10000, // Giảm giá 10k
+        tax: 0,
+        totalAmount: services[5].basePrice - 10000,
+        status: InvoiceStatus.PAID,
+        notes: 'Khách hàng thân thiết - giảm 10k',
+        paidAt: getDateOffset(-5),
+      },
+      // Invoice for completed appointment 3 (Mèo Mun - Vaccine) - PAID
+      {
+        appointmentId: appointments[10].appointmentId,
+        invoiceNumber: generateInvoiceNumber(3),
+        issueDate: getDateOffset(-7),
+        subtotal: services[2].basePrice,
+        discount: 0,
+        tax: 0,
+        totalAmount: services[2].basePrice,
+        status: InvoiceStatus.PAID,
+        notes: 'Thanh toán chuyển khoản',
+        paidAt: getDateOffset(-7),
+      },
+      // Invoice for completed appointment 4 (Bông - Spa Full) - PAID với phụ phí
+      {
+        appointmentId: appointments[11].appointmentId,
+        invoiceNumber: generateInvoiceNumber(4),
+        issueDate: getDateOffset(-10),
+        subtotal: services[7].basePrice,
+        discount: 0,
+        tax: 0,
+        totalAmount: 380000, // Có phụ phí thêm
+        status: InvoiceStatus.PAID,
+        notes: 'Thêm dịch vụ massage +30k',
+        paidAt: getDateOffset(-10),
+      },
+    ]);
+    console.log(`✅ Created ${invoices.length} invoices`);
+
+    // ====== 11. VACCINE TYPES ======
     console.log('📦 Seeding vaccine types...');
     const vaccineRepo = queryRunner.manager.getRepository(VaccineType);
 

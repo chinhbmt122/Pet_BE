@@ -14,6 +14,7 @@ import { PaymentModule } from './modules/payment.module';
 import { MedicalRecordModule } from './modules/medical-record.module';
 import { ReportModule } from './modules/report.module';
 import { ServiceCategoryModule } from './modules/service-category.module';
+import { CageModule } from './modules/cage.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './middleware/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from './middleware/filters/global.filter';
@@ -42,6 +43,7 @@ import { RequestLoggerMiddleware } from './middleware/interceptors/requestLog.in
     PaymentModule,
     MedicalRecordModule,
     ReportModule,
+    CageModule,
   ],
   controllers: [AppController],
   providers: [
