@@ -23,9 +23,9 @@ import { PetOwner } from '../../src/entities/pet-owner.entity';
 // Ensure base Employee is loaded before child entities to avoid initialization order issues
 import '../../src/entities/employee.entity';
 import { Veterinarian } from '../../src/entities/veterinarian.entity';
-import { VaccineType } from '../../src/entities/vaccine-type.entity';
+import { VaccineType, VaccineCategory } from '../../src/entities/vaccine-type.entity';
 import { Employee } from '../../src/entities/employee.entity';
-import { Account } from '../../src/entities/account.entity';
+import { Account, UserType } from '../../src/entities/account.entity';
 import { ServiceCategory } from '../../src/entities/service-category.entity';
 import { Service } from '../../src/entities/service.entity';
 import { WorkSchedule } from '../../src/entities/work-schedule.entity';
@@ -45,6 +45,11 @@ import { getTestDatabaseConfig } from './test-db.config';
  */
 describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
   let app: INestApplication<App>;
+
+  // This E2E suite assembles feature modules directly (not AppModule), so the
+  // app-level guards that usually populate req.user are not registered.
+  // Many controllers use @GetUser(), so inject a default user for tests.
+  let defaultRequestUser: Account | null = null;
 
   // Repositories for test data setup
   let petOwnerRepository: Repository<PetOwner>;
@@ -109,6 +114,22 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+
+    app.use(async (req, _res, next) => {
+      if (!req['user']) {
+        if (!defaultRequestUser) {
+          // Lazily load to ensure the DB connection is ready.
+          defaultRequestUser = await accountRepository.findOne({
+            where: { email: 'e2e.manager@test.com' },
+          });
+        }
+        if (defaultRequestUser) {
+          req['user'] = defaultRequestUser;
+        }
+      }
+      next();
+    });
+
     const reflector = app.get(require('@nestjs/core').Reflector);
     app.useGlobalInterceptors(new ResponseInterceptor(reflector));
     app.useGlobalFilters(new GlobalExceptionFilter());
@@ -133,7 +154,7 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   async function setupComprehensiveTestData() {
@@ -142,11 +163,20 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
     const hashedPassword =
       '$2b$10$7rkbML1XPi5mjlgxT.r2Z.vi7tq51FMumRgoDA6xh7RbHstgA5Ij2'; // bcrypt hash for 'password123'
 
+    // Create a default manager account used by the test middleware
+    const managerAccount = accountRepository.create({
+      email: 'e2e.manager@test.com',
+      passwordHash: hashedPassword,
+      userType: UserType.MANAGER,
+      isActive: true,
+    });
+    await accountRepository.save(managerAccount);
+
     // Create test owner account
     const ownerAccount = accountRepository.create({
       email: 'john.doe@test.com',
       passwordHash: hashedPassword,
-      userType: 'PET_OWNER',
+      userType: UserType.PET_OWNER,
       isActive: true,
     });
     const savedOwnerAccount = await accountRepository.save(ownerAccount);
@@ -165,7 +195,7 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
     const vetAccount = accountRepository.create({
       email: 'vet@test.com',
       passwordHash: hashedPassword,
-      userType: 'VETERINARIAN',
+      userType: UserType.VETERINARIAN,
       isActive: true,
     });
     const savedVetAccount = await accountRepository.save(vetAccount);
@@ -181,13 +211,13 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
       expertise: 'General veterinary care',
     });
     const savedVet = await veterinarianRepository.save(vet);
-    testVetId = savedVet.veterinarianId || savedVet.employeeId;
+    testVetId = savedVet.employeeId;
 
     // Create test care staff for Epic 3
     const staffAccount = accountRepository.create({
       email: 'care@test.com',
       passwordHash: hashedPassword,
-      userType: 'CARE_STAFF',
+      userType: UserType.CARE_STAFF,
       isActive: true,
     });
     const savedStaffAccount = await accountRepository.save(staffAccount);
@@ -207,7 +237,7 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
     // ===== EPIC 2: Pet & Medical Setup =====
     // Create test vaccine type
     const vaccineType = vaccineTypeRepository.create({
-      category: 'Core',
+      category: VaccineCategory.CORE,
       vaccineName: 'Rabies',
       targetSpecies: 'Dog',
       description: 'Rabies vaccination',
@@ -353,7 +383,7 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
           email: 'new.employee@test.com',
           passwordHash:
             '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-          userType: 'CARE_STAFF',
+          userType: UserType.CARE_STAFF,
           isActive: true,
         });
         const savedEmployeeAccount =

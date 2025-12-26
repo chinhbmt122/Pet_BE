@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
@@ -14,6 +15,7 @@ import {
   UpdateWorkScheduleDto,
   WorkScheduleResponseDto,
 } from '../dto/schedule';
+import { UserType } from '../entities/account.entity';
 
 /**
  * ScheduleService (DDD Pattern)
@@ -190,12 +192,29 @@ export class ScheduleService {
 
   /**
    * Gets employee schedules for a date range.
+   * VET/CARE_STAFF can only view their own schedules.
    */
   async getSchedulesByEmployee(
     employeeId: number,
     startDate?: Date,
     endDate?: Date,
+    user?: { accountId: number; userType: UserType },
   ): Promise<WorkScheduleResponseDto[]> {
+    // If VET or CARE_STAFF, validate self-access
+    if (
+      user &&
+      (user.userType === UserType.VETERINARIAN ||
+        user.userType === UserType.CARE_STAFF)
+    ) {
+      // Get the employee record for the requesting user
+      const userEmployee = await this.employeeRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!userEmployee || userEmployee.employeeId !== employeeId) {
+        throw new ForbiddenException('You can only view your own schedule');
+      }
+    }
+
     const whereClause: any = { employeeId };
 
     if (startDate && endDate) {

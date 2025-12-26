@@ -9,7 +9,12 @@ import { Invoice } from '../entities/invoice.entity';
 import { Payment, PaymentMethod } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
-import type { IPaymentGatewayService } from './interfaces/payment-gateway.interface';
+import { PetOwner } from '../entities/pet-owner.entity';
+import { UserType } from '../entities/account.entity';
+import type {
+  IPaymentGatewayService,
+  PaymentCallbackData,
+} from './interfaces/payment-gateway.interface';
 import { CreateInvoiceDto, InvoiceResponseDto } from '../dto/invoice';
 import {
   CreatePaymentDto,
@@ -46,6 +51,8 @@ export class PaymentService {
     private readonly paymentGatewayArchiveRepository: Repository<PaymentGatewayArchive>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(PetOwner)
+    private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly vnpayService: VNPayService,
     private readonly invoiceService: InvoiceService,
   ) {}
@@ -150,31 +157,49 @@ export class PaymentService {
 
   /**
    * Initiates online payment and returns payment URL.
+   * If PET_OWNER, validates they own the invoice.
    * @throws InvoiceNotFoundException, PaymentGatewayException
    */
   async initiateOnlinePayment(
     dto: InitiateOnlinePaymentDto,
+    user?: { accountId: number; userType: UserType },
   ): Promise<{ paymentUrl: string; paymentId: number }> {
-    // 1. Find invoice
+    // 1. Find invoice with appointment and pet relations
     const invoice = await this.invoiceRepository.findOne({
       where: { invoiceId: dto.invoiceId },
+      relations: ['appointment', 'appointment.pet'],
     });
 
     if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
     }
 
-    // 2. Validate invoice status
+    // 2. If PET_OWNER, validate they own this invoice
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (
+        !petOwner ||
+        invoice.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(
+          `Invoice with ID ${dto.invoiceId} not found`,
+        );
+      }
+    }
+
+    // 3. Validate invoice status
     if (!invoice.canStartOnlinePayment()) {
       throw new BadRequestException(
         `Cannot start online payment: invoice status is ${invoice.status}`,
       );
     }
 
-    // 3. Generate idempotency key
+    // 4. Generate idempotency key
     const idempotencyKey = `${dto.invoiceId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-    // 4. Create payment (online payment)
+    // 5. Create payment (online payment)
     const payment = Payment.createOnlinePayment({
       invoiceId: dto.invoiceId,
       amount: Number(invoice.totalAmount),
@@ -186,11 +211,11 @@ export class PaymentService {
     payment.startOnlinePayment();
     invoice.startOnlinePayment();
 
-    // 5. Persist payment and invoice updates
+    // 6. Persist payment and invoice updates
     const savedPayment = await this.paymentRepository.save(payment);
     await this.invoiceRepository.save(invoice);
 
-    // 6. Generate payment URL via gateway service
+    // 7. Generate payment URL via gateway service
     const paymentUrlResponse = await this.getGateway(
       this.DEFAULT_GATEWAY,
     ).generatePaymentUrl({
@@ -217,9 +242,10 @@ export class PaymentService {
   ): Promise<{ success: boolean; message: string }> {
     // 1. Verify callback signature
 
+    const callbackData: PaymentCallbackData = { ...callbackDto };
     const verification = await this.getGateway(
       this.DEFAULT_GATEWAY,
-    ).verifyCallback(callbackDto as any);
+    ).verifyCallback(callbackData);
 
     if (!verification.isValid) {
       throw new BadRequestException('Invalid callback signature');
@@ -335,17 +361,25 @@ export class PaymentService {
   /**
    * Retrieves complete invoice details including line items.
    * Delegates to InvoiceService.
+   * If PET_OWNER, validates ownership via InvoiceService.
    */
-  async getInvoiceById(invoiceId: number): Promise<InvoiceResponseDto> {
-    return this.invoiceService.getInvoiceById(invoiceId);
+  async getInvoiceById(
+    invoiceId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
+    return this.invoiceService.getInvoiceById(invoiceId, user);
   }
 
   /**
    * Retrieves invoices by status (Pending, Processing, Paid, Failed).
    * Delegates to InvoiceService.
+   * If PET_OWNER, returns only their own invoices.
    */
-  async getInvoicesByStatus(status: string): Promise<InvoiceResponseDto[]> {
-    return this.invoiceService.getInvoicesByStatus(status);
+  async getInvoicesByStatus(
+    status: string,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto[]> {
+    return this.invoiceService.getInvoicesByStatus(status, user);
   }
 
   /**
@@ -379,8 +413,12 @@ export class PaymentService {
 
   /**
    * Generates payment receipt with transaction details.
+   * If PET_OWNER, validates they own the invoice.
    */
-  async generateReceipt(paymentId: number): Promise<any> {
+  async generateReceipt(
+    paymentId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<any> {
     const payment = await this.paymentRepository.findOne({
       where: { paymentId },
       relations: [
@@ -393,6 +431,19 @@ export class PaymentService {
 
     if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+    }
+
+    // If PET_OWNER, validate they own the invoice
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (
+        !petOwner ||
+        payment.invoice?.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+      }
     }
 
     // Build receipt object

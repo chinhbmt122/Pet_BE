@@ -15,9 +15,13 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { PetService } from '../services/pet.service';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * PetController
@@ -83,6 +87,12 @@ export class PetController {
    * Registers new pet with owner association.
    */
   @Post()
+  @RouteConfig({
+    message: 'Register pet',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Register pet' })
   @ApiQuery({ name: 'ownerId', required: true, type: Number })
   @ApiResponse({
@@ -95,8 +105,9 @@ export class PetController {
   async registerPet(
     @Body() dto: CreatePetDto,
     @Query('ownerId', ParseIntPipe) ownerId: number,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto> {
-    return this.petService.registerPet(dto, ownerId);
+    return this.petService.registerPet(dto, ownerId, user);
   }
 
   /**
@@ -104,6 +115,17 @@ export class PetController {
    * Retrieves complete pet profile by ID.
    */
   @Get(':id')
+  @RouteConfig({
+    message: 'Get pet by ID',
+    requiresAuth: true,
+    roles: [
+      UserType.PET_OWNER,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.VETERINARIAN,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pet by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -114,8 +136,9 @@ export class PetController {
   @ApiResponse({ status: 404, description: 'Pet not found' })
   async getPetById(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto> {
-    return this.petService.getPetById(id);
+    return this.petService.getPetById(id, user);
   }
 
   /**
@@ -123,6 +146,17 @@ export class PetController {
    * Retrieves all pets belonging to a specific owner.
    */
   @Get('owner/:ownerId')
+  @RouteConfig({
+    message: 'Get pets by owner',
+    requiresAuth: true,
+    roles: [
+      UserType.PET_OWNER,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.VETERINARIAN,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pets by owner' })
   @ApiParam({ name: 'ownerId', type: Number })
   @ApiResponse({
@@ -132,8 +166,9 @@ export class PetController {
   })
   async getPetsByOwner(
     @Param('ownerId', ParseIntPipe) ownerId: number,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto[]> {
-    return this.petService.getPetsByOwner(ownerId);
+    return this.petService.getPetsByOwner(ownerId, user);
   }
 
   /**
@@ -141,6 +176,12 @@ export class PetController {
    * Updates pet information.
    */
   @Put(':id')
+  @RouteConfig({
+    message: 'Update pet information',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet information' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -152,8 +193,9 @@ export class PetController {
   async updatePetInfo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePetDto,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto> {
-    return this.petService.updatePetInfo(id, dto);
+    return this.petService.updatePetInfo(id, dto, user);
   }
 
   /**
@@ -161,6 +203,12 @@ export class PetController {
    * Soft deletes pet record.
    */
   @Delete(':id')
+  @RouteConfig({
+    message: 'Delete pet (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete pet (soft delete)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Pet deleted' })
@@ -177,6 +225,12 @@ export class PetController {
    * Restores a soft-deleted pet.
    */
   @Post(':id/restore')
+  @RouteConfig({
+    message: 'Restore deleted pet (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Restore deleted pet' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -196,6 +250,12 @@ export class PetController {
    * Gets soft-deleted pets for an owner.
    */
   @Get('owner/:ownerId/deleted')
+  @RouteConfig({
+    message: 'Get deleted pets by owner',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get deleted pets by owner' })
   @ApiParam({ name: 'ownerId', type: Number })
   @ApiResponse({
@@ -214,6 +274,12 @@ export class PetController {
    * Gets pets by species.
    */
   @Get('species/:species')
+  @RouteConfig({
+    message: 'Get pets by species',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pets by species' })
   @ApiParam({ name: 'species', type: String })
   @ApiResponse({
@@ -232,6 +298,12 @@ export class PetController {
    * Transfers pet ownership to another owner.
    */
   @Put(':id/transfer')
+  @RouteConfig({
+    message: 'Transfer pet ownership (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Transfer pet ownership' })
   @ApiParam({ name: 'id', type: Number })
   @ApiQuery({ name: 'newOwnerId', required: true, type: Number })

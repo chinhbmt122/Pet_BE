@@ -15,10 +15,14 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AppointmentService } from '../services/appointment.service';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * AppointmentController
@@ -36,6 +40,12 @@ export class AppointmentController {
   // ============================================
 
   @Post()
+  @RouteConfig({
+    message: 'Create new appointment',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new appointment' })
   @ApiResponse({
     status: 201,
@@ -50,11 +60,18 @@ export class AppointmentController {
   @ApiResponse({ status: 409, description: 'Schedule conflict' })
   async createAppointment(
     @Body() dto: CreateAppointmentDto,
+    @GetUser() user: Account,
   ): Promise<Appointment> {
-    return this.appointmentService.createAppointment(dto);
+    return this.appointmentService.createAppointment(dto, user);
   }
 
   @Get()
+  @RouteConfig({
+    message: 'Get all appointments',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all appointments with optional filters' })
   @ApiQuery({ name: 'status', enum: AppointmentStatus, required: false })
   @ApiQuery({ name: 'petId', type: Number, required: false })
@@ -66,13 +83,14 @@ export class AppointmentController {
     type: [Appointment],
   })
   async getAllAppointments(
+    @GetUser() user: Account,
     @Query('status') status?: AppointmentStatus,
     @Query('petId', new ParseIntPipe({ optional: true })) petId?: number,
     @Query('employeeId', new ParseIntPipe({ optional: true }))
     employeeId?: number,
     @Query('date') date?: string,
   ): Promise<Appointment[]> {
-    return this.appointmentService.getAllAppointments({
+    return this.appointmentService.getAllAppointments(user, {
       status,
       petId,
       employeeId,
@@ -81,6 +99,12 @@ export class AppointmentController {
   }
 
   @Get('by-date-range')
+  @RouteConfig({
+    message: 'Get appointments by date range',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments by date range' })
   @ApiQuery({ name: 'startDate', type: String, required: true })
   @ApiQuery({ name: 'endDate', type: String, required: true })
@@ -104,6 +128,12 @@ export class AppointmentController {
   }
 
   @Get('by-status')
+  @RouteConfig({
+    message: 'Get appointments by status',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments by status' })
   @ApiQuery({ name: 'status', enum: AppointmentStatus })
   @ApiResponse({
@@ -118,6 +148,17 @@ export class AppointmentController {
   }
 
   @Get('by-pet/:petId')
+  @RouteConfig({
+    message: 'Get appointments by pet ID',
+    requiresAuth: true,
+    roles: [
+      UserType.PET_OWNER,
+      UserType.VETERINARIAN,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments by pet ID' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiResponse({
@@ -132,6 +173,17 @@ export class AppointmentController {
   }
 
   @Get('by-employee/:employeeId')
+  @RouteConfig({
+    message: 'Get appointments by employee ID',
+    requiresAuth: true,
+    roles: [
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments by employee ID' })
   @ApiParam({ name: 'employeeId', type: Number })
   @ApiResponse({
@@ -141,11 +193,24 @@ export class AppointmentController {
   })
   async getAppointmentsByEmployee(
     @Param('employeeId', ParseIntPipe) employeeId: number,
+    @GetUser() user: Account,
   ): Promise<Appointment[]> {
-    return this.appointmentService.getAppointmentsByEmployee(employeeId);
+    return this.appointmentService.getAppointmentsByEmployee(employeeId, user);
   }
 
   @Get(':id')
+  @RouteConfig({
+    message: 'Get appointment by ID',
+    requiresAuth: true,
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.PET_OWNER,
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointment by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -156,11 +221,18 @@ export class AppointmentController {
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async getAppointmentById(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<Appointment> {
-    return this.appointmentService.getAppointmentById(id);
+    return this.appointmentService.getAppointmentById(id, user);
   }
 
   @Put(':id')
+  @RouteConfig({
+    message: 'Update appointment details',
+    requiresAuth: true,
+    roles: [UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update appointment details' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -177,6 +249,12 @@ export class AppointmentController {
   }
 
   @Delete(':id')
+  @RouteConfig({
+    message: 'Delete appointment (only if pending)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete appointment (only if pending)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Appointment deleted' })
@@ -197,6 +275,12 @@ export class AppointmentController {
   // ============================================
 
   @Put(':id/confirm')
+  @RouteConfig({
+    message: 'Confirm appointment (PENDING → CONFIRMED)',
+    requiresAuth: true,
+    roles: [UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Confirm appointment (PENDING → CONFIRMED)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -216,6 +300,12 @@ export class AppointmentController {
   }
 
   @Put(':id/start')
+  @RouteConfig({
+    message: 'Start appointment (CONFIRMED → IN_PROGRESS)',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.CARE_STAFF, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Start appointment (CONFIRMED → IN_PROGRESS)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -235,6 +325,12 @@ export class AppointmentController {
   }
 
   @Put(':id/complete')
+  @RouteConfig({
+    message: 'Complete appointment (IN_PROGRESS → COMPLETED)',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.CARE_STAFF, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete appointment (IN_PROGRESS → COMPLETED)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -255,6 +351,12 @@ export class AppointmentController {
   }
 
   @Put(':id/cancel')
+  @RouteConfig({
+    message: 'Cancel appointment (any status → CANCELLED)',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel appointment (any status → CANCELLED)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -269,8 +371,9 @@ export class AppointmentController {
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async cancelAppointment(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
     @Body('reason') reason?: string,
   ): Promise<Appointment> {
-    return this.appointmentService.cancelAppointment(id, reason);
+    return this.appointmentService.cancelAppointment(id, reason, user);
   }
 }

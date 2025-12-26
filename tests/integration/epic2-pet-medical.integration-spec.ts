@@ -91,7 +91,7 @@ describe('Epic 2 Integration Tests - Pet & Medical Domain', () => {
   }, 30000);
 
   afterAll(async () => {
-    await module.close();
+    await module?.close();
   });
 
   beforeEach(async () => {

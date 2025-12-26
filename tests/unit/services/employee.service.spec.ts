@@ -64,9 +64,11 @@ describe('EmployeeService', () => {
 
   beforeEach(async () => {
     const mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
       innerJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn(),
     };
 
@@ -275,11 +277,18 @@ describe('EmployeeService', () => {
   describe('getAll', () => {
     it('should return all employees', async () => {
       const employees = [mockCareStaff];
-      employeeRepository.find.mockResolvedValue(employees);
+      const mockQueryBuilder = employeeRepository.createQueryBuilder();
+      mockQueryBuilder.getMany.mockResolvedValue(employees);
 
       const result = await service.getAll();
 
-      expect(employeeRepository.find).toHaveBeenCalled();
+      expect(employeeRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'employee',
+      );
+      expect(mockQueryBuilder.leftJoinAndSelect).toHaveBeenCalledWith(
+        'employee.account',
+        'account',
+      );
       expect(result).toEqual(employees);
     });
   });

@@ -17,6 +17,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ServiceService } from '../services/service.service';
 import {
@@ -24,6 +25,8 @@ import {
   UpdateServiceDto,
   ServiceResponseDto,
 } from '../dto/service';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { UserType } from '../entities/account.entity';
 
 /**
  * ServiceController
@@ -40,6 +43,12 @@ export class ServiceController {
    * Creates new service in catalog.
    */
   @Post()
+  @RouteConfig({
+    message: 'Create service (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create service' })
   @ApiResponse({
     status: 201,
@@ -56,9 +65,13 @@ export class ServiceController {
 
   /**
    * GET /api/services
-   * Retrieves all services.
+   * Retrieves all services. Public access for service browsing.
    */
   @Get()
+  @RouteConfig({
+    message: 'Get all services',
+    requiresAuth: false, // Public - pet owners can browse services
+  })
   @ApiOperation({ summary: 'Get all services' })
   @ApiQuery({
     name: 'includeUnavailable',
@@ -80,9 +93,13 @@ export class ServiceController {
 
   /**
    * GET /api/services/search
-   * Searches services by name.
+   * Searches services by name. Public access.
    */
   @Get('search')
+  @RouteConfig({
+    message: 'Search services',
+    requiresAuth: false, // Public - pet owners can search services
+  })
   @ApiOperation({ summary: 'Search services' })
   @ApiQuery({
     name: 'q',
@@ -103,9 +120,13 @@ export class ServiceController {
 
   /**
    * GET /api/services/category/:categoryId
-   * Gets services by category.
+   * Gets services by category. Public access.
    */
   @Get('category/:categoryId')
+  @RouteConfig({
+    message: 'Get services by category',
+    requiresAuth: false, // Public - browsing by category
+  })
   @ApiOperation({ summary: 'Get services by category' })
   @ApiParam({ name: 'categoryId', type: Number })
   @ApiResponse({
@@ -121,9 +142,13 @@ export class ServiceController {
 
   /**
    * GET /api/services/price-range
-   * Gets services by price range.
+   * Gets services by price range. Public access.
    */
   @Get('price-range')
+  @RouteConfig({
+    message: 'Get services by price range',
+    requiresAuth: false, // Public
+  })
   @ApiOperation({ summary: 'Get services by price range' })
   @ApiQuery({ name: 'min', required: true, type: Number })
   @ApiQuery({ name: 'max', required: true, type: Number })
@@ -141,9 +166,13 @@ export class ServiceController {
 
   /**
    * GET /api/services/boarding
-   * Gets boarding services only.
+   * Gets boarding services only. Public access.
    */
   @Get('boarding')
+  @RouteConfig({
+    message: 'Get boarding services',
+    requiresAuth: false, // Public
+  })
   @ApiOperation({ summary: 'Get boarding services' })
   @ApiResponse({
     status: 200,
@@ -156,9 +185,15 @@ export class ServiceController {
 
   /**
    * GET /api/services/staff-type/:staffType
-   * Gets services by required staff type.
+   * Gets services by required staff type. Staff use.
    */
   @Get('staff-type/:staffType')
+  @RouteConfig({
+    message: 'Get services by staff type',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get services by staff type' })
   @ApiParam({
     name: 'staffType',
@@ -178,9 +213,13 @@ export class ServiceController {
 
   /**
    * GET /api/services/:id
-   * Gets service by ID.
+   * Gets service by ID. Public access.
    */
   @Get(':id')
+  @RouteConfig({
+    message: 'Get service by ID',
+    requiresAuth: false, // Public
+  })
   @ApiOperation({ summary: 'Get service by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -197,9 +236,15 @@ export class ServiceController {
 
   /**
    * PUT /api/services/:id
-   * Updates service details.
+   * Updates service details. Manager only.
    */
   @Put(':id')
+  @RouteConfig({
+    message: 'Update service (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update service' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -217,9 +262,15 @@ export class ServiceController {
 
   /**
    * DELETE /api/services/:id
-   * Soft deletes service (marks as unavailable).
+   * Soft deletes service. Manager only.
    */
   @Delete(':id')
+  @RouteConfig({
+    message: 'Delete service (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete service' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Service deleted' })
@@ -233,9 +284,15 @@ export class ServiceController {
 
   /**
    * PUT /api/services/:id/availability
-   * Toggles service availability.
+   * Toggles service availability. Manager only.
    */
   @Put(':id/availability')
+  @RouteConfig({
+    message: 'Toggle service availability (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle service availability' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -252,9 +309,13 @@ export class ServiceController {
 
   /**
    * POST /api/services/:id/calculate-price
-   * Calculates service price with pet size modifier.
+   * Calculates service price. Public for booking.
    */
   @Post(':id/calculate-price')
+  @RouteConfig({
+    message: 'Calculate service price',
+    requiresAuth: false, // Public for price estimation during booking
+  })
   @ApiOperation({ summary: 'Calculate service price' })
   @ApiParam({ name: 'id', type: Number })
   @ApiQuery({

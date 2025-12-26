@@ -25,6 +25,8 @@ import {
   PetOwnerResponseDto,
 } from '../dto/pet-owner';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * PetOwnerController
@@ -101,15 +103,21 @@ export class PetOwnerController {
    * Get PetOwner by account ID
    */
   @Get(':accountId')
-  @RouteConfig({ message: 'Get pet owner profile', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get pet owner profile',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.MANAGER, UserType.RECEPTIONIST],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pet owner by account ID' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
   @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async getByAccountId(
     @Param('accountId', ParseIntPipe) accountId: number,
+    @GetUser() user: Account,
   ): Promise<PetOwner> {
-    return this.petOwnerService.getByAccountId(accountId);
+    return this.petOwnerService.getByAccountId(accountId, user);
   }
 
   /**
@@ -117,16 +125,22 @@ export class PetOwnerController {
    * Update PetOwner profile
    */
   @Put(':accountId/profile')
-  @RouteConfig({ message: 'Update pet owner profile', requiresAuth: true })
+  @RouteConfig({
+    message: 'Update pet owner profile',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet owner profile' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
   @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async updateProfile(
     @Param('accountId', ParseIntPipe) accountId: number,
     @Body() dto: UpdatePetOwnerDto,
+    @GetUser() user: Account,
   ): Promise<PetOwner> {
-    return this.petOwnerService.updateProfile(accountId, dto);
+    return this.petOwnerService.updateProfile(accountId, dto, user);
   }
 
   /**
@@ -134,19 +148,29 @@ export class PetOwnerController {
    * Update PetOwner contact preferences
    */
   @Put(':accountId/preferences')
-  @RouteConfig({ message: 'Update pet owner preferences', requiresAuth: true })
+  @RouteConfig({
+    message: 'Update pet owner preferences',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update pet owner contact preferences' })
   @ApiResponse({ status: 200, type: PetOwnerResponseDto })
   @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async updatePreferences(
     @Param('accountId', ParseIntPipe) accountId: number,
     @Body() dto: UpdatePetOwnerDto,
+    @GetUser() user: Account,
   ): Promise<PetOwner> {
-    return this.petOwnerService.updatePreferences(accountId, {
-      preferredContactMethod: dto.preferredContactMethod,
-      emergencyContact: dto.emergencyContact,
-    });
+    return this.petOwnerService.updatePreferences(
+      accountId,
+      {
+        preferredContactMethod: dto.preferredContactMethod,
+        emergencyContact: dto.emergencyContact,
+      },
+      user,
+    );
   }
 
   /**

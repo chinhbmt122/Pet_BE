@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { Account } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { Invoice } from '../entities/invoice.entity';
 import { Pet } from '../entities/pet.entity';
-import { UserType } from '../entities/types/entity.types';
 import { AccountFactory } from '../factories/account.factory';
 import { PetOwnerFactory } from '../factories/pet-owner.factory';
 import { PetOwnerMapper } from '../mappers/pet-owner.mapper';
@@ -82,8 +85,19 @@ export class PetOwnerService {
 
   /**
    * Gets PetOwner by account ID.
+   * PET_OWNER can only access their own profile, MANAGER/RECEPTIONIST can access all.
    */
-  async getByAccountId(accountId: number): Promise<PetOwner> {
+  async getByAccountId(
+    accountId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<PetOwner> {
+    // If PET_OWNER, validate self-access only
+    if (user && user.userType === UserType.PET_OWNER) {
+      if (user.accountId !== accountId) {
+        throw new ForbiddenException('You can only access your own profile');
+      }
+    }
+
     const petOwner = await this.petOwnerRepository.findOne({
       where: { accountId },
     });
@@ -96,6 +110,7 @@ export class PetOwnerService {
   /**
    * Updates PetOwner profile.
    * Uses domain model for business logic.
+   * PET_OWNER can only update their own profile, MANAGER can update all.
    */
   async updateProfile(
     accountId: number,
@@ -104,7 +119,15 @@ export class PetOwnerService {
       phoneNumber?: string;
       address?: string | null;
     },
+    user?: { accountId: number; userType: UserType },
   ): Promise<PetOwner> {
+    // If PET_OWNER, validate self-access only
+    if (user && user.userType === UserType.PET_OWNER) {
+      if (user.accountId !== accountId) {
+        throw new ForbiddenException('You can only update your own profile');
+      }
+    }
+
     // 1. Find entity
     const entity = await this.petOwnerRepository.findOne({
       where: { accountId },
@@ -126,6 +149,7 @@ export class PetOwnerService {
 
   /**
    * Updates PetOwner preferences.
+   * PET_OWNER can only update their own preferences, MANAGER can update all.
    */
   async updatePreferences(
     accountId: number,
@@ -133,7 +157,17 @@ export class PetOwnerService {
       preferredContactMethod?: string;
       emergencyContact?: string | null;
     },
+    user?: { accountId: number; userType: UserType },
   ): Promise<PetOwner> {
+    // If PET_OWNER, validate self-access only
+    if (user && user.userType === UserType.PET_OWNER) {
+      if (user.accountId !== accountId) {
+        throw new ForbiddenException(
+          'You can only update your own preferences',
+        );
+      }
+    }
+
     // 1. Find entity
     const entity = await this.petOwnerRepository.findOne({
       where: { accountId },

@@ -178,6 +178,31 @@ export class EmployeeService {
       .getMany();
   }
 
+  /**
+   * Gets all available employees.
+   *
+   * NOTE: Kept as a convenience wrapper for older callers/tests.
+   */
+  async getAvailable(): Promise<Employee[]> {
+    return this.employeeRepository.find({
+      where: { isAvailable: true },
+    });
+  }
+
+  /**
+   * Gets all available employees by role.
+   *
+   * NOTE: Kept as a convenience wrapper for older callers/tests.
+   */
+  async getAvailableByRole(role: UserType): Promise<Employee[]> {
+    return this.employeeRepository
+      .createQueryBuilder('employee')
+      .innerJoin('employee.account', 'account')
+      .where('account.userType = :role', { role })
+      .andWhere('employee.isAvailable = :isAvailable', { isAvailable: true })
+      .getMany();
+  }
+
   // ==================== Update ====================
 
   /**

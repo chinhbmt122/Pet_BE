@@ -8,6 +8,7 @@ import { MedicalRecord } from '../entities/medical-record.entity';
 import { PetDomainModel } from '../domain/pet.domain';
 import { PetMapper } from '../mappers/pet.mapper';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
+import { UserType } from '../entities/account.entity';
 
 /**
  * PetService (PetManager)
@@ -30,10 +31,12 @@ export class PetService {
 
   /**
    * Registers new pet with owner association and validation.
+   * If PET_OWNER, validates they can only register for themselves.
    */
   async registerPet(
     dto: CreatePetDto,
     ownerId: number,
+    user?: { accountId: number; userType: UserType },
   ): Promise<PetResponseDto> {
     // 1. Verify owner exists
     const owner = await this.petOwnerRepository.findOne({
@@ -43,7 +46,14 @@ export class PetService {
       throw new NotFoundException(`Owner with ID ${ownerId} not found`);
     }
 
-    // 2. Create domain model
+    // 2. If PET_OWNER, validate they can only register for themselves
+    if (user && user.userType === UserType.PET_OWNER) {
+      if (owner.accountId !== user.accountId) {
+        throw new NotFoundException(`Owner with ID ${ownerId} not found`);
+      }
+    }
+
+    // 3. Create domain model
     const domain = PetDomainModel.create({
       ownerId,
       name: dto.name,
@@ -57,22 +67,24 @@ export class PetService {
       specialNotes: dto.specialNotes,
     });
 
-    // 3. Convert to entity and save
+    // 4. Convert to entity and save
     const entityData = PetMapper.toPersistence(domain);
     const entity = this.petRepository.create(entityData);
     const saved = await this.petRepository.save(entity);
 
-    // 4. Return response DTO
+    // 5. Return response DTO
     const savedDomain = PetMapper.toDomain(saved);
     return PetResponseDto.fromDomain(savedDomain);
   }
 
   /**
    * Updates pet information using domain model.
+   * If PET_OWNER, validates they own the pet.
    */
   async updatePetInfo(
     petId: number,
     dto: UpdatePetDto,
+    user?: { accountId: number; userType: UserType },
   ): Promise<PetResponseDto> {
     // 1. Find entity
     const entity = await this.petRepository.findOne({
@@ -82,10 +94,20 @@ export class PetService {
       throw new NotFoundException(`Pet with ID ${petId} not found`);
     }
 
-    // 2. Convert to domain
+    // 2. If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || entity.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Pet with ID ${petId} not found`);
+      }
+    }
+
+    // 3. Convert to domain
     const domain = PetMapper.toDomain(entity);
 
-    // 3. Update via domain model
+    // 4. Update via domain model
     domain.updateProfile({
       name: dto.name,
       species: dto.species,
@@ -97,19 +119,23 @@ export class PetService {
       specialNotes: dto.specialNotes,
     });
 
-    // 4. Convert back and save
+    // 5. Convert back and save
     const updatedData = PetMapper.toPersistence(domain);
     const saved = await this.petRepository.save(updatedData);
 
-    // 5. Return response
+    // 6. Return response
     const savedDomain = PetMapper.toDomain(saved);
     return PetResponseDto.fromDomain(savedDomain);
   }
 
   /**
    * Retrieves complete pet profile by ID.
+   * If PET_OWNER, validates they own the pet.
    */
-  async getPetById(petId: number): Promise<PetResponseDto> {
+  async getPetById(
+    petId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<PetResponseDto> {
     const entity = await this.petRepository.findOne({
       where: { petId },
       relations: ['owner'],
@@ -118,14 +144,38 @@ export class PetService {
       throw new NotFoundException(`Pet with ID ${petId} not found`);
     }
 
+    // If PET_OWNER, validate ownership
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || entity.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(`Pet with ID ${petId} not found`);
+      }
+    }
+
     const domain = PetMapper.toDomain(entity);
     return PetResponseDto.fromDomain(domain);
   }
 
   /**
    * Retrieves all pets belonging to a specific owner.
+   * If PET_OWNER, validates they're requesting their own pets.
    */
-  async getPetsByOwner(ownerId: number): Promise<PetResponseDto[]> {
+  async getPetsByOwner(
+    ownerId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<PetResponseDto[]> {
+    // If PET_OWNER, ensure they can only get their own pets
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner || petOwner.petOwnerId !== ownerId) {
+        return []; // Return empty if not their pets
+      }
+    }
+
     const entities = await this.petRepository.find({
       where: { ownerId },
       order: { createdAt: 'DESC' },

@@ -15,11 +15,14 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { CageService } from '../services/cage.service';
 import { CreateCageDto, UpdateCageDto, AssignCageDto } from '../dto/cage';
 import { Cage } from '../entities/cage.entity';
 import { CageAssignment } from '../entities/cage-assignment.entity';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { UserType } from '../entities/account.entity';
 
 /**
  * CageController
@@ -37,6 +40,12 @@ export class CageController {
   // ============================================
 
   @Post()
+  @RouteConfig({
+    message: 'Create new cage (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new cage' })
   @ApiResponse({ status: 201, description: 'Cage created', type: Cage })
   @ApiResponse({ status: 409, description: 'Cage number already exists' })
@@ -45,6 +54,12 @@ export class CageController {
   }
 
   @Get()
+  @RouteConfig({
+    message: 'Get all cages',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all cages with optional filters' })
   @ApiQuery({ name: 'size', required: false, type: String })
   @ApiQuery({ name: 'isAvailable', required: false, type: Boolean })
@@ -57,6 +72,12 @@ export class CageController {
   }
 
   @Get('available')
+  @RouteConfig({
+    message: 'Get available cages',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get available cages' })
   @ApiQuery({ name: 'size', required: false, type: String })
   @ApiQuery({ name: 'dateRange', required: false, type: String })
@@ -73,6 +94,17 @@ export class CageController {
   }
 
   @Get(':id')
+  @RouteConfig({
+    message: 'Get cage by ID',
+    requiresAuth: true,
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.CARE_STAFF,
+      UserType.VETERINARIAN,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get cage by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Cage retrieved', type: Cage })
@@ -82,6 +114,12 @@ export class CageController {
   }
 
   @Put(':id')
+  @RouteConfig({
+    message: 'Update cage details (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update cage details' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Cage updated', type: Cage })
@@ -94,6 +132,12 @@ export class CageController {
   }
 
   @Delete(':id')
+  @RouteConfig({
+    message: 'Delete cage (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete cage (marks as out of service)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Cage deleted' })
@@ -111,6 +155,12 @@ export class CageController {
   // ============================================
 
   @Put(':id/maintenance')
+  @RouteConfig({
+    message: 'Put cage into maintenance',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Put cage into maintenance mode' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Cage in maintenance', type: Cage })
@@ -124,6 +174,12 @@ export class CageController {
   }
 
   @Put(':id/complete-maintenance')
+  @RouteConfig({
+    message: 'Complete cage maintenance',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete maintenance and make cage available' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -140,6 +196,12 @@ export class CageController {
   }
 
   @Put(':id/reserve')
+  @RouteConfig({
+    message: 'Reserve cage for booking',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Reserve cage for upcoming booking' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Cage reserved', type: Cage })
@@ -150,6 +212,12 @@ export class CageController {
   }
 
   @Put(':id/cancel-reservation')
+  @RouteConfig({
+    message: 'Cancel cage reservation',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel cage reservation' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -170,6 +238,12 @@ export class CageController {
   // ============================================
 
   @Post(':id/assign')
+  @RouteConfig({
+    message: 'Assign pet to cage (check-in)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Assign pet to cage (check-in)' })
   @ApiParam({ name: 'id', type: Number, description: 'Cage ID' })
   @ApiResponse({
@@ -190,6 +264,12 @@ export class CageController {
   }
 
   @Put('assignments/:assignmentId/checkout')
+  @RouteConfig({
+    message: 'Check out pet from cage',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Check out pet from cage' })
   @ApiParam({ name: 'assignmentId', type: Number })
   @ApiResponse({
@@ -206,6 +286,12 @@ export class CageController {
   }
 
   @Get(':id/assignments')
+  @RouteConfig({
+    message: 'Get cage assignments',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all assignments for a cage' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -220,6 +306,17 @@ export class CageController {
   }
 
   @Get(':id/current-assignment')
+  @RouteConfig({
+    message: 'Get current cage assignment',
+    requiresAuth: true,
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.CARE_STAFF,
+      UserType.VETERINARIAN,
+    ],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current active assignment for a cage' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -234,6 +331,12 @@ export class CageController {
   }
 
   @Get('assignments/active')
+  @RouteConfig({
+    message: 'Get all active assignments',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all active cage assignments' })
   @ApiResponse({
     status: 200,

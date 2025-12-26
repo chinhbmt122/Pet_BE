@@ -92,7 +92,7 @@ describe('Epic 3 Integration Tests - Service & Schedule Domain', () => {
   }, 30000);
 
   afterAll(async () => {
-    await module.close();
+    await module?.close();
   });
 
   beforeEach(async () => {

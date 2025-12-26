@@ -26,10 +26,32 @@ import { AuditLog } from '../../src/entities/audit-log.entity';
 // Ensure test env variables are loaded if available
 dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
 
+function sanitizeSchemaName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+}
+
+function makeUniqueTestSchema(): string {
+  const fromEnv = process.env.DB_SCHEMA;
+  if (fromEnv && fromEnv.trim()) {
+    const sanitized = sanitizeSchemaName(fromEnv.trim());
+    return sanitized || 'public';
+  }
+
+  // Default to the built-in schema.
+  // TypeORM does not create schemas automatically, so randomly-generated schemas
+  // will fail in CI unless explicitly provisioned.
+  return 'public';
+}
+
 export function getTestDatabaseConfig(): DataSourceOptions {
   if (process.env.DATABASE_TYPE === 'postgres') {
     const dbName = process.env.DB_NAME || 'pet_care_test_db';
     const host = process.env.DB_HOST || 'localhost';
+    const schema = makeUniqueTestSchema();
 
     // Safety guard: refuse to run destructive schema operations on non-test DBs
     if (
@@ -76,10 +98,16 @@ export function getTestDatabaseConfig(): DataSourceOptions {
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres123',
       database: dbName,
+      schema,
       entities: entitiesOrdered,
       synchronize: process.env.DB_SYNCHRONIZE === 'true',
       dropSchema: process.env.DB_DROP_SCHEMA === 'true',
       logging: process.env.DB_LOGGING === 'true',
+      // Ensure unqualified raw SQL (e.g. TRUNCATE TABLE "employees") resolves
+      // to the same schema where TypeORM created tables.
+      extra: {
+        options: `-c search_path=${schema},public`,
+      },
     } as DataSourceOptions;
   }
 

@@ -3,14 +3,14 @@ import {
   NotFoundException,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { Account } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
-import { UserType } from '../entities/types/entity.types';
 import { AccountMapper } from '../mappers/account.mapper';
 
 /**
@@ -41,8 +41,19 @@ export class AccountService {
 
   /**
    * Gets account by ID.
+   * If user is provided, validates they can only access their own account (or MANAGER can access all).
    */
-  async getAccountById(accountId: number): Promise<Account> {
+  async getAccountById(
+    accountId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<Account> {
+    // If user provided and not MANAGER, validate self-access only
+    if (user && user.userType !== UserType.MANAGER) {
+      if (user.accountId !== accountId) {
+        throw new ForbiddenException('You can only access your own account');
+      }
+    }
+
     const account = await this.accountRepository.findOne({
       where: { accountId },
     });
@@ -54,11 +65,22 @@ export class AccountService {
 
   /**
    * Gets full profile (Account + PetOwner/Employee).
+   * If user is provided, validates they can only access their own profile (or MANAGER can access all).
    */
-  async getFullProfile(accountId: number): Promise<{
+  async getFullProfile(
+    accountId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<{
     account: Account;
     profile: PetOwner | Employee | null;
   }> {
+    // Validate access
+    if (user && user.userType !== UserType.MANAGER) {
+      if (user.accountId !== accountId) {
+        throw new ForbiddenException('You can only access your own profile');
+      }
+    }
+
     const account = await this.getAccountById(accountId);
     const profile = await this.fetchProfile(accountId, account.userType);
     return { account, profile };
@@ -67,12 +89,19 @@ export class AccountService {
   /**
    * Changes account password.
    * Uses domain model for password validation and hashing.
+   * User can only change their own password.
    */
   async changePassword(
     accountId: number,
     oldPassword: string,
     newPassword: string,
+    user?: { accountId: number; userType: UserType },
   ): Promise<boolean> {
+    // Validate self-access only (even MANAGER cannot change others' passwords)
+    if (user && user.accountId !== accountId) {
+      throw new ForbiddenException('You can only change your own password');
+    }
+
     // 1. Find account
     const entity = await this.accountRepository.findOne({
       where: { accountId },

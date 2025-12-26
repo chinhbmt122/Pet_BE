@@ -18,7 +18,12 @@ async function bootstrap() {
   );
   app.enableCors({
     credentials: true,
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:4200'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:4200',
+    ],
   });
 
   // LƯU Ý: ==================================================
@@ -47,4 +52,7 @@ async function bootstrap() {
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(`Swagger docs available at: http://localhost:${port}/api/docs`);
 }
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  console.error('Failed to start application', error);
+  process.exit(1);
+});

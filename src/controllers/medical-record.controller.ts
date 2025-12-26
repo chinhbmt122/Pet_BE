@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { MedicalRecordService } from '../services/medical-record.service';
 import {
@@ -26,6 +27,9 @@ import {
   CreateVaccinationDto,
   VaccinationResponseDto,
 } from '../dto/vaccination';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * MedicalRecordController
@@ -47,6 +51,12 @@ export class MedicalRecordController {
    * Creates new medical record for pet with diagnosis and treatment.
    */
   @Post('medical-records')
+  @RouteConfig({
+    message: 'Create medical record (Veterinarian only)',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create medical record' })
   @ApiResponse({
     status: 201,
@@ -66,6 +76,12 @@ export class MedicalRecordController {
    * Retrieves complete medical record by ID.
    */
   @Get('medical-records/:id')
+  @RouteConfig({
+    message: 'Get medical record by ID',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get medical record by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -76,8 +92,9 @@ export class MedicalRecordController {
   @ApiResponse({ status: 404, description: 'Medical record not found' })
   async getMedicalRecordById(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<MedicalRecordResponseDto> {
-    return this.medicalRecordService.getMedicalRecordById(id);
+    return this.medicalRecordService.getMedicalRecordById(id, user);
   }
 
   /**
@@ -85,6 +102,12 @@ export class MedicalRecordController {
    * Retrieves complete medical history for a pet.
    */
   @Get('medical-records/pet/:petId')
+  @RouteConfig({
+    message: 'Get medical history by pet',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get medical history by pet' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiResponse({
@@ -94,8 +117,9 @@ export class MedicalRecordController {
   })
   async getMedicalHistoryByPet(
     @Param('petId', ParseIntPipe) petId: number,
+    @GetUser() user: Account,
   ): Promise<MedicalRecordResponseDto[]> {
-    return this.medicalRecordService.getMedicalHistoryByPet(petId);
+    return this.medicalRecordService.getMedicalHistoryByPet(petId, user);
   }
 
   /**
@@ -103,6 +127,12 @@ export class MedicalRecordController {
    * Updates existing medical record.
    */
   @Put('medical-records/:id')
+  @RouteConfig({
+    message: 'Update medical record (Veterinarian only)',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update medical record' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -123,6 +153,12 @@ export class MedicalRecordController {
    * Gets records with overdue follow-ups.
    */
   @Get('medical-records/pet/:petId/overdue-followups')
+  @RouteConfig({
+    message: 'Get overdue follow-ups',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get overdue follow-ups' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiResponse({
@@ -145,6 +181,12 @@ export class MedicalRecordController {
    * Records vaccination with auto-calculated next due date.
    */
   @Post('pets/:petId/vaccinations')
+  @RouteConfig({
+    message: 'Add vaccination (Veterinarian only)',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Add vaccination' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiResponse({
@@ -166,6 +208,12 @@ export class MedicalRecordController {
    * Retrieves all vaccinations for a pet.
    */
   @Get('pets/:petId/vaccinations')
+  @RouteConfig({
+    message: 'Get vaccination history',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get vaccination history' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiResponse({
@@ -175,8 +223,9 @@ export class MedicalRecordController {
   })
   async getVaccinationHistory(
     @Param('petId', ParseIntPipe) petId: number,
+    @GetUser() user: Account,
   ): Promise<VaccinationResponseDto[]> {
-    return this.medicalRecordService.getVaccinationHistory(petId);
+    return this.medicalRecordService.getVaccinationHistory(petId, user);
   }
 
   /**
@@ -184,6 +233,12 @@ export class MedicalRecordController {
    * Gets vaccinations due within specified days.
    */
   @Get('pets/:petId/vaccinations/upcoming')
+  @RouteConfig({
+    message: 'Get upcoming vaccinations',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get upcoming vaccinations' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiQuery({
@@ -200,8 +255,13 @@ export class MedicalRecordController {
   async getUpcomingVaccinations(
     @Param('petId', ParseIntPipe) petId: number,
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) daysAhead: number,
+    @GetUser() user: Account,
   ): Promise<VaccinationResponseDto[]> {
-    return this.medicalRecordService.getUpcomingVaccinations(petId, daysAhead);
+    return this.medicalRecordService.getUpcomingVaccinations(
+      petId,
+      daysAhead,
+      user,
+    );
   }
 
   /**
@@ -209,6 +269,12 @@ export class MedicalRecordController {
    * Gets overdue vaccinations for a pet.
    */
   @Get('pets/:petId/vaccinations/overdue')
+  @RouteConfig({
+    message: 'Get overdue vaccinations',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get overdue vaccinations' })
   @ApiParam({ name: 'petId', type: Number })
   @ApiResponse({
@@ -218,7 +284,8 @@ export class MedicalRecordController {
   })
   async getOverdueVaccinations(
     @Param('petId', ParseIntPipe) petId: number,
+    @GetUser() user: Account,
   ): Promise<VaccinationResponseDto[]> {
-    return this.medicalRecordService.getOverdueVaccinations(petId);
+    return this.medicalRecordService.getOverdueVaccinations(petId, user);
   }
 }

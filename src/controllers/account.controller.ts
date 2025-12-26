@@ -24,7 +24,7 @@ import {
   ChangePasswordDto,
 } from '../dto/account';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { Account } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
 import { GetUser } from 'src/middleware/decorators/user.decorator';
@@ -71,8 +71,8 @@ export class AccountController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'User logout' })
   @ApiResponse({ status: 200 })
-  async logout(@Body() body: { token?: string }): Promise<{ message: string }> {
-    await this.authService.logout(body.token || '');
+  logout(): { message: string } {
+    this.authService.logout();
     return { message: 'Logout successful' };
   }
 
@@ -102,15 +102,20 @@ export class AccountController {
    * GET /api/auth/account/:id
    */
   @Get('account/:id')
-  @RouteConfig({ message: 'Get account by ID', requiresAuth: true })
+  @RouteConfig({
+    message: 'Get account by ID',
+    requiresAuth: true,
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get account by ID' })
   @ApiResponse({ status: 200, type: AccountResponseDto })
   @ApiResponse({ status: 404, description: 'Account not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async getAccountById(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<Account> {
-    return this.accountService.getAccountById(id);
+    return this.accountService.getAccountById(id, user);
   }
 
   /**
@@ -122,10 +127,12 @@ export class AccountController {
   @ApiOperation({ summary: 'Get account with profile (PetOwner or Employee)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'Account not found' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async getFullProfile(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<{ account: Account; profile: PetOwner | Employee | null }> {
-    return this.accountService.getFullProfile(id);
+    return this.accountService.getFullProfile(id, user);
   }
 
   /**
@@ -139,14 +146,17 @@ export class AccountController {
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
   @ApiResponse({ status: 400, description: 'Invalid password' })
   @ApiResponse({ status: 401, description: 'Old password incorrect' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
   async changePassword(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ChangePasswordDto,
+    @GetUser() user: Account,
   ): Promise<{ message: string }> {
     await this.accountService.changePassword(
       id,
       dto.oldPassword,
       dto.newPassword,
+      user,
     );
     return { message: 'Password changed successfully' };
   }
@@ -155,7 +165,11 @@ export class AccountController {
    * PUT /api/auth/account/:id/activate
    */
   @Put('account/:id/activate')
-  @RouteConfig({ message: 'Activate account', requiresAuth: true })
+  @RouteConfig({
+    message: 'Activate account (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Activate an account' })
   @ApiResponse({ status: 200, type: AccountResponseDto })
@@ -170,7 +184,11 @@ export class AccountController {
    * PUT /api/auth/account/:id/deactivate
    */
   @Put('account/:id/deactivate')
-  @RouteConfig({ message: 'Deactivate account', requiresAuth: true })
+  @RouteConfig({
+    message: 'Deactivate account (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deactivate an account' })
   @ApiResponse({ status: 200, type: AccountResponseDto })

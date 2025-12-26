@@ -123,7 +123,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
 
     // Manager
     const managerRepo = queryRunner.manager.getRepository(Manager);
-    const manager = await managerRepo.save({
+    await managerRepo.save({
       accountId: accounts[0].accountId,
       fullName: 'Nguyễn Văn Quản Lý',
       phoneNumber: '0901234567',
@@ -190,7 +190,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
 
     // Receptionist
     const receptionistRepo = queryRunner.manager.getRepository(Receptionist);
-    const receptionist = await receptionistRepo.save({
+    await receptionistRepo.save({
       accountId: accounts[5].accountId,
       fullName: 'Nguyễn Thị Mai',
       phoneNumber: '0906789012',

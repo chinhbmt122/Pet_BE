@@ -6,7 +6,9 @@ import { Payment } from '../../../src/entities/payment.entity';
 import { PaymentGatewayArchive } from '../../../src/entities/payment-gateway-archive.entity';
 import { Repository } from 'typeorm';
 import { Appointment } from 'src/entities/appointment.entity';
+import { PetOwner } from 'src/entities/pet-owner.entity';
 import { VNPayService } from 'src/services/vnpay.service';
+import { InvoiceService } from 'src/services/invoice.service';
 
 describe('PaymentService', () => {
   let service: PaymentService;
@@ -21,6 +23,10 @@ describe('PaymentService', () => {
         {
           provide: VNPayService,
           useValue: {}, // TODO: Mock this
+        },
+        {
+          provide: InvoiceService,
+          useValue: {}, // minimal mock for DI
         },
         {
           provide: getRepositoryToken(Invoice),
@@ -51,6 +57,15 @@ describe('PaymentService', () => {
         },
         {
           provide: getRepositoryToken(Appointment),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(PetOwner),
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),

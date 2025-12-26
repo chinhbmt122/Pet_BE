@@ -8,11 +8,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Appointment } from '../entities/appointment.entity';
+import { PetOwner } from '../entities/pet-owner.entity';
 import {
   CreateInvoiceDto,
   InvoiceResponseDto,
   UpdateInvoiceDto,
 } from '../dto/invoice';
+import { UserType } from '../entities/account.entity';
 
 /**
  * InvoiceService (Active Record Pattern)
@@ -27,6 +29,8 @@ export class InvoiceService {
     private readonly invoiceRepository: Repository<Invoice>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(PetOwner)
+    private readonly petOwnerRepository: Repository<PetOwner>,
   ) {}
 
   /**
@@ -155,8 +159,12 @@ export class InvoiceService {
 
   /**
    * Gets invoice by ID
+   * If PET_OWNER, validates they own the related pet
    */
-  async getInvoiceById(invoiceId: number): Promise<InvoiceResponseDto> {
+  async getInvoiceById(
+    invoiceId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
     });
@@ -164,20 +172,58 @@ export class InvoiceService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
+    // If PET_OWNER, validate ownership via appointment → pet → owner
+    if (user && user.userType === UserType.PET_OWNER) {
+      const appointment = await this.appointmentRepository.findOne({
+        where: { appointmentId: entity.appointmentId },
+        relations: ['pet'],
+      });
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (
+        !petOwner ||
+        !appointment ||
+        appointment.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      }
+    }
+
     return InvoiceResponseDto.fromEntity(entity);
   }
 
   /**
    * Gets invoice by invoice number
+   * If PET_OWNER, validates they own the related pet
    */
-  async getInvoiceByNumber(invoiceNumber: string): Promise<InvoiceResponseDto> {
+  async getInvoiceByNumber(
+    invoiceNumber: string,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceNumber },
+      relations: ['appointment', 'appointment.pet'],
     });
     if (!entity) {
       throw new NotFoundException(
         `Invoice with number ${invoiceNumber} not found`,
       );
+    }
+
+    // If PET_OWNER, validate they own the pet
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (
+        !petOwner ||
+        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(
+          `Invoice with number ${invoiceNumber} not found`,
+        );
+      }
     }
 
     return InvoiceResponseDto.fromEntity(entity);
@@ -203,12 +249,62 @@ export class InvoiceService {
 
   /**
    * Gets all invoices with optional filters
+   * If PET_OWNER, returns only their invoices (via appointment → pet → owner)
    */
-  async getAllInvoices(filters?: {
-    status?: string;
-    startDate?: string;
-    endDate?: string;
-  }): Promise<InvoiceResponseDto[]> {
+  async getAllInvoices(
+    user?: { accountId: number; userType: UserType },
+    filters?: {
+      status?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+  ): Promise<InvoiceResponseDto[]> {
+    // If PET_OWNER, filter to only their own invoices
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+        relations: ['pets'],
+      });
+      if (!petOwner || !petOwner.pets?.length) {
+        return [];
+      }
+      const petIds = petOwner.pets.map((pet) => pet.petId);
+
+      // Find all appointments for these pets
+      const appointments = await this.appointmentRepository.find({
+        where: petIds.map((id) => ({ petId: id })),
+      });
+      if (!appointments.length) {
+        return [];
+      }
+      const appointmentIds = appointments.map((a) => a.appointmentId);
+
+      // Build query with filters
+      const qb = this.invoiceRepository
+        .createQueryBuilder('invoice')
+        .where('invoice.appointmentId IN (:...appointmentIds)', {
+          appointmentIds,
+        });
+
+      if (filters?.status) {
+        qb.andWhere('invoice.status = :status', { status: filters.status });
+      }
+      if (filters?.startDate) {
+        qb.andWhere('invoice.issueDate >= :startDate', {
+          startDate: new Date(filters.startDate),
+        });
+      }
+      if (filters?.endDate) {
+        qb.andWhere('invoice.issueDate <= :endDate', {
+          endDate: new Date(filters.endDate),
+        });
+      }
+
+      const entities = await qb.orderBy('invoice.issueDate', 'DESC').getMany();
+      return InvoiceResponseDto.fromEntityList(entities);
+    }
+
+    // Staff sees all with filters
     const queryBuilder = this.invoiceRepository.createQueryBuilder('invoice');
 
     if (filters?.status) {
@@ -216,13 +312,11 @@ export class InvoiceService {
         status: filters.status,
       });
     }
-
     if (filters?.startDate) {
       queryBuilder.andWhere('invoice.issueDate >= :startDate', {
         startDate: new Date(filters.startDate),
       });
     }
-
     if (filters?.endDate) {
       queryBuilder.andWhere('invoice.issueDate <= :endDate', {
         endDate: new Date(filters.endDate),
@@ -238,8 +332,44 @@ export class InvoiceService {
 
   /**
    * Gets invoices by status
+   * If PET_OWNER, returns only their invoices with that status
    */
-  async getInvoicesByStatus(status: string): Promise<InvoiceResponseDto[]> {
+  async getInvoicesByStatus(
+    status: string,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto[]> {
+    // If PET_OWNER, filter to only their own invoices
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+        relations: ['pets'],
+      });
+      if (!petOwner || !petOwner.pets?.length) {
+        return [];
+      }
+      const petIds = petOwner.pets.map((pet) => pet.petId);
+
+      const appointments = await this.appointmentRepository.find({
+        where: petIds.map((id) => ({ petId: id })),
+      });
+      if (!appointments.length) {
+        return [];
+      }
+      const appointmentIds = appointments.map((a) => a.appointmentId);
+
+      const entities = await this.invoiceRepository
+        .createQueryBuilder('invoice')
+        .where('invoice.appointmentId IN (:...appointmentIds)', {
+          appointmentIds,
+        })
+        .andWhere('invoice.status = :status', { status })
+        .orderBy('invoice.issueDate', 'DESC')
+        .getMany();
+
+      return InvoiceResponseDto.fromEntityList(entities);
+    }
+
+    // Staff sees all
     const entities = await this.invoiceRepository.find({
       where: { status: status as InvoiceStatus },
       order: { issueDate: 'DESC' },
@@ -303,13 +433,31 @@ export class InvoiceService {
 
   /**
    * Marks invoice as processing (online payment in progress)
+   * If PET_OWNER, validates they own the related pet
    */
-  async markAsProcessing(invoiceId: number): Promise<InvoiceResponseDto> {
+  async markAsProcessing(
+    invoiceId: number,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
+      relations: ['appointment', 'appointment.pet'],
     });
     if (!entity) {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+    }
+
+    // If PET_OWNER, validate they own the pet
+    if (user && user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (
+        !petOwner ||
+        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      }
     }
 
     // Use entity business method

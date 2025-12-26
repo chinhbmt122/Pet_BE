@@ -15,6 +15,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { InvoiceService } from '../services/invoice.service';
 import {
@@ -22,6 +23,9 @@ import {
   UpdateInvoiceDto,
   InvoiceResponseDto,
 } from '../dto/invoice';
+import { RouteConfig } from '../middleware/decorators/route.decorator';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * InvoiceController
@@ -39,6 +43,12 @@ export class InvoiceController {
   // ============================================
 
   @Post()
+  @RouteConfig({
+    message: 'Create new invoice',
+    requiresAuth: true,
+    roles: [UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create new invoice for appointment' })
   @ApiResponse({
     status: 201,
@@ -57,6 +67,12 @@ export class InvoiceController {
   }
 
   @Get()
+  @RouteConfig({
+    message: 'Get all invoices',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all invoices with optional filters' })
   @ApiQuery({
     name: 'status',
@@ -71,14 +87,25 @@ export class InvoiceController {
     type: [InvoiceResponseDto],
   })
   async getAllInvoices(
+    @GetUser() user: Account,
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<InvoiceResponseDto[]> {
-    return this.invoiceService.getAllInvoices({ status, startDate, endDate });
+    return this.invoiceService.getAllInvoices(user, {
+      status,
+      startDate,
+      endDate,
+    });
   }
 
   @Get('overdue')
+  @RouteConfig({
+    message: 'Get overdue invoices',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get overdue invoices (unpaid after 30 days)' })
   @ApiResponse({
     status: 200,
@@ -90,6 +117,12 @@ export class InvoiceController {
   }
 
   @Get('by-status')
+  @RouteConfig({
+    message: 'Get invoices by status',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get invoices by status' })
   @ApiQuery({
     name: 'status',
@@ -102,11 +135,18 @@ export class InvoiceController {
   })
   async getInvoicesByStatus(
     @Query('status') status: string,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto[]> {
-    return this.invoiceService.getInvoicesByStatus(status);
+    return this.invoiceService.getInvoicesByStatus(status, user);
   }
 
   @Get(':id')
+  @RouteConfig({
+    message: 'Get invoice by ID',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get invoice by ID' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -117,11 +157,18 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceById(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    return this.invoiceService.getInvoiceById(id);
+    return this.invoiceService.getInvoiceById(id, user);
   }
 
   @Get('number/:invoiceNumber')
+  @RouteConfig({
+    message: 'Get invoice by number',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get invoice by invoice number' })
   @ApiParam({ name: 'invoiceNumber', type: String })
   @ApiResponse({
@@ -132,11 +179,18 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceByNumber(
     @Param('invoiceNumber') invoiceNumber: string,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    return this.invoiceService.getInvoiceByNumber(invoiceNumber);
+    return this.invoiceService.getInvoiceByNumber(invoiceNumber, user);
   }
 
   @Get('appointment/:appointmentId')
+  @RouteConfig({
+    message: 'Get invoice by appointment',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get invoice by appointment ID' })
   @ApiParam({ name: 'appointmentId', type: Number })
   @ApiResponse({
@@ -152,6 +206,12 @@ export class InvoiceController {
   }
 
   @Put(':id')
+  @RouteConfig({
+    message: 'Update invoice',
+    requiresAuth: true,
+    roles: [UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update invoice details (discount, tax, notes)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -168,6 +228,12 @@ export class InvoiceController {
   }
 
   @Delete(':id')
+  @RouteConfig({
+    message: 'Delete invoice (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete invoice (only if not paid)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({ status: 200, description: 'Invoice deleted' })
@@ -185,6 +251,12 @@ export class InvoiceController {
   // ============================================
 
   @Put(':id/mark-paid')
+  @RouteConfig({
+    message: 'Mark invoice as paid',
+    requiresAuth: true,
+    roles: [UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark invoice as paid' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -201,6 +273,12 @@ export class InvoiceController {
   }
 
   @Put(':id/mark-failed')
+  @RouteConfig({
+    message: 'Mark invoice as failed',
+    requiresAuth: true,
+    roles: [UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark invoice payment as failed' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -220,6 +298,12 @@ export class InvoiceController {
   }
 
   @Put(':id/mark-processing')
+  @RouteConfig({
+    message: 'Mark invoice as processing',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark invoice as processing (online payment)' })
   @ApiParam({ name: 'id', type: Number })
   @ApiResponse({
@@ -234,7 +318,8 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async markAsProcessing(
     @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    return this.invoiceService.markAsProcessing(id);
+    return this.invoiceService.markAsProcessing(id, user);
   }
 }

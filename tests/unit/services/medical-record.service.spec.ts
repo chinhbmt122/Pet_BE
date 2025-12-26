@@ -8,6 +8,7 @@ import { VaccineType } from '../../../src/entities/vaccine-type.entity';
 import { VaccinationHistory } from '../../../src/entities/vaccination-history.entity';
 import { Pet } from '../../../src/entities/pet.entity';
 import { Veterinarian } from '../../../src/entities/veterinarian.entity';
+import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { CreateMedicalRecordDto } from '../../../src/dto/medical-record/create-medical-record.dto';
 import { CreateVaccinationDto } from '../../../src/dto/vaccination/create-vaccination.dto';
 
@@ -102,6 +103,12 @@ describe('MedicalRecordService', () => {
         },
         {
           provide: getRepositoryToken(Veterinarian),
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(PetOwner),
           useValue: {
             findOne: jest.fn(),
           },
