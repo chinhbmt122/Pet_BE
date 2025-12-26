@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from '../services/auth.service';
 import { Account } from '../entities/account.entity';
@@ -22,12 +22,12 @@ import { Employee } from '../entities/employee.entity';
       global: true,
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService): JwtModuleOptions => ({
         secret:
           configService.get<string>('JWT_SECRET') ||
           'your-secret-key-change-in-production',
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ?? '24h') as string | number,
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '24h',
         },
       }),
     }),
