@@ -26,10 +26,38 @@ import { AuditLog } from '../../src/entities/audit-log.entity';
 // Ensure test env variables are loaded if available
 dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
 
+function sanitizeSchemaName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 50);
+}
+
+function makeUniqueTestSchema(): string {
+  const fromEnv = process.env.DB_SCHEMA;
+  if (fromEnv && fromEnv.trim()) {
+    const sanitized = sanitizeSchemaName(fromEnv.trim());
+    return sanitized || 'public';
+  }
+
+  // Create a unique schema per test file invocation.
+  // This prevents collisions for Postgres enum types when multiple suites
+  // run TypeORM synchronize/dropSchema against the same database.
+  const runPart =
+    process.env.GITHUB_RUN_ID || process.env.GITHUB_RUN_NUMBER || 'local';
+  const workerPart = process.env.JEST_WORKER_ID || '0';
+  const timePart = Date.now().toString(36);
+  const randPart = Math.random().toString(36).slice(2, 8);
+
+  return sanitizeSchemaName(`test_${runPart}_${workerPart}_${timePart}_${randPart}`);
+}
+
 export function getTestDatabaseConfig(): DataSourceOptions {
   if (process.env.DATABASE_TYPE === 'postgres') {
     const dbName = process.env.DB_NAME || 'pet_care_test_db';
     const host = process.env.DB_HOST || 'localhost';
+    const schema = makeUniqueTestSchema();
 
     // Safety guard: refuse to run destructive schema operations on non-test DBs
     if (
@@ -76,10 +104,16 @@ export function getTestDatabaseConfig(): DataSourceOptions {
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres123',
       database: dbName,
+      schema,
       entities: entitiesOrdered,
       synchronize: process.env.DB_SYNCHRONIZE === 'true',
       dropSchema: process.env.DB_DROP_SCHEMA === 'true',
       logging: process.env.DB_LOGGING === 'true',
+      // Ensure unqualified raw SQL (e.g. TRUNCATE TABLE "employees") resolves
+      // to the same schema where TypeORM created tables.
+      extra: {
+        options: `-c search_path=${schema},public`,
+      },
     } as DataSourceOptions;
   }
 

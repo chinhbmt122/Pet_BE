@@ -5,6 +5,9 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PetOwnerService } from '../../../src/services/pet-owner.service';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { Account } from '../../../src/entities/account.entity';
+import { Appointment } from '../../../src/entities/appointment.entity';
+import { Invoice } from '../../../src/entities/invoice.entity';
+import { Pet } from '../../../src/entities/pet.entity';
 import { AccountFactory } from '../../../src/factories/account.factory';
 import { PetOwnerFactory } from '../../../src/factories/pet-owner.factory';
 
@@ -55,6 +58,33 @@ describe('PetOwnerService', () => {
           provide: getRepositoryToken(Account),
           useValue: {
             findOne: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Appointment),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Invoice),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Pet),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
             save: jest.fn(),
             create: jest.fn(),
           },

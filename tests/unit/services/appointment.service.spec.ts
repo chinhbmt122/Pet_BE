@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Pet } from 'src/entities/pet.entity';
 import { Service } from 'src/entities/service.entity';
 import { Employee } from 'src/entities/employee.entity';
+import { PetOwner } from 'src/entities/pet-owner.entity';
 
 describe('AppointmentService', () => {
   let service: AppointmentService;
@@ -47,6 +48,16 @@ describe('AppointmentService', () => {
         },
         {
           provide: getRepositoryToken(Service),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(PetOwner),
           useValue: {
             findOne: jest.fn(),
             find: jest.fn(),

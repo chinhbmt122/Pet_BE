@@ -165,6 +165,8 @@ describe('Epic 1 Integration Tests - Account & Employee Domain', () => {
       ],
     }).compile();
 
+    module = moduleFixture;
+
     accountService = moduleFixture.get<AccountService>(AccountService);
     employeeService = moduleFixture.get<EmployeeService>(EmployeeService);
     authService = moduleFixture.get<AuthService>(AuthService);
@@ -194,7 +196,7 @@ describe('Epic 1 Integration Tests - Account & Employee Domain', () => {
   }, 30000);
 
   afterAll(async () => {
-    // Note: Integration tests don't close the module as they share DB with other tests
+    await module?.close();
   });
 
   beforeEach(async () => {

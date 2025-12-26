@@ -115,6 +115,9 @@ jobs:
           path: node_modules
           key: ${{ needs.setup.outputs.cache-key }}
 
+      - name: Wait for Postgres
+        run: npx wait-on tcp:5433
+
       - name: Run integration tests
         run: npm run test:integration
         env:
@@ -166,6 +169,9 @@ jobs:
         with:
           path: node_modules
           key: ${{ needs.setup.outputs.cache-key }}
+
+      - name: Wait for Postgres
+        run: npx wait-on tcp:5433
 
       - name: Run E2E tests
         run: npm run test:e2e
@@ -282,6 +288,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Wait for Postgres
+        run: npx wait-on tcp:5433
 
       - name: Generate coverage report
         run: npm run test:cov:all

@@ -36,8 +36,13 @@ The following environment variables are used in the CI pipeline:
 
 For local testing of the CI pipeline, you can use the existing scripts:
 
+Prerequisites:
+- Docker (Docker Desktop on Windows/macOS) installed and running if you use the `*:with-db` scripts.
+
 ```bash
-# Run all tests with database
+# Run tests with a temporary PostgreSQL test DB (recommended)
+# NOTE: Integration/E2E tests require Postgres on localhost:5433.
+# These scripts start/stop the DB using docker-compose.e2e.yml.
 npm run test:integration:with-db
 npm run test:e2e:with-db
 
@@ -49,8 +54,8 @@ npm run test:cov:all
 
 # Run individual test types
 npm run test                    # Unit tests only
-npm run test:integration        # Integration tests only
-npm run test:e2e                # E2E tests only
+npm run test:integration        # Integration tests only (expects DB already running)
+npm run test:e2e                # E2E tests only (expects DB already running)
 npm run test:cov               # Unit test coverage only
 ```
 

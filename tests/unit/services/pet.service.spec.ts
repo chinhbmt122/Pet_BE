@@ -5,6 +5,8 @@ import { NotFoundException } from '@nestjs/common';
 import { PetService } from '../../../src/services/pet.service';
 import { Pet } from '../../../src/entities/pet.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
+import { Appointment } from '../../../src/entities/appointment.entity';
+import { MedicalRecord } from '../../../src/entities/medical-record.entity';
 import { CreatePetDto } from '../../../src/dto/pet/create-pet.dto';
 
 describe('PetService', () => {
@@ -57,6 +59,24 @@ describe('PetService', () => {
           provide: getRepositoryToken(PetOwner),
           useValue: {
             findOne: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Appointment),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(MedicalRecord),
+          useValue: {
+            findOne: jest.fn(),
+            find: jest.fn(),
+            save: jest.fn(),
+            create: jest.fn(),
           },
         },
       ],
