@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,7 +20,8 @@ import {
 import { PetService } from '../services/pet.service';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * PetController
@@ -105,9 +105,8 @@ export class PetController {
   async registerPet(
     @Body() dto: CreatePetDto,
     @Query('ownerId', ParseIntPipe) ownerId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto> {
-    const user = req.user;
     return this.petService.registerPet(dto, ownerId, user);
   }
 
@@ -119,7 +118,12 @@ export class PetController {
   @RouteConfig({
     message: 'Get pet by ID',
     requiresAuth: true,
-    roles: [UserType.PET_OWNER, UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN],
+    roles: [
+      UserType.PET_OWNER,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.VETERINARIAN,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pet by ID' })
@@ -132,9 +136,8 @@ export class PetController {
   @ApiResponse({ status: 404, description: 'Pet not found' })
   async getPetById(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto> {
-    const user = req.user;
     return this.petService.getPetById(id, user);
   }
 
@@ -146,7 +149,12 @@ export class PetController {
   @RouteConfig({
     message: 'Get pets by owner',
     requiresAuth: true,
-    roles: [UserType.PET_OWNER, UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN],
+    roles: [
+      UserType.PET_OWNER,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.VETERINARIAN,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get pets by owner' })
@@ -158,9 +166,8 @@ export class PetController {
   })
   async getPetsByOwner(
     @Param('ownerId', ParseIntPipe) ownerId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto[]> {
-    const user = req.user;
     return this.petService.getPetsByOwner(ownerId, user);
   }
 
@@ -186,9 +193,8 @@ export class PetController {
   async updatePetInfo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePetDto,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetResponseDto> {
-    const user = req.user;
     return this.petService.updatePetInfo(id, dto, user);
   }
 

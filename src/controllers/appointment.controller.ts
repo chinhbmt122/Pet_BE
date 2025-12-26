@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,7 +21,8 @@ import { AppointmentService } from '../services/appointment.service';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * AppointmentController
@@ -60,9 +60,8 @@ export class AppointmentController {
   @ApiResponse({ status: 409, description: 'Schedule conflict' })
   async createAppointment(
     @Body() dto: CreateAppointmentDto,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<Appointment> {
-    const user = req.user;
     return this.appointmentService.createAppointment(dto, user);
   }
 
@@ -84,13 +83,13 @@ export class AppointmentController {
     type: [Appointment],
   })
   async getAllAppointments(
-    @Req() req: any,
+    @GetUser() user: Account,
     @Query('status') status?: AppointmentStatus,
     @Query('petId', new ParseIntPipe({ optional: true })) petId?: number,
-    @Query('employeeId', new ParseIntPipe({ optional: true })) employeeId?: number,
+    @Query('employeeId', new ParseIntPipe({ optional: true }))
+    employeeId?: number,
     @Query('date') date?: string,
   ): Promise<Appointment[]> {
-    const user = req.user;
     return this.appointmentService.getAllAppointments(user, {
       status,
       petId,
@@ -118,7 +117,8 @@ export class AppointmentController {
   async getAppointmentsByDateRange(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-    @Query('employeeId', new ParseIntPipe({ optional: true })) employeeId?: number,
+    @Query('employeeId', new ParseIntPipe({ optional: true }))
+    employeeId?: number,
   ): Promise<Appointment[]> {
     return this.appointmentService.getAppointmentsByDateRange(
       new Date(startDate),
@@ -151,7 +151,12 @@ export class AppointmentController {
   @RouteConfig({
     message: 'Get appointments by pet ID',
     requiresAuth: true,
-    roles: [UserType.PET_OWNER, UserType.VETERINARIAN, UserType.MANAGER, UserType.RECEPTIONIST],
+    roles: [
+      UserType.PET_OWNER,
+      UserType.VETERINARIAN,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments by pet ID' })
@@ -171,7 +176,12 @@ export class AppointmentController {
   @RouteConfig({
     message: 'Get appointments by employee ID',
     requiresAuth: true,
-    roles: [UserType.VETERINARIAN, UserType.CARE_STAFF, UserType.MANAGER, UserType.RECEPTIONIST],
+    roles: [
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments by employee ID' })
@@ -183,9 +193,8 @@ export class AppointmentController {
   })
   async getAppointmentsByEmployee(
     @Param('employeeId', ParseIntPipe) employeeId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<Appointment[]> {
-    const user = req.user;
     return this.appointmentService.getAppointmentsByEmployee(employeeId, user);
   }
 
@@ -193,7 +202,13 @@ export class AppointmentController {
   @RouteConfig({
     message: 'Get appointment by ID',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER, UserType.VETERINARIAN, UserType.CARE_STAFF],
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.PET_OWNER,
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointment by ID' })
@@ -206,9 +221,8 @@ export class AppointmentController {
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async getAppointmentById(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<Appointment> {
-    const user = req.user;
     return this.appointmentService.getAppointmentById(id, user);
   }
 
@@ -358,9 +372,8 @@ export class AppointmentController {
   async cancelAppointment(
     @Param('id', ParseIntPipe) id: number,
     @Body('reason') reason?: string,
-    @Req() req?: any,
+    @GetUser() user: Account,
   ): Promise<Appointment> {
-    const user = req?.user;
     return this.appointmentService.cancelAppointment(id, reason, user);
   }
 }

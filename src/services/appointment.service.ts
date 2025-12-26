@@ -223,14 +223,14 @@ export class AppointmentService {
         return [];
       }
       const petIds = petOwner.pets.map((pet) => pet.petId);
-      
+
       const qb = this.appointmentRepository
         .createQueryBuilder('appointment')
         .leftJoinAndSelect('appointment.pet', 'pet')
         .leftJoinAndSelect('appointment.employee', 'employee')
         .leftJoinAndSelect('appointment.service', 'service')
         .where('appointment.petId IN (:...petIds)', { petIds });
-      
+
       // Apply filters
       if (filters?.status) {
         qb.andWhere('appointment.status = :status', { status: filters.status });
@@ -239,12 +239,16 @@ export class AppointmentService {
         qb.andWhere('appointment.petId = :petId', { petId: filters.petId });
       }
       if (filters?.employeeId) {
-        qb.andWhere('appointment.employeeId = :employeeId', { employeeId: filters.employeeId });
+        qb.andWhere('appointment.employeeId = :employeeId', {
+          employeeId: filters.employeeId,
+        });
       }
       if (filters?.date) {
-        qb.andWhere('appointment.appointmentDate = :date', { date: filters.date });
+        qb.andWhere('appointment.appointmentDate = :date', {
+          date: filters.date,
+        });
       }
-      
+
       return qb
         .orderBy('appointment.appointmentDate', 'DESC')
         .addOrderBy('appointment.startTime', 'ASC')

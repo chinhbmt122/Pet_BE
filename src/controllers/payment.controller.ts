@@ -6,7 +6,6 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,7 +27,8 @@ import {
 } from '../dto/payment';
 import { InvoiceStatus } from '../entities/types/entity.types';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * PaymentController
@@ -88,9 +88,8 @@ export class PaymentController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceById(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    const user = req.user;
     return await this.paymentService.getInvoiceById(id, user);
   }
 
@@ -118,9 +117,8 @@ export class PaymentController {
   })
   async getInvoicesByStatus(
     @Query('status') status: string,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto[]> {
-    const user = req.user;
     return await this.paymentService.getInvoicesByStatus(status, user);
   }
 
@@ -195,9 +193,8 @@ export class PaymentController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async initiateOnlinePayment(
     @Body() dto: InitiateOnlinePaymentDto,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<{ paymentUrl: string; paymentId: number }> {
-    const user = req.user;
     return await this.paymentService.initiateOnlinePayment(dto, user);
   }
 
@@ -288,9 +285,8 @@ export class PaymentController {
   @ApiResponse({ status: 404, description: 'Payment not found' })
   async generateReceipt(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<any> {
-    const user = req.user;
     return await this.paymentService.generateReceipt(id, user);
   }
 

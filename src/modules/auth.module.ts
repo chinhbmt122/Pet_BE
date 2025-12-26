@@ -27,8 +27,7 @@ import { Employee } from '../entities/employee.entity';
           configService.get<string>('JWT_SECRET') ||
           'your-secret-key-change-in-production',
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ||
-            '24h') as any,
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN') ?? '24h',
         },
       }),
     }),

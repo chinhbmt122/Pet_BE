@@ -8,7 +8,6 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -29,7 +28,8 @@ import {
   VaccinationResponseDto,
 } from '../dto/vaccination';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * MedicalRecordController
@@ -92,9 +92,8 @@ export class MedicalRecordController {
   @ApiResponse({ status: 404, description: 'Medical record not found' })
   async getMedicalRecordById(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<MedicalRecordResponseDto> {
-    const user = req.user;
     return this.medicalRecordService.getMedicalRecordById(id, user);
   }
 
@@ -118,9 +117,8 @@ export class MedicalRecordController {
   })
   async getMedicalHistoryByPet(
     @Param('petId', ParseIntPipe) petId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<MedicalRecordResponseDto[]> {
-    const user = req.user;
     return this.medicalRecordService.getMedicalHistoryByPet(petId, user);
   }
 
@@ -225,9 +223,8 @@ export class MedicalRecordController {
   })
   async getVaccinationHistory(
     @Param('petId', ParseIntPipe) petId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<VaccinationResponseDto[]> {
-    const user = req.user;
     return this.medicalRecordService.getVaccinationHistory(petId, user);
   }
 
@@ -258,10 +255,13 @@ export class MedicalRecordController {
   async getUpcomingVaccinations(
     @Param('petId', ParseIntPipe) petId: number,
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) daysAhead: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<VaccinationResponseDto[]> {
-    const user = req.user;
-    return this.medicalRecordService.getUpcomingVaccinations(petId, daysAhead, user);
+    return this.medicalRecordService.getUpcomingVaccinations(
+      petId,
+      daysAhead,
+      user,
+    );
   }
 
   /**
@@ -284,9 +284,8 @@ export class MedicalRecordController {
   })
   async getOverdueVaccinations(
     @Param('petId', ParseIntPipe) petId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<VaccinationResponseDto[]> {
-    const user = req.user;
     return this.medicalRecordService.getOverdueVaccinations(petId, user);
   }
 }

@@ -152,7 +152,9 @@ export class MedicalRecordService {
         where: { accountId: user.accountId },
       });
       if (!petOwner || entity.petId !== undefined) {
-        const pet = await this.petRepository.findOne({ where: { petId: entity.petId } });
+        const pet = await this.petRepository.findOne({
+          where: { petId: entity.petId },
+        });
         if (!pet || pet.ownerId !== petOwner?.petOwnerId) {
           throw new NotFoundException(
             `Medical record with ID ${recordId} not found`,

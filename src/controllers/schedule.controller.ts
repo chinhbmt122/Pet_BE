@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,7 +24,8 @@ import {
   WorkScheduleResponseDto,
 } from '../dto/schedule';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * ScheduleController
@@ -70,7 +70,12 @@ export class ScheduleController {
   @RouteConfig({
     message: 'Get schedule by ID',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.VETERINARIAN, UserType.CARE_STAFF, UserType.RECEPTIONIST],
+    roles: [
+      UserType.MANAGER,
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+      UserType.RECEPTIONIST,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get schedule by ID' })
@@ -143,7 +148,12 @@ export class ScheduleController {
   @RouteConfig({
     message: 'Get schedules by employee',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN, UserType.CARE_STAFF],
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get schedules by employee' })
@@ -159,9 +169,8 @@ export class ScheduleController {
     @Param('employeeId', ParseIntPipe) employeeId: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Req() req?: any,
+    @GetUser() user: Account,
   ): Promise<WorkScheduleResponseDto[]> {
-    const user = req?.user;
     return this.scheduleService.getSchedulesByEmployee(
       employeeId,
       startDate ? new Date(startDate) : undefined,

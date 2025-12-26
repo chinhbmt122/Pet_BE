@@ -17,7 +17,9 @@ import { AppointmentFactory } from '../factories/appointment.factory';
  * Coordinates with ScheduleManager for availability and NotificationService for confirmations.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, Pet, Employee, Service, PetOwner])],
+  imports: [
+    TypeOrmModule.forFeature([Appointment, Pet, Employee, Service, PetOwner]),
+  ],
   controllers: [AppointmentController],
   providers: [AppointmentService, AppointmentFactory],
   exports: [AppointmentService, AppointmentFactory],

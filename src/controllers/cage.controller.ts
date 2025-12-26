@@ -97,7 +97,12 @@ export class CageController {
   @RouteConfig({
     message: 'Get cage by ID',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.CARE_STAFF,
+      UserType.VETERINARIAN,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get cage by ID' })
@@ -304,7 +309,12 @@ export class CageController {
   @RouteConfig({
     message: 'Get current cage assignment',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.CARE_STAFF,
+      UserType.VETERINARIAN,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current active assignment for a cage' })

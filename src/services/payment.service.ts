@@ -11,7 +11,10 @@ import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entit
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { UserType } from '../entities/account.entity';
-import type { IPaymentGatewayService } from './interfaces/payment-gateway.interface';
+import type {
+  IPaymentGatewayService,
+  PaymentCallbackData,
+} from './interfaces/payment-gateway.interface';
 import { CreateInvoiceDto, InvoiceResponseDto } from '../dto/invoice';
 import {
   CreatePaymentDto,
@@ -23,7 +26,6 @@ import {
 } from '../dto/payment';
 import { VNPayService } from './vnpay.service';
 import { InvoiceService } from './invoice.service';
-
 
 /**
  * PaymentService (PaymentManager)
@@ -177,8 +179,13 @@ export class PaymentService {
       const petOwner = await this.petOwnerRepository.findOne({
         where: { accountId: user.accountId },
       });
-      if (!petOwner || invoice.appointment?.pet?.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
+      if (
+        !petOwner ||
+        invoice.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(
+          `Invoice with ID ${dto.invoiceId} not found`,
+        );
       }
     }
 
@@ -235,9 +242,10 @@ export class PaymentService {
   ): Promise<{ success: boolean; message: string }> {
     // 1. Verify callback signature
 
+    const callbackData: PaymentCallbackData = { ...callbackDto };
     const verification = await this.getGateway(
       this.DEFAULT_GATEWAY,
-    ).verifyCallback(callbackDto as any);
+    ).verifyCallback(callbackData);
 
     if (!verification.isValid) {
       throw new BadRequestException('Invalid callback signature');
@@ -430,7 +438,10 @@ export class PaymentService {
       const petOwner = await this.petOwnerRepository.findOne({
         where: { accountId: user.accountId },
       });
-      if (!petOwner || payment.invoice?.appointment?.pet?.ownerId !== petOwner.petOwnerId) {
+      if (
+        !petOwner ||
+        payment.invoice?.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
         throw new NotFoundException(`Payment with ID ${paymentId} not found`);
       }
     }

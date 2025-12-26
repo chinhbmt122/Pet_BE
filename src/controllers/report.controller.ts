@@ -1,5 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ReportService } from '../services/report.service';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { UserType } from '../entities/account.entity';

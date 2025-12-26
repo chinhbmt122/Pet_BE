@@ -8,7 +8,6 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -72,8 +71,8 @@ export class AccountController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'User logout' })
   @ApiResponse({ status: 200 })
-  async logout(@Body() body: { token?: string }): Promise<{ message: string }> {
-    await this.authService.logout(body.token || '');
+  logout(): { message: string } {
+    this.authService.logout();
     return { message: 'Logout successful' };
   }
 
@@ -114,9 +113,8 @@ export class AccountController {
   @ApiResponse({ status: 403, description: 'Access denied' })
   async getAccountById(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<Account> {
-    const user = req.user;
     return this.accountService.getAccountById(id, user);
   }
 
@@ -132,9 +130,8 @@ export class AccountController {
   @ApiResponse({ status: 403, description: 'Access denied' })
   async getFullProfile(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<{ account: Account; profile: PetOwner | Employee | null }> {
-    const user = req.user;
     return this.accountService.getFullProfile(id, user);
   }
 
@@ -153,9 +150,8 @@ export class AccountController {
   async changePassword(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ChangePasswordDto,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<{ message: string }> {
-    const user = req.user;
     await this.accountService.changePassword(
       id,
       dto.oldPassword,

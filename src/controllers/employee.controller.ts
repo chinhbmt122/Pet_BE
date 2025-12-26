@@ -10,7 +10,6 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,6 +27,8 @@ import {
 } from '../dto/employee';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { UserType } from '../entities/types/entity.types';
+import { Account } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * EmployeeController
@@ -59,10 +60,10 @@ export class EmployeeController {
   @ApiResponse({ status: 201, type: EmployeeResponseDto })
   @ApiResponse({ status: 403, description: 'Forbidden - Manager only' })
   async create(
-    @Req() request: any,
+    @GetUser() user: Account,
     @Body() dto: CreateEmployeeDto,
   ): Promise<Employee> {
-    const callerAccountId = request.user.accountId;
+    const callerAccountId = user.accountId;
     return this.employeeService.create(callerAccountId, dto);
   }
 
@@ -159,7 +160,12 @@ export class EmployeeController {
   @RouteConfig({
     message: 'Get employee by ID',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.VETERINARIAN, UserType.CARE_STAFF],
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get employee by ID' })
@@ -185,11 +191,11 @@ export class EmployeeController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Not found' })
   async update(
-    @Req() request: any,
+    @GetUser() user: Account,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEmployeeDto,
   ): Promise<Employee> {
-    const callerAccountId = request.user.accountId;
+    const callerAccountId = user.accountId;
     return this.employeeService.update(callerAccountId, id, dto);
   }
 

@@ -201,7 +201,11 @@ export class ScheduleService {
     user?: { accountId: number; userType: UserType },
   ): Promise<WorkScheduleResponseDto[]> {
     // If VET or CARE_STAFF, validate self-access
-    if (user && (user.userType === UserType.VETERINARIAN || user.userType === UserType.CARE_STAFF)) {
+    if (
+      user &&
+      (user.userType === UserType.VETERINARIAN ||
+        user.userType === UserType.CARE_STAFF)
+    ) {
       // Get the employee record for the requesting user
       const userEmployee = await this.employeeRepository.findOne({
         where: { accountId: user.accountId },

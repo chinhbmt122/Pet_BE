@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NestInterceptor,
@@ -7,10 +5,14 @@ import {
   CallHandler,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ApiResponseDto } from 'src/dto/api-response.dto';
-import { RouteConfig } from '../decorators/route.decorator';
+import {
+  RouteConfig as RouteConfigDecorator,
+  type RouteConfig as RouteConfigType,
+} from '../decorators/route.decorator';
 
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<
@@ -23,18 +25,19 @@ export class ResponseInterceptor<T> implements NestInterceptor<
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<ApiResponseDto<T>> {
-    return next.handle().pipe(
-      map((data) => {
-        const response = context.switchToHttp().getResponse();
-        const routeConfig = this.reflector.get(
-          RouteConfig,
+    return (next.handle() as Observable<T>).pipe(
+      map((data: T) => {
+        const response = context.switchToHttp().getResponse<Response>();
+        const request = context.switchToHttp().getRequest<Request>();
+        const routeConfig = this.reflector.get<RouteConfigType | undefined>(
+          RouteConfigDecorator,
           context.getHandler(),
         );
         return new ApiResponseDto<T>(
           response.statusCode,
           routeConfig?.message ?? '',
           data,
-          response.req.url,
+          request.originalUrl ?? request.url,
         );
       }),
     );

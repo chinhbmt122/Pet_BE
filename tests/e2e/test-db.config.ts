@@ -41,16 +41,10 @@ function makeUniqueTestSchema(): string {
     return sanitized || 'public';
   }
 
-  // Create a unique schema per test file invocation.
-  // This prevents collisions for Postgres enum types when multiple suites
-  // run TypeORM synchronize/dropSchema against the same database.
-  const runPart =
-    process.env.GITHUB_RUN_ID || process.env.GITHUB_RUN_NUMBER || 'local';
-  const workerPart = process.env.JEST_WORKER_ID || '0';
-  const timePart = Date.now().toString(36);
-  const randPart = Math.random().toString(36).slice(2, 8);
-
-  return sanitizeSchemaName(`test_${runPart}_${workerPart}_${timePart}_${randPart}`);
+  // Default to the built-in schema.
+  // TypeORM does not create schemas automatically, so randomly-generated schemas
+  // will fail in CI unless explicitly provisioned.
+  return 'public';
 }
 
 export function getTestDatabaseConfig(): DataSourceOptions {

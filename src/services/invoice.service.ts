@@ -181,7 +181,11 @@ export class InvoiceService {
       const petOwner = await this.petOwnerRepository.findOne({
         where: { accountId: user.accountId },
       });
-      if (!petOwner || !appointment || appointment.pet?.ownerId !== petOwner.petOwnerId) {
+      if (
+        !petOwner ||
+        !appointment ||
+        appointment.pet?.ownerId !== petOwner.petOwnerId
+      ) {
         throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
       }
     }
@@ -212,8 +216,13 @@ export class InvoiceService {
       const petOwner = await this.petOwnerRepository.findOne({
         where: { accountId: user.accountId },
       });
-      if (!petOwner || entity.appointment?.pet?.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(`Invoice with number ${invoiceNumber} not found`);
+      if (
+        !petOwner ||
+        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
+        throw new NotFoundException(
+          `Invoice with number ${invoiceNumber} not found`,
+        );
       }
     }
 
@@ -273,16 +282,22 @@ export class InvoiceService {
       // Build query with filters
       const qb = this.invoiceRepository
         .createQueryBuilder('invoice')
-        .where('invoice.appointmentId IN (:...appointmentIds)', { appointmentIds });
+        .where('invoice.appointmentId IN (:...appointmentIds)', {
+          appointmentIds,
+        });
 
       if (filters?.status) {
         qb.andWhere('invoice.status = :status', { status: filters.status });
       }
       if (filters?.startDate) {
-        qb.andWhere('invoice.issueDate >= :startDate', { startDate: new Date(filters.startDate) });
+        qb.andWhere('invoice.issueDate >= :startDate', {
+          startDate: new Date(filters.startDate),
+        });
       }
       if (filters?.endDate) {
-        qb.andWhere('invoice.issueDate <= :endDate', { endDate: new Date(filters.endDate) });
+        qb.andWhere('invoice.issueDate <= :endDate', {
+          endDate: new Date(filters.endDate),
+        });
       }
 
       const entities = await qb.orderBy('invoice.issueDate', 'DESC').getMany();
@@ -293,16 +308,24 @@ export class InvoiceService {
     const queryBuilder = this.invoiceRepository.createQueryBuilder('invoice');
 
     if (filters?.status) {
-      queryBuilder.andWhere('invoice.status = :status', { status: filters.status });
+      queryBuilder.andWhere('invoice.status = :status', {
+        status: filters.status,
+      });
     }
     if (filters?.startDate) {
-      queryBuilder.andWhere('invoice.issueDate >= :startDate', { startDate: new Date(filters.startDate) });
+      queryBuilder.andWhere('invoice.issueDate >= :startDate', {
+        startDate: new Date(filters.startDate),
+      });
     }
     if (filters?.endDate) {
-      queryBuilder.andWhere('invoice.issueDate <= :endDate', { endDate: new Date(filters.endDate) });
+      queryBuilder.andWhere('invoice.issueDate <= :endDate', {
+        endDate: new Date(filters.endDate),
+      });
     }
 
-    const entities = await queryBuilder.orderBy('invoice.issueDate', 'DESC').getMany();
+    const entities = await queryBuilder
+      .orderBy('invoice.issueDate', 'DESC')
+      .getMany();
 
     return InvoiceResponseDto.fromEntityList(entities);
   }
@@ -336,7 +359,9 @@ export class InvoiceService {
 
       const entities = await this.invoiceRepository
         .createQueryBuilder('invoice')
-        .where('invoice.appointmentId IN (:...appointmentIds)', { appointmentIds })
+        .where('invoice.appointmentId IN (:...appointmentIds)', {
+          appointmentIds,
+        })
         .andWhere('invoice.status = :status', { status })
         .orderBy('invoice.issueDate', 'DESC')
         .getMany();
@@ -427,7 +452,10 @@ export class InvoiceService {
       const petOwner = await this.petOwnerRepository.findOne({
         where: { accountId: user.accountId },
       });
-      if (!petOwner || entity.appointment?.pet?.ownerId !== petOwner.petOwnerId) {
+      if (
+        !petOwner ||
+        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
+      ) {
         throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
       }
     }

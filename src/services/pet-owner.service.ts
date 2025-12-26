@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Account, UserType } from '../entities/account.entity';
@@ -158,7 +162,9 @@ export class PetOwnerService {
     // If PET_OWNER, validate self-access only
     if (user && user.userType === UserType.PET_OWNER) {
       if (user.accountId !== accountId) {
-        throw new ForbiddenException('You can only update your own preferences');
+        throw new ForbiddenException(
+          'You can only update your own preferences',
+        );
       }
     }
 

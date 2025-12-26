@@ -8,7 +8,6 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,7 +24,8 @@ import {
   InvoiceResponseDto,
 } from '../dto/invoice';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * InvoiceController
@@ -87,13 +87,16 @@ export class InvoiceController {
     type: [InvoiceResponseDto],
   })
   async getAllInvoices(
-    @Req() req: any,
+    @GetUser() user: Account,
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<InvoiceResponseDto[]> {
-    const user = req.user;
-    return this.invoiceService.getAllInvoices(user, { status, startDate, endDate });
+    return this.invoiceService.getAllInvoices(user, {
+      status,
+      startDate,
+      endDate,
+    });
   }
 
   @Get('overdue')
@@ -132,9 +135,8 @@ export class InvoiceController {
   })
   async getInvoicesByStatus(
     @Query('status') status: string,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto[]> {
-    const user = req.user;
     return this.invoiceService.getInvoicesByStatus(status, user);
   }
 
@@ -155,9 +157,8 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceById(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    const user = req.user;
     return this.invoiceService.getInvoiceById(id, user);
   }
 
@@ -178,9 +179,8 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async getInvoiceByNumber(
     @Param('invoiceNumber') invoiceNumber: string,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    const user = req.user;
     return this.invoiceService.getInvoiceByNumber(invoiceNumber, user);
   }
 
@@ -318,9 +318,8 @@ export class InvoiceController {
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async markAsProcessing(
     @Param('id', ParseIntPipe) id: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<InvoiceResponseDto> {
-    const user = req.user;
     return this.invoiceService.markAsProcessing(id, user);
   }
 }

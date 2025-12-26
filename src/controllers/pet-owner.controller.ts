@@ -9,7 +9,6 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,7 +25,8 @@ import {
   PetOwnerResponseDto,
 } from '../dto/pet-owner';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
+import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
  * PetOwnerController
@@ -115,9 +115,8 @@ export class PetOwnerController {
   @ApiResponse({ status: 403, description: 'Access denied' })
   async getByAccountId(
     @Param('accountId', ParseIntPipe) accountId: number,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetOwner> {
-    const user = req.user;
     return this.petOwnerService.getByAccountId(accountId, user);
   }
 
@@ -139,9 +138,8 @@ export class PetOwnerController {
   async updateProfile(
     @Param('accountId', ParseIntPipe) accountId: number,
     @Body() dto: UpdatePetOwnerDto,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetOwner> {
-    const user = req.user;
     return this.petOwnerService.updateProfile(accountId, dto, user);
   }
 
@@ -163,13 +161,16 @@ export class PetOwnerController {
   async updatePreferences(
     @Param('accountId', ParseIntPipe) accountId: number,
     @Body() dto: UpdatePetOwnerDto,
-    @Req() req: any,
+    @GetUser() user: Account,
   ): Promise<PetOwner> {
-    const user = req.user;
-    return this.petOwnerService.updatePreferences(accountId, {
-      preferredContactMethod: dto.preferredContactMethod,
-      emergencyContact: dto.emergencyContact,
-    }, user);
+    return this.petOwnerService.updatePreferences(
+      accountId,
+      {
+        preferredContactMethod: dto.preferredContactMethod,
+        emergencyContact: dto.emergencyContact,
+      },
+      user,
+    );
   }
 
   /**
