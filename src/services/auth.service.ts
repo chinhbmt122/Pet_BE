@@ -88,10 +88,9 @@ export class AuthService {
    * Note: JWT is stateless, client should delete token.
    * In production: add token to blacklist/Redis.
    */
-  logout(token?: string): boolean {
+  logout(_token?: string): boolean {
     // JWT is stateless - no server-side invalidation needed.
     // Client should delete token from storage.
-    void token;
     return true;
   }
 

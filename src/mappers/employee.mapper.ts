@@ -147,7 +147,7 @@ export class EmployeeMapper {
       case 'RECEPTIONIST':
         return Receptionist;
       default:
-        throw new Error('Unknown role');
+        throw new Error(`Unknown role: ${role as string}`);
     }
   }
 
