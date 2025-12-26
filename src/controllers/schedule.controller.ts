@@ -167,9 +167,9 @@ export class ScheduleController {
   })
   async getSchedulesByEmployee(
     @Param('employeeId', ParseIntPipe) employeeId: number,
+    @GetUser() user: Account,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @GetUser() user: Account,
   ): Promise<WorkScheduleResponseDto[]> {
     return this.scheduleService.getSchedulesByEmployee(
       employeeId,

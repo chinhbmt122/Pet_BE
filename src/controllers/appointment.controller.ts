@@ -371,8 +371,8 @@ export class AppointmentController {
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async cancelAppointment(
     @Param('id', ParseIntPipe) id: number,
-    @Body('reason') reason?: string,
     @GetUser() user: Account,
+    @Body('reason') reason?: string,
   ): Promise<Appointment> {
     return this.appointmentService.cancelAppointment(id, reason, user);
   }
