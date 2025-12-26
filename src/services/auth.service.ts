@@ -88,6 +88,7 @@ export class AuthService {
    * Note: JWT is stateless, client should delete token.
    * In production: add token to blacklist/Redis.
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   logout(_token?: string): boolean {
     // JWT is stateless - no server-side invalidation needed.
     // Client should delete token from storage.
