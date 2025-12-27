@@ -42,6 +42,62 @@ export class InvoiceController {
   // INVOICE CRUD
   // ============================================
 
+  /**
+   * POST /api/invoices/generate
+   * Creates invoice from appointment with itemized charges.
+   * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
+   */
+  @Post('generate')
+  @RouteConfig({
+    message: 'Generate invoice (Staff only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate invoice from appointment' })
+  @ApiResponse({
+    status: 201,
+    description: 'Invoice generated',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Appointment not found' })
+  @ApiResponse({ status: 409, description: 'Invoice already exists' })
+  async generateInvoice(
+    @Body() dto: CreateInvoiceDto,
+  ): Promise<InvoiceResponseDto> {
+    return await this.invoiceService.generateInvoice(dto);
+  }
+
+  // OLD API
+  // /**
+  //  * GET /api/invoices
+  //  * Retrieves invoices by status (Pending, Processing, Paid, Failed).
+  //  */
+  // @Get('invoices')
+  // @RouteConfig({
+  //   message: 'Get invoices by status',
+  //   requiresAuth: true,
+  //   roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  // })
+  // @ApiBearerAuth()
+  // @ApiOperation({ summary: 'Get invoices by status' })
+  // @ApiQuery({
+  //   name: 'status',
+  //   enum: InvoiceStatus,
+  //   description: 'Invoice status',
+  // })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Invoices retrieved',
+  //   type: [InvoiceResponseDto],
+  // })
+  // async getInvoicesByStatus(
+  //   @Query('status') status: string,
+  //   @GetUser() user: Account,
+  // ): Promise<InvoiceResponseDto[]> {
+  //   return await this.paymentService.getInvoicesByStatus(status, user);
+  // }
+
   @Post()
   @RouteConfig({
     message: 'Create new invoice',
@@ -148,7 +204,7 @@ export class InvoiceController {
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get invoice by ID' })
-  @ApiParam({ name: 'id', type: Number })
+  @ApiParam({ name: 'id', description: 'Invoice ID', type: Number })
   @ApiResponse({
     status: 200,
     description: 'Invoice retrieved',

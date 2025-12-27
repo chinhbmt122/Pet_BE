@@ -37,97 +37,16 @@ import { GetUser } from '../middleware/decorators/user.decorator';
  * Routes: GET /api/invoices/:id, POST /api/payments, GET /api/payments/history
  */
 @ApiTags('Payment')
-@Controller('api')
+@Controller('api/payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
-
-  /**
-   * POST /api/invoices/generate
-   * Creates invoice from appointment with itemized charges.
-   * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
-   */
-  @Post('invoices/generate')
-  @RouteConfig({
-    message: 'Generate invoice (Staff only)',
-    requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
-  })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Generate invoice from appointment' })
-  @ApiResponse({
-    status: 201,
-    description: 'Invoice generated',
-    type: InvoiceResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Appointment not found' })
-  @ApiResponse({ status: 409, description: 'Invoice already exists' })
-  async generateInvoice(
-    @Body() dto: CreateInvoiceDto,
-  ): Promise<InvoiceResponseDto> {
-    return await this.paymentService.generateInvoice(dto);
-  }
-
-  /**
-   * GET /api/invoices/:id
-   * Retrieves complete invoice details including line items.
-   */
-  @Get('invoices/:id')
-  @RouteConfig({
-    message: 'Get invoice by ID',
-    requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
-  })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get invoice by ID' })
-  @ApiParam({ name: 'id', description: 'Invoice ID', type: Number })
-  @ApiResponse({
-    status: 200,
-    description: 'Invoice retrieved',
-    type: InvoiceResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Invoice not found' })
-  async getInvoiceById(
-    @Param('id', ParseIntPipe) id: number,
-    @GetUser() user: Account,
-  ): Promise<InvoiceResponseDto> {
-    return await this.paymentService.getInvoiceById(id, user);
-  }
-
-  /**
-   * GET /api/invoices
-   * Retrieves invoices by status (Pending, Processing, Paid, Failed).
-   */
-  @Get('invoices')
-  @RouteConfig({
-    message: 'Get invoices by status',
-    requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
-  })
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get invoices by status' })
-  @ApiQuery({
-    name: 'status',
-    enum: InvoiceStatus,
-    description: 'Invoice status',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Invoices retrieved',
-    type: [InvoiceResponseDto],
-  })
-  async getInvoicesByStatus(
-    @Query('status') status: string,
-    @GetUser() user: Account,
-  ): Promise<InvoiceResponseDto[]> {
-    return await this.paymentService.getInvoicesByStatus(status, user);
-  }
 
   /**
    * POST /api/payments
    * Processes cash/bank transfer payment and updates invoice status.
    * @throws PaymentProcessingException, InsufficientFundsException
    */
-  @Post('payments')
+  @Post()
   @RouteConfig({
     message: 'Process payment',
     requiresAuth: true,
@@ -151,7 +70,7 @@ export class PaymentController {
    * GET /api/payments
    * Gets all payments with optional filters.
    */
-  @Get('payments')
+  @Get()
   @ApiOperation({ summary: 'Get all payments' })
   @ApiQuery({ name: 'status', required: false, type: String })
   @ApiQuery({ name: 'method', required: false, type: String })
@@ -181,7 +100,7 @@ export class PaymentController {
    * Initiates VNPay online payment and returns payment URL (UC-23).
    * @throws InvoiceNotFoundException, PaymentGatewayException
    */
-  @Post('payments/online/initiate')
+  @Post('online/initiate')
   @RouteConfig({
     message: 'Initiate online payment',
     requiresAuth: true,
@@ -204,7 +123,7 @@ export class PaymentController {
    * Public endpoint for VNPay webhook callback.
    * @throws InvalidCallbackException, InvoiceNotFoundException
    */
-  @Post('payments/vnpay/callback')
+  @Post('vnpay/callback')
   @RouteConfig({
     message: 'VNPay callback (webhook)',
     requiresAuth: false, // Public webhook endpoint
@@ -222,7 +141,7 @@ export class PaymentController {
    * GET /api/payments/history
    * Retrieves payment history for date range.
    */
-  @Get('payments/history')
+  @Get('history')
   @RouteConfig({
     message: 'Get payment history',
     requiresAuth: true,
@@ -246,7 +165,7 @@ export class PaymentController {
    * Processes full or partial refund through payment gateway.
    * @throws PaymentNotFoundException, RefundException
    */
-  @Post('payments/:id/refund')
+  @Post(':id/refund')
   @RouteConfig({
     message: 'Process refund (Manager only)',
     requiresAuth: true,
@@ -272,7 +191,7 @@ export class PaymentController {
    * GET /api/payments/:id/receipt
    * Generates payment receipt with transaction details.
    */
-  @Get('payments/:id/receipt')
+  @Get(':id/receipt')
   @RouteConfig({
     message: 'Generate receipt',
     requiresAuth: true,
@@ -294,7 +213,7 @@ export class PaymentController {
    * GET /api/payments/:id/verify
    * Verifies payment status with payment gateway.
    */
-  @Get('payments/:id/verify')
+  @Get(':id/verify')
   @RouteConfig({
     message: 'Verify payment status',
     requiresAuth: true,

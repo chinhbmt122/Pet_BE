@@ -9,6 +9,7 @@ import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entit
 import { Appointment } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { InvoiceService } from 'src/services/invoice.service';
+import { InvoiceController } from 'src/controllers/invoice.controller';
 
 /**
  * PaymentModule
@@ -28,8 +29,8 @@ import { InvoiceService } from 'src/services/invoice.service';
       PetOwner,
     ]),
   ],
-  controllers: [PaymentController],
+  controllers: [PaymentController, InvoiceController],
   providers: [PaymentService, VNPayService, InvoiceService],
-  exports: [PaymentService],
+  exports: [PaymentService, InvoiceService],
 })
 export class PaymentModule {}

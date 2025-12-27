@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
-import { Appointment } from '../entities/appointment.entity';
+import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import {
   CreateInvoiceDto,
@@ -32,6 +32,28 @@ export class InvoiceService {
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
   ) {}
+
+  async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
+    // Validate appointment status before generating invoice
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId: dto.appointmentId },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(
+        `Appointment with ID ${dto.appointmentId} not found`,
+      );
+    }
+
+    if (appointment.status !== AppointmentStatus.COMPLETED) {
+      throw new BadRequestException(
+        `Cannot generate invoice: appointment status is ${appointment.status}, expected COMPLETED`,
+      );
+    }
+
+    // Delegate invoice creation to InvoiceService
+    return this.createInvoice(dto);
+  }
 
   /**
    * Creates a new invoice for an appointment

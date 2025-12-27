@@ -8,14 +8,12 @@ import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Invoice } from '../entities/invoice.entity';
 import { Payment, PaymentMethod } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
-import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { UserType } from '../entities/account.entity';
 import type {
   IPaymentGatewayService,
   PaymentCallbackData,
 } from './interfaces/payment-gateway.interface';
-import { CreateInvoiceDto, InvoiceResponseDto } from '../dto/invoice';
 import {
   CreatePaymentDto,
   PaymentResponseDto,
@@ -25,7 +23,6 @@ import {
   GetPaymentHistoryQueryDto,
 } from '../dto/payment';
 import { VNPayService } from './vnpay.service';
-import { InvoiceService } from './invoice.service';
 
 /**
  * PaymentService (PaymentManager)
@@ -49,12 +46,9 @@ export class PaymentService {
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(PaymentGatewayArchive)
     private readonly paymentGatewayArchiveRepository: Repository<PaymentGatewayArchive>,
-    @InjectRepository(Appointment)
-    private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly vnpayService: VNPayService,
-    private readonly invoiceService: InvoiceService,
   ) {}
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
@@ -66,33 +60,6 @@ export class PaymentService {
       default:
         return this.vnpayService; // Default gateway
     }
-  }
-
-  /**
-   * Creates invoice from appointment with itemized charges.
-   * Delegates to InvoiceService for invoice creation.
-   * @throws AppointmentNotFoundException, InvoiceAlreadyExistsException
-   */
-  async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
-    // Validate appointment status before generating invoice
-    const appointment = await this.appointmentRepository.findOne({
-      where: { appointmentId: dto.appointmentId },
-    });
-
-    if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${dto.appointmentId} not found`,
-      );
-    }
-
-    if (appointment.status !== AppointmentStatus.COMPLETED) {
-      throw new BadRequestException(
-        `Cannot generate invoice: appointment status is ${appointment.status}, expected COMPLETED`,
-      );
-    }
-
-    // Delegate invoice creation to InvoiceService
-    return this.invoiceService.createInvoice(dto);
   }
 
   /**
@@ -359,30 +326,6 @@ export class PaymentService {
   }
 
   /**
-   * Retrieves complete invoice details including line items.
-   * Delegates to InvoiceService.
-   * If PET_OWNER, validates ownership via InvoiceService.
-   */
-  async getInvoiceById(
-    invoiceId: number,
-    user?: { accountId: number; userType: UserType },
-  ): Promise<InvoiceResponseDto> {
-    return this.invoiceService.getInvoiceById(invoiceId, user);
-  }
-
-  /**
-   * Retrieves invoices by status (Pending, Processing, Paid, Failed).
-   * Delegates to InvoiceService.
-   * If PET_OWNER, returns only their own invoices.
-   */
-  async getInvoicesByStatus(
-    status: string,
-    user?: { accountId: number; userType: UserType },
-  ): Promise<InvoiceResponseDto[]> {
-    return this.invoiceService.getInvoicesByStatus(status, user);
-  }
-
-  /**
    * Retrieves payment history for date range.
    */
   async getPaymentHistory(
@@ -504,29 +447,6 @@ export class PaymentService {
   }
 
   // ===== Private Helper Methods =====
-
-  /**
-   * Generates unique invoice number with format: INV-YYYYMMDD-XXXXX
-   */
-  private async generateInvoiceNumber(): Promise<string> {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
-
-    // Count invoices created today
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-
-    const count = await this.invoiceRepository.count({
-      where: {
-        createdAt: Between(startOfDay, endOfDay),
-      },
-    });
-
-    // Generate sequential number (padded to 5 digits)
-    const sequenceNumber = String(count + 1).padStart(5, '0');
-
-    return `INV-${dateStr}-${sequenceNumber}`;
-  }
 
   /**
    * Archives gateway response for compliance and debugging
