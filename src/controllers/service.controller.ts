@@ -88,6 +88,7 @@ export class ServiceController {
     @Query('includeUnavailable', new DefaultValuePipe(false), ParseBoolPipe)
     includeUnavailable: boolean,
   ): Promise<ServiceResponseDto[]> {
+    console.log('includeUnavailable:', includeUnavailable);
     return this.serviceService.getAllServices(includeUnavailable);
   }
 

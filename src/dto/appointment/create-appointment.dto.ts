@@ -40,6 +40,12 @@ export class CreateAppointmentDto {
   })
   startTime: string;
 
+  @ApiPropertyOptional({ description: 'Appointment notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  // TODO: Backend should calculate these
   @ApiProperty({ description: 'End time (HH:MM)', example: '10:00' })
   @IsNotEmpty()
   @IsString()
@@ -47,11 +53,6 @@ export class CreateAppointmentDto {
     message: 'Invalid time format (HH:MM)',
   })
   endTime: string;
-
-  @ApiPropertyOptional({ description: 'Appointment notes' })
-  @IsOptional()
-  @IsString()
-  notes?: string;
 
   @ApiPropertyOptional({ description: 'Estimated cost' })
   @IsOptional()

@@ -129,6 +129,98 @@ export class AppointmentService {
   }
 
   /**
+   * Creates appointment for current pet owner.
+   * Automatically validates pet ownership.
+   */
+  async createMyAppointment(
+    dto: CreateAppointmentDto,
+    user: { accountId: number; userType: UserType },
+  ): Promise<Appointment> {
+    // Get pet owner
+    const petOwner = await this.petOwnerRepository.findOne({
+      where: { accountId: user.accountId },
+    });
+    if (!petOwner) {
+      throw new NotFoundException('Pet owner account not found');
+    }
+
+    // Validate pet exists and belongs to this owner
+    const pet = await this.petRepository.findOne({
+      where: { petId: dto.petId },
+    });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+    }
+    if (pet.ownerId !== petOwner.petOwnerId) {
+      throw new NotFoundException(
+        `Pet with ID ${dto.petId} not found or does not belong to you`,
+      );
+    }
+
+    // Validate employee exists
+    const employee = await this.employeeRepository.findOne({
+      where: { employeeId: dto.employeeId },
+    });
+    if (!employee) {
+      throw new NotFoundException(
+        `Employee with ID ${dto.employeeId} not found`,
+      );
+    }
+
+    // Validate service exists
+    const service = await this.serviceRepository.findOne({
+      where: { serviceId: dto.serviceId },
+    });
+    if (!service) {
+      throw new NotFoundException(`Service with ID ${dto.serviceId} not found`);
+    }
+
+    // Validate time (end must be after start)
+    if (dto.endTime <= dto.startTime) {
+      throw new BadRequestException('End time must be after start time');
+    }
+
+    // Check for schedule conflicts
+    const appointmentDate = new Date(dto.appointmentDate);
+    const conflict = await this.appointmentRepository.findOne({
+      where: {
+        employeeId: dto.employeeId,
+        appointmentDate,
+        status: Not(AppointmentStatus.CANCELLED),
+      },
+    });
+
+    if (conflict) {
+      // Check time overlap
+      if (
+        (dto.startTime >= conflict.startTime &&
+          dto.startTime < conflict.endTime) ||
+        (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
+        (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
+      ) {
+        throw new ConflictException(
+          `Employee has a conflicting appointment at ${conflict.startTime} - ${conflict.endTime}`,
+        );
+      }
+    }
+
+    // Create appointment
+    const appointment = this.appointmentRepository.create({
+      petId: dto.petId,
+      employeeId: dto.employeeId,
+      serviceId: dto.serviceId,
+      appointmentDate,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      notes: dto.notes ?? undefined,
+      estimatedCost: dto.estimatedCost ?? service.basePrice,
+      status: AppointmentStatus.PENDING,
+    });
+
+    return this.appointmentRepository.save(appointment);
+  }
+
+  /**
    * Updates appointment details
    */
   async updateAppointment(
@@ -277,6 +369,40 @@ export class AppointmentService {
       relations: ['pet', 'employee', 'service', 'pet.owner'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
+  }
+
+  /**
+   * Gets appointments for the current user
+   * - PET_OWNER: Returns appointments for their pets
+   */
+  async getMyAppointments(
+    user: { accountId: number; userType: UserType },
+    status?: AppointmentStatus,
+  ): Promise<Appointment[]> {
+    const petOwner = await this.petOwnerRepository.findOne({
+      where: { accountId: user.accountId },
+      relations: ['pets'],
+    });
+    if (!petOwner || !petOwner.pets?.length) {
+      return [];
+    }
+    const petIds = petOwner.pets.map((pet) => pet.petId);
+
+    const qb = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.pet', 'pet')
+      .leftJoinAndSelect('appointment.employee', 'employee')
+      .leftJoinAndSelect('appointment.service', 'service')
+      .where('appointment.petId IN (:...petIds)', { petIds });
+
+    if (status) {
+      qb.andWhere('appointment.status = :status', { status });
+    }
+
+    return qb
+      .orderBy('appointment.appointmentDate', 'DESC')
+      .addOrderBy('appointment.startTime', 'ASC')
+      .getMany();
   }
 
   /**

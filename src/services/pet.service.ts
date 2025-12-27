@@ -8,7 +8,7 @@ import { MedicalRecord } from '../entities/medical-record.entity';
 import { PetDomainModel } from '../domain/pet.domain';
 import { PetMapper } from '../mappers/pet.mapper';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
-import { UserType } from '../entities/account.entity';
+import { Account, UserType } from '../entities/account.entity';
 
 /**
  * PetService (PetManager)
@@ -28,6 +28,55 @@ export class PetService {
     @InjectRepository(MedicalRecord)
     private readonly medicalRecordRepository: Repository<MedicalRecord>,
   ) {}
+
+  /**
+   * Registers new pet with owner association and validation.
+   * If PET_OWNER, validates they can only register for themselves.
+   */
+  async registerPetByOwner(
+    dto: CreatePetDto,
+    user: Account,
+  ): Promise<PetResponseDto> {
+    // 1. Verify owner exists
+    const owner = await this.petOwnerRepository.findOne({
+      where: { accountId: user.accountId },
+    });
+    if (!owner) {
+      throw new NotFoundException(`Owner with ID ${user.accountId} not found`);
+    }
+
+    // 2. If PET_OWNER, validate they can only register for themselves
+    if (user && user.userType === UserType.PET_OWNER) {
+      if (owner.accountId !== user.accountId) {
+        throw new NotFoundException(
+          `Owner with ID ${user.accountId} not found`,
+        );
+      }
+    }
+
+    // 3. Create domain model
+    const domain = PetDomainModel.create({
+      ownerId: owner.petOwnerId,
+      name: dto.name,
+      species: dto.species,
+      breed: dto.breed,
+      birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
+      gender: dto.gender,
+      weight: dto.weight,
+      color: dto.color,
+      initialHealthStatus: dto.initialHealthStatus,
+      specialNotes: dto.specialNotes,
+    });
+
+    // 4. Convert to entity and save
+    const entityData = PetMapper.toPersistence(domain);
+    const entity = this.petRepository.create(entityData);
+    const saved = await this.petRepository.save(entity);
+
+    // 5. Return response DTO
+    const savedDomain = PetMapper.toDomain(saved);
+    return PetResponseDto.fromDomain(savedDomain);
+  }
 
   /**
    * Registers new pet with owner association and validation.
@@ -178,6 +227,27 @@ export class PetService {
 
     const entities = await this.petRepository.find({
       where: { ownerId },
+      order: { createdAt: 'DESC' },
+    });
+
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
+  }
+
+  /**
+   * Retrieves all pets belonging to a specific owner.
+   * If PET_OWNER, validates they're requesting their own pets.
+   */
+  async getOwnedPet(user: Account): Promise<PetResponseDto[]> {
+    const petOwner = await this.petOwnerRepository.findOne({
+      where: { accountId: user.accountId },
+    });
+    if (!petOwner) {
+      return []; // Return empty if not their pets
+    }
+
+    const entities = await this.petRepository.find({
+      where: { ownerId: petOwner.petOwnerId },
       order: { createdAt: 'DESC' },
     });
 

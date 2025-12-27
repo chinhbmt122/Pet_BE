@@ -65,6 +65,32 @@ export class AppointmentController {
     return this.appointmentService.createAppointment(dto, user);
   }
 
+  @Post('me')
+  @RouteConfig({
+    message: 'Create appointment for current user',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create appointment for current user (pet owner)' })
+  @ApiResponse({
+    status: 201,
+    description: 'Appointment created',
+    type: Appointment,
+  })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({
+    status: 404,
+    description: 'Pet, employee, or service not found',
+  })
+  @ApiResponse({ status: 409, description: 'Schedule conflict' })
+  async createMyAppointment(
+    @Body() dto: CreateAppointmentDto,
+    @GetUser() user: Account,
+  ): Promise<Appointment> {
+    return this.appointmentService.createMyAppointment(dto, user);
+  }
+
   @Get()
   @RouteConfig({
     message: 'Get all appointments',
@@ -96,6 +122,27 @@ export class AppointmentController {
       employeeId,
       date: date ? new Date(date) : undefined,
     });
+  }
+
+  @Get('me')
+  @RouteConfig({
+    message: 'Get current user appointments',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get appointments for current user' })
+  @ApiQuery({ name: 'status', enum: AppointmentStatus, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'List of user appointments',
+    type: [Appointment],
+  })
+  async getMyAppointments(
+    @GetUser() user: Account,
+    @Query('status') status?: AppointmentStatus,
+  ): Promise<Appointment[]> {
+    return this.appointmentService.getMyAppointments(user, status);
   }
 
   @Get('by-date-range')

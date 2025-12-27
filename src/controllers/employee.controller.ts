@@ -75,7 +75,7 @@ export class EmployeeController {
   @RouteConfig({
     message: 'Get all employees',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all employees with optional filters' })

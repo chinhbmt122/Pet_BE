@@ -59,6 +59,52 @@ export class PetController {
   }
 
   /**
+   * GET /api/pets/me
+   * Retrieves all pets belonging to the current user.
+   */
+  @Get('me')
+  @RouteConfig({
+    message: 'Get owned pets',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user owned pets' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pets retrieved',
+    type: [PetResponseDto],
+  })
+  async getOwnedPet(@GetUser() user: Account): Promise<PetResponseDto[]> {
+    return this.petService.getOwnedPet(user);
+  }
+  /**
+   * POST /api/pets/me
+   * Registers new pet with owner association.
+   */
+  @Post('me')
+  @RouteConfig({
+    message: 'Register pet',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER, UserType.RECEPTIONIST, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Register pet' })
+  @ApiResponse({
+    status: 201,
+    description: 'Pet registered',
+    type: PetResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 404, description: 'Owner not found' })
+  async registerPetByOwner(
+    @Body() dto: CreatePetDto,
+    @GetUser() user: Account,
+  ): Promise<PetResponseDto> {
+    return this.petService.registerPetByOwner(dto, user);
+  }
+
+  /**
    * GET /api/pets/search
    * Search pets by multiple criteria.
    */
@@ -94,7 +140,6 @@ export class PetController {
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Register pet' })
-  @ApiQuery({ name: 'ownerId', required: true, type: Number })
   @ApiResponse({
     status: 201,
     description: 'Pet registered',
@@ -102,6 +147,7 @@ export class PetController {
   })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Owner not found' })
+  @ApiQuery({ name: 'ownerId', required: true, type: Number })
   async registerPet(
     @Body() dto: CreatePetDto,
     @Query('ownerId', ParseIntPipe) ownerId: number,
