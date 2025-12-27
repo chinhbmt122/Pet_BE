@@ -28,9 +28,9 @@ export class PetOwnerResponseDto {
   @ApiProperty({ description: 'Registration date' })
   registrationDate: Date;
 
-  @ApiProperty({ description: 'Created timestamp' })
-  createdAt: Date;
+  // @ApiProperty({ description: 'Created timestamp' })
+  // createdAt: Date;
 
-  @ApiProperty({ description: 'Updated timestamp' })
-  updatedAt: Date;
+  // @ApiProperty({ description: 'Updated timestamp' })
+  // updatedAt: Date;
 }

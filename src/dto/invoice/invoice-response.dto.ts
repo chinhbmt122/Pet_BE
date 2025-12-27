@@ -1,6 +1,41 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { InvoiceStatus } from '../../entities/types/entity.types';
 import { Invoice } from '../../entities/invoice.entity';
+import { PetResponseDto } from '../pet/pet-response.dto';
+import { PetOwnerResponseDto } from '../pet-owner/pet-owner-response.dto';
+import { AppointmentStatus } from '../../entities/types/entity.types';
+
+/**
+ * Appointment DTO for invoice response
+ */
+export class AppointmentDto {
+  @ApiProperty({ description: 'Appointment ID' })
+  appointmentId: number;
+
+  @ApiProperty({ description: 'Pet ID' })
+  petId: number;
+
+  @ApiProperty({ description: 'Employee ID' })
+  employeeId: number;
+
+  @ApiProperty({ description: 'Service ID' })
+  serviceId: number;
+
+  @ApiProperty({ description: 'Appointment date' })
+  appointmentDate: Date;
+
+  @ApiProperty({ description: 'Start time' })
+  startTime: string;
+
+  @ApiProperty({ description: 'End time' })
+  endTime: string;
+
+  @ApiProperty({ description: 'Appointment status', enum: AppointmentStatus })
+  status: AppointmentStatus;
+
+  @ApiPropertyOptional({ description: 'Notes', nullable: true })
+  notes: string | null;
+}
 
 /**
  * Invoice Response DTO
@@ -69,6 +104,24 @@ export class InvoiceResponseDto {
   })
   updatedAt: Date;
 
+  @ApiPropertyOptional({
+    description: 'Appointment details (if included)',
+    type: () => AppointmentDto,
+  })
+  appointment?: AppointmentDto;
+
+  @ApiPropertyOptional({
+    description: 'Pet owner details (if included)',
+    type: () => PetOwnerResponseDto,
+  })
+  petOwner?: PetOwnerResponseDto;
+
+  @ApiPropertyOptional({
+    description: 'Pet details (if included)',
+    type: () => PetResponseDto,
+  })
+  pet?: PetResponseDto;
+
   /**
    * Factory method to convert entity to DTO
    */
@@ -87,6 +140,58 @@ export class InvoiceResponseDto {
     dto.paidAt = entity.paidAt;
     dto.createdAt = entity.createdAt;
     dto.updatedAt = entity.updatedAt;
+
+    // Include related entities if they're loaded
+    if (entity.appointment) {
+      dto.appointment = {
+        appointmentId: entity.appointment.appointmentId,
+        petId: entity.appointment.petId,
+        employeeId: entity.appointment.employeeId,
+        serviceId: entity.appointment.serviceId,
+        appointmentDate: entity.appointment.appointmentDate,
+        startTime: entity.appointment.startTime,
+        endTime: entity.appointment.endTime,
+        status: entity.appointment.status,
+        notes: entity.appointment.notes,
+      };
+
+      // Include pet if loaded
+      if (entity.appointment.pet) {
+        dto.pet = {
+          id: entity.appointment.pet.petId,
+          ownerId: entity.appointment.pet.ownerId,
+          name: entity.appointment.pet.name,
+          species: entity.appointment.pet.species,
+          breed: entity.appointment.pet.breed,
+          birthDate: entity.appointment.pet.birthDate,
+          gender: entity.appointment.pet.gender,
+          weight: entity.appointment.pet.weight
+            ? Number(entity.appointment.pet.weight)
+            : null,
+          color: entity.appointment.pet.color,
+          // age: entity.appointment.pet.getAge(),
+          createdAt: entity.appointment.pet.createdAt,
+        };
+
+        // Include pet owner if loaded
+        if (entity.appointment.pet.owner) {
+          dto.petOwner = {
+            petOwnerId: entity.appointment.pet.owner.petOwnerId,
+            accountId: entity.appointment.pet.owner.accountId,
+            fullName: entity.appointment.pet.owner.fullName,
+            phoneNumber: entity.appointment.pet.owner.phoneNumber,
+            address: entity.appointment.pet.owner.address,
+            preferredContactMethod:
+              entity.appointment.pet.owner.preferredContactMethod,
+            emergencyContact: entity.appointment.pet.owner.emergencyContact,
+            registrationDate: entity.appointment.pet.owner.registrationDate,
+            // createdAt: entity.appointment.pet.owner.createdAt,
+            // updatedAt: entity.appointment.pet.owner.updatedAt,
+          };
+        }
+      }
+    }
+
     return dto;
   }
 

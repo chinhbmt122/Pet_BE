@@ -41,6 +41,7 @@ export class InvoiceController {
   // ============================================
   // INVOICE CRUD
   // ============================================
+  // THIS SHIT ISN'T USED
 
   /**
    * POST /api/invoices/generate
@@ -137,6 +138,9 @@ export class InvoiceController {
   })
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'includeAppointment', required: false, type: Boolean })
+  @ApiQuery({ name: 'includePetOwner', required: false, type: Boolean })
+  @ApiQuery({ name: 'includePet', required: false, type: Boolean })
   @ApiResponse({
     status: 200,
     description: 'List of all invoices',
@@ -147,11 +151,17 @@ export class InvoiceController {
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('includeAppointment') includeAppointment?: boolean,
+    @Query('includePetOwner') includePetOwner?: boolean,
+    @Query('includePet') includePet?: boolean,
   ): Promise<InvoiceResponseDto[]> {
     return this.invoiceService.getAllInvoices(user, {
       status,
       startDate,
       endDate,
+      includeAppointment,
+      includePetOwner,
+      includePet,
     });
   }
 

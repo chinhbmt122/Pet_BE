@@ -29,8 +29,8 @@ export class PetResponseDto {
   @ApiPropertyOptional({ description: 'Color', nullable: true })
   color: string | null;
 
-  @ApiProperty({ description: 'Computed age in years from birthDate' })
-  age: number;
+  // @ApiProperty({ description: 'Computed age in years from birthDate' })
+  // age: number;
 
   @ApiProperty({ description: 'Created timestamp' })
   createdAt: Date;
@@ -46,7 +46,7 @@ export class PetResponseDto {
     dto.gender = domain.gender;
     dto.weight = domain.weight;
     dto.color = domain.color;
-    dto.age = domain.age;
+    // dto.age = domain.age;
     dto.createdAt = domain.createdAt;
     return dto;
   }

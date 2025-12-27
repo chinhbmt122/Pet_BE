@@ -279,6 +279,9 @@ export class InvoiceService {
       status?: string;
       startDate?: string;
       endDate?: string;
+      includeAppointment?: boolean;
+      includePetOwner?: boolean;
+      includePet?: boolean;
     },
   ): Promise<InvoiceResponseDto[]> {
     // If PET_OWNER, filter to only their own invoices
@@ -307,6 +310,21 @@ export class InvoiceService {
         .where('invoice.appointmentId IN (:...appointmentIds)', {
           appointmentIds,
         });
+      // Include related entities if requested
+      if (filters?.includeAppointment) {
+        qb.leftJoinAndSelect('invoice.appointment', 'appointment');
+
+        if (filters?.includePet) {
+          qb.leftJoinAndSelect('appointment.pet', 'pet');
+        }
+
+        if (filters?.includePetOwner) {
+          if (!filters?.includePet) {
+            qb.leftJoinAndSelect('appointment.pet', 'pet');
+          }
+          qb.leftJoinAndSelect('pet.owner', 'owner');
+        }
+      }
 
       if (filters?.status) {
         qb.andWhere('invoice.status = :status', { status: filters.status });
@@ -325,37 +343,14 @@ export class InvoiceService {
       const entities = await qb.orderBy('invoice.issueDate', 'DESC').getMany();
       return InvoiceResponseDto.fromEntityList(entities);
     }
-
-    // Staff sees all with filters
-    const queryBuilder = this.invoiceRepository.createQueryBuilder('invoice');
-
-    if (filters?.status) {
-      queryBuilder.andWhere('invoice.status = :status', {
-        status: filters.status,
-      });
-    }
-    if (filters?.startDate) {
-      queryBuilder.andWhere('invoice.issueDate >= :startDate', {
-        startDate: new Date(filters.startDate),
-      });
-    }
-    if (filters?.endDate) {
-      queryBuilder.andWhere('invoice.issueDate <= :endDate', {
-        endDate: new Date(filters.endDate),
-      });
-    }
-
-    const entities = await queryBuilder
-      .orderBy('invoice.issueDate', 'DESC')
-      .getMany();
-
-    return InvoiceResponseDto.fromEntityList(entities);
+    return [];
   }
 
   /**
    * Gets invoices by status
    * If PET_OWNER, returns only their invoices with that status
    */
+
   async getInvoicesByStatus(
     status: string,
     user?: { accountId: number; userType: UserType },
