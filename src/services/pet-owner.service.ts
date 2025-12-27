@@ -197,7 +197,8 @@ export class PetOwnerService {
   }): Promise<PetOwner[]> {
     const queryBuilder = this.petOwnerRepository
       .createQueryBuilder('petOwner')
-      .leftJoinAndSelect('petOwner.account', 'account');
+      .leftJoinAndSelect('petOwner.account', 'account')
+      .leftJoinAndSelect('petOwner.pets', 'pet');
 
     if (criteria?.fullName) {
       queryBuilder.andWhere('petOwner.fullName ILIKE :fullName', {

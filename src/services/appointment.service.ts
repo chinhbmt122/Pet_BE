@@ -227,6 +227,7 @@ export class AppointmentService {
       const qb = this.appointmentRepository
         .createQueryBuilder('appointment')
         .leftJoinAndSelect('appointment.pet', 'pet')
+        // .leftJoinAndSelect('pet.owner', 'owner')
         .leftJoinAndSelect('appointment.employee', 'employee')
         .leftJoinAndSelect('appointment.service', 'service')
         .where('appointment.petId IN (:...petIds)', { petIds });
@@ -273,7 +274,7 @@ export class AppointmentService {
 
     return this.appointmentRepository.find({
       where: Object.keys(where).length > 0 ? where : undefined,
-      relations: ['pet', 'employee', 'service'],
+      relations: ['pet', 'employee', 'service', 'pet.owner'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
@@ -286,7 +287,7 @@ export class AppointmentService {
   ): Promise<Appointment[]> {
     return this.appointmentRepository.find({
       where: { status },
-      relations: ['pet', 'employee', 'service'],
+      relations: ['pet', 'employee', 'service', 'pet.owner'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
