@@ -170,55 +170,64 @@ export class ReportService {
       appointmentCount: number;
     }>
   > {
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year, 11, 31, 23, 59, 59);
+    try {
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(year, 11, 31, 23, 59, 59);
 
-    const invoices = await this.invoiceRepository.find({
-      where: {
-        issueDate: Between(startDate, endDate),
-        status: InvoiceStatus.PAID,
-      },
-      relations: ['appointment'],
-    });
+      const invoices = await this.invoiceRepository.find({
+        where: {
+          issueDate: Between(startDate, endDate),
+          status: InvoiceStatus.PAID,
+        },
+        relations: ['appointment'],
+      });
 
-    const periodMap = new Map<
-      string,
-      { revenue: number; invoiceCount: number; appointmentCount: number }
-    >();
+      const periodMap = new Map<
+        string,
+        { revenue: number; invoiceCount: number; appointmentCount: number }
+      >();
 
-    invoices.forEach((inv) => {
-      let periodKey: string;
-      const date = inv.issueDate;
+      invoices.forEach((inv) => {
+        try {
+          let periodKey: string;
+          const date = inv.issueDate ? new Date(inv.issueDate) : new Date();
 
-      if (period === 'month') {
-        periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      } else if (period === 'quarter') {
-        const quarter = Math.floor(date.getMonth() / 3) + 1;
-        periodKey = `${date.getFullYear()}-Q${quarter}`;
-      } else {
-        periodKey = `${date.getFullYear()}`;
-      }
+          if (period === 'month') {
+            periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          } else if (period === 'quarter') {
+            const quarter = Math.floor(date.getMonth() / 3) + 1;
+            periodKey = `${date.getFullYear()}-Q${quarter}`;
+          } else {
+            periodKey = `${date.getFullYear()}`;
+          }
 
-      if (!periodMap.has(periodKey)) {
-        periodMap.set(periodKey, {
-          revenue: 0,
-          invoiceCount: 0,
-          appointmentCount: 0,
-        });
-      }
+          if (!periodMap.has(periodKey)) {
+            periodMap.set(periodKey, {
+              revenue: 0,
+              invoiceCount: 0,
+              appointmentCount: 0,
+            });
+          }
 
-      const stats = periodMap.get(periodKey)!;
-      stats.revenue += Number(inv.totalAmount);
-      stats.invoiceCount++;
-      stats.appointmentCount++;
-    });
+          const stats = periodMap.get(periodKey)!;
+          stats.revenue += Number(inv.totalAmount) || 0;
+          stats.invoiceCount++;
+          stats.appointmentCount++;
+        } catch (e) {
+          // Skip invalid invoice
+        }
+      });
 
-    return Array.from(periodMap.entries())
-      .map(([period, stats]) => ({
-        period,
-        ...stats,
-      }))
-      .sort((a, b) => a.period.localeCompare(b.period));
+      return Array.from(periodMap.entries())
+        .map(([period, stats]) => ({
+          period,
+          ...stats,
+        }))
+        .sort((a, b) => a.period.localeCompare(b.period));
+    } catch (error) {
+      console.error('Error in getRevenueByPeriod:', error);
+      return [];
+    }
   }
 
   /**
@@ -235,70 +244,97 @@ export class ReportService {
     averageValue: number;
     dailyTrend: Array<{ date: string; count: number; completed: number }>;
   }> {
-    const appointments = await this.appointmentRepository.find({
-      where: {
-        appointmentDate: Between(startDate, endDate),
-      },
-    });
+    try {
+      const appointments = await this.appointmentRepository.find({
+        where: {
+          appointmentDate: Between(startDate, endDate),
+        },
+      });
 
-    const byStatus = {
-      [AppointmentStatus.PENDING]: 0,
-      [AppointmentStatus.CONFIRMED]: 0,
-      [AppointmentStatus.IN_PROGRESS]: 0,
-      [AppointmentStatus.COMPLETED]: 0,
-      [AppointmentStatus.CANCELLED]: 0,
-    };
+      const byStatus = {
+        [AppointmentStatus.PENDING]: 0,
+        [AppointmentStatus.CONFIRMED]: 0,
+        [AppointmentStatus.IN_PROGRESS]: 0,
+        [AppointmentStatus.COMPLETED]: 0,
+        [AppointmentStatus.CANCELLED]: 0,
+      };
 
-    let totalValue = 0;
-    const dailyMap = new Map<string, { count: number; completed: number }>();
+      let totalValue = 0;
+      const dailyMap = new Map<string, { count: number; completed: number }>();
 
-    appointments.forEach((apt) => {
-      byStatus[apt.status]++;
+      appointments.forEach((apt) => {
+        try {
+          if (apt.status && byStatus[apt.status] !== undefined) {
+            byStatus[apt.status]++;
+          }
 
-      if (apt.status === AppointmentStatus.COMPLETED) {
-        totalValue += Number(apt.actualCost || apt.estimatedCost || 0);
-      }
+          if (apt.status === AppointmentStatus.COMPLETED) {
+            totalValue += Number(apt.actualCost || apt.estimatedCost || 0);
+          }
 
-      const dateKey = apt.appointmentDate.toISOString().split('T')[0];
-      if (!dailyMap.has(dateKey)) {
-        dailyMap.set(dateKey, { count: 0, completed: 0 });
-      }
-      const dayStats = dailyMap.get(dateKey)!;
-      dayStats.count++;
-      if (apt.status === AppointmentStatus.COMPLETED) {
-        dayStats.completed++;
-      }
-    });
+          const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate) : null;
+          if (aptDate && !isNaN(aptDate.getTime())) {
+            const dateKey = aptDate.toISOString().split('T')[0];
+            if (!dailyMap.has(dateKey)) {
+              dailyMap.set(dateKey, { count: 0, completed: 0 });
+            }
+            const dayStats = dailyMap.get(dateKey)!;
+            dayStats.count++;
+            if (apt.status === AppointmentStatus.COMPLETED) {
+              dayStats.completed++;
+            }
+          }
+        } catch (e) {
+          // Skip invalid appointment
+        }
+      });
 
-    const completionRate =
-      appointments.length > 0
-        ? byStatus[AppointmentStatus.COMPLETED] / appointments.length
-        : 0;
-    const cancellationRate =
-      appointments.length > 0
-        ? byStatus[AppointmentStatus.CANCELLED] / appointments.length
-        : 0;
-    const averageValue =
-      byStatus[AppointmentStatus.COMPLETED] > 0
-        ? totalValue / byStatus[AppointmentStatus.COMPLETED]
-        : 0;
+      const completionRate =
+        appointments.length > 0
+          ? byStatus[AppointmentStatus.COMPLETED] / appointments.length
+          : 0;
+      const cancellationRate =
+        appointments.length > 0
+          ? byStatus[AppointmentStatus.CANCELLED] / appointments.length
+          : 0;
+      const averageValue =
+        byStatus[AppointmentStatus.COMPLETED] > 0
+          ? totalValue / byStatus[AppointmentStatus.COMPLETED]
+          : 0;
 
-    const dailyTrend = Array.from(dailyMap.entries())
-      .map(([date, stats]) => ({
-        date,
-        count: stats.count,
-        completed: stats.completed,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      const dailyTrend = Array.from(dailyMap.entries())
+        .map(([date, stats]) => ({
+          date,
+          count: stats.count,
+          completed: stats.completed,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
 
-    return {
-      total: appointments.length,
-      byStatus,
-      completionRate,
-      cancellationRate,
-      averageValue,
-      dailyTrend,
-    };
+      return {
+        total: appointments.length,
+        byStatus,
+        completionRate,
+        cancellationRate,
+        averageValue,
+        dailyTrend,
+      };
+    } catch (error) {
+      console.error('Error in getAppointmentStatistics:', error);
+      return {
+        total: 0,
+        byStatus: {
+          [AppointmentStatus.PENDING]: 0,
+          [AppointmentStatus.CONFIRMED]: 0,
+          [AppointmentStatus.IN_PROGRESS]: 0,
+          [AppointmentStatus.COMPLETED]: 0,
+          [AppointmentStatus.CANCELLED]: 0,
+        },
+        completionRate: 0,
+        cancellationRate: 0,
+        averageValue: 0,
+        dailyTrend: [],
+      };
+    }
   }
 
   /**

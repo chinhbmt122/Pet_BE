@@ -122,6 +122,16 @@ export class InvoiceResponseDto {
   })
   pet?: PetResponseDto;
 
+  @ApiPropertyOptional({
+    description: 'Service details (if included)',
+  })
+  service?: {
+    serviceId: number;
+    serviceName: string;
+    basePrice: number;
+    description?: string;
+  };
+
   /**
    * Factory method to convert entity to DTO
    */
@@ -189,6 +199,16 @@ export class InvoiceResponseDto {
             // updatedAt: entity.appointment.pet.owner.updatedAt,
           };
         }
+      }
+
+      // Include service if loaded
+      if (entity.appointment.service) {
+        dto.service = {
+          serviceId: entity.appointment.service.serviceId,
+          serviceName: entity.appointment.service.serviceName,
+          basePrice: Number(entity.appointment.service.basePrice),
+          description: entity.appointment.service.description,
+        };
       }
     }
 

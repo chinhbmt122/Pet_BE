@@ -344,7 +344,44 @@ export class InvoiceService {
       const entities = await qb.orderBy('invoice.issueDate', 'DESC').getMany();
       return InvoiceResponseDto.fromEntityList(entities);
     }
-    return [];
+
+    // For MANAGER and other staff, return all invoices
+    const qb = this.invoiceRepository
+      .createQueryBuilder('invoice');
+
+    // Include related entities if requested
+    if (filters?.includeAppointment) {
+      qb.leftJoinAndSelect('invoice.appointment', 'appointment');
+      qb.leftJoinAndSelect('appointment.service', 'service');
+
+      if (filters?.includePet) {
+        qb.leftJoinAndSelect('appointment.pet', 'pet');
+      }
+
+      if (filters?.includePetOwner) {
+        if (!filters?.includePet) {
+          qb.leftJoinAndSelect('appointment.pet', 'pet');
+        }
+        qb.leftJoinAndSelect('pet.owner', 'owner');
+      }
+    }
+
+    if (filters?.status) {
+      qb.andWhere('invoice.status = :status', { status: filters.status });
+    }
+    if (filters?.startDate) {
+      qb.andWhere('invoice.issueDate >= :startDate', {
+        startDate: new Date(filters.startDate),
+      });
+    }
+    if (filters?.endDate) {
+      qb.andWhere('invoice.issueDate <= :endDate', {
+        endDate: new Date(filters.endDate),
+      });
+    }
+
+    const entities = await qb.orderBy('invoice.issueDate', 'DESC').getMany();
+    return InvoiceResponseDto.fromEntityList(entities);
   }
 
   /**
