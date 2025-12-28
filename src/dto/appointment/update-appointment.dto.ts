@@ -1,11 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
 } from 'class-validator';
+import { AppointmentStatus } from 'src/entities/types/entity.types';
 
 export class UpdateAppointmentDto {
   @ApiPropertyOptional({ description: 'Employee ID (vet/staff)' })
@@ -38,6 +40,14 @@ export class UpdateAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Appointment status',
+    enum: AppointmentStatus,
+  })
+  @IsOptional()
+  @IsString()
+  status?: AppointmentStatus;
 
   @ApiPropertyOptional({ description: 'Estimated cost' })
   @IsOptional()

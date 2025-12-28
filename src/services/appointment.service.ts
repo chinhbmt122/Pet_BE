@@ -366,7 +366,13 @@ export class AppointmentService {
 
     return this.appointmentRepository.find({
       where: Object.keys(where).length > 0 ? where : undefined,
-      relations: ['pet', 'employee', 'service', 'pet.owner', 'pet.owner.account'],
+      relations: [
+        'pet',
+        'employee',
+        'service',
+        'pet.owner',
+        'pet.owner.account',
+      ],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
@@ -413,7 +419,13 @@ export class AppointmentService {
   ): Promise<Appointment[]> {
     return this.appointmentRepository.find({
       where: { status },
-      relations: ['pet', 'employee', 'service', 'pet.owner'],
+      relations: [
+        'pet',
+        'employee',
+        'service',
+        'pet.owner',
+        'pet.owner.account',
+      ],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
@@ -453,7 +465,13 @@ export class AppointmentService {
 
     return this.appointmentRepository.find({
       where: { employeeId },
-      relations: ['pet', 'pet.owner', 'pet.owner.account', 'service', 'employee'],
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'service',
+        'employee',
+      ],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
@@ -464,7 +482,13 @@ export class AppointmentService {
   async getAppointmentsByDate(date: Date): Promise<Appointment[]> {
     return this.appointmentRepository.find({
       where: { appointmentDate: date },
-      relations: ['pet', 'pet.owner', 'pet.owner.account', 'employee', 'service'],
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'employee',
+        'service',
+      ],
       order: { startTime: 'ASC' },
     });
   }

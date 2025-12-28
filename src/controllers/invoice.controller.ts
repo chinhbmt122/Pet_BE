@@ -182,6 +182,47 @@ export class InvoiceController {
     return this.invoiceService.getOverdueInvoices();
   }
 
+  @Get('statistics/by-customer')
+  @RouteConfig({
+    message: 'Get invoice statistics by customer',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get invoice statistics grouped by customer (pet owner)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer invoice statistics retrieved',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          petOwnerId: { type: 'number' },
+          totalVisits: { type: 'number', description: 'Lượt đến' },
+          totalSpent: { type: 'number', description: 'Tổng chi tiêu' },
+          lastVisit: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Lần cuối đến',
+          },
+        },
+      },
+    },
+  })
+  async getCustomerStatistics(): Promise<
+    Array<{
+      petOwnerId: number;
+      totalVisits: number;
+      totalSpent: number;
+      lastVisit: Date | null;
+    }>
+  > {
+    return this.invoiceService.getCustomerStatistics();
+  }
+
   @Get('by-status')
   @RouteConfig({
     message: 'Get invoices by status',
