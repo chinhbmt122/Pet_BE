@@ -22,6 +22,24 @@ export class ReportController {
   constructor(private readonly reportService: ReportService) {}
 
   /**
+   * Helper to get default date range (last 30 days)
+   */
+  private getDefaultDateRange(startDate?: string, endDate?: string): { start: Date; end: Date } {
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    // Validate dates
+    if (isNaN(end.getTime())) {
+      return { start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), end: new Date() };
+    }
+    if (isNaN(start.getTime())) {
+      return { start: new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000), end };
+    }
+    
+    return { start, end };
+  }
+
+  /**
    * GET /api/reports/financial
    * Generates comprehensive financial report with revenue, expenses, and profit.
    */
@@ -38,10 +56,8 @@ export class ReportController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.reportService.generateFinancialReport(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const { start, end } = this.getDefaultDateRange(startDate, endDate);
+    return this.reportService.generateFinancialReport(start, end);
   }
 
   /**
@@ -58,10 +74,13 @@ export class ReportController {
   @ApiOperation({ summary: 'Get revenue by period' })
   @ApiResponse({ status: 200, description: 'Revenue data retrieved' })
   async getRevenueByPeriod(
-    @Query('period') period: 'month' | 'quarter' | 'year',
-    @Query('year') year: number,
+    @Query('period') period: 'month' | 'quarter' | 'year' = 'month',
+    @Query('year') year: string,
   ) {
-    return this.reportService.getRevenueByPeriod(period, year);
+    // Convert year to number, default to current year
+    const yearNum = year ? Number(year) : new Date().getFullYear();
+    const validYear = isNaN(yearNum) ? new Date().getFullYear() : yearNum;
+    return this.reportService.getRevenueByPeriod(period, validYear);
   }
 
   /**
@@ -81,10 +100,8 @@ export class ReportController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.reportService.getAppointmentStatistics(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const { start, end } = this.getDefaultDateRange(startDate, endDate);
+    return this.reportService.getAppointmentStatistics(start, end);
   }
 
   /**
@@ -101,17 +118,14 @@ export class ReportController {
   @ApiOperation({ summary: 'Get top services' })
   @ApiResponse({ status: 200, description: 'Top services retrieved' })
   async getTopServices(
-    @Query('limit') limit: number = 10,
+    @Query('limit') limit: string = '10',
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
     @Query('sortBy') sortBy: 'count' | 'revenue' = 'revenue',
   ) {
-    return this.reportService.getTopServices(
-      limit,
-      new Date(startDate),
-      new Date(endDate),
-      sortBy,
-    );
+    const { start, end } = this.getDefaultDateRange(startDate, endDate);
+    const limitNum = Number(limit) || 10;
+    return this.reportService.getTopServices(limitNum, start, end, sortBy);
   }
 
   /**
@@ -131,10 +145,8 @@ export class ReportController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.reportService.getServicePerformanceReport(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const { start, end } = this.getDefaultDateRange(startDate, endDate);
+    return this.reportService.getServicePerformanceReport(start, end);
   }
 
   /**
@@ -154,10 +166,8 @@ export class ReportController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.reportService.getEmployeeWorkloadReport(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const { start, end } = this.getDefaultDateRange(startDate, endDate);
+    return this.reportService.getEmployeeWorkloadReport(start, end);
   }
 
   /**
@@ -180,10 +190,8 @@ export class ReportController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.reportService.getCustomerRetentionReport(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const { start, end } = this.getDefaultDateRange(startDate, endDate);
+    return this.reportService.getCustomerRetentionReport(start, end);
   }
 
   /**
