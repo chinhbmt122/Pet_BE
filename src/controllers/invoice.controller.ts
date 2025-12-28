@@ -22,6 +22,7 @@ import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
   InvoiceResponseDto,
+  CustomerStatisticsResponseDto,
 } from '../dto/invoice';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
@@ -195,31 +196,9 @@ export class InvoiceController {
   @ApiResponse({
     status: 200,
     description: 'Customer invoice statistics retrieved',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          petOwnerId: { type: 'number' },
-          totalVisits: { type: 'number', description: 'Lượt đến' },
-          totalSpent: { type: 'number', description: 'Tổng chi tiêu' },
-          lastVisit: {
-            type: 'string',
-            format: 'date-time',
-            description: 'Lần cuối đến',
-          },
-        },
-      },
-    },
+    type: [CustomerStatisticsResponseDto],
   })
-  async getCustomerStatistics(): Promise<
-    Array<{
-      petOwnerId: number;
-      totalVisits: number;
-      totalSpent: number;
-      lastVisit: Date | null;
-    }>
-  > {
+  async getCustomerStatistics(): Promise<CustomerStatisticsResponseDto[]> {
     return this.invoiceService.getCustomerStatistics();
   }
 

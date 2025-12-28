@@ -11,6 +11,7 @@ import { Veterinarian } from '../../../src/entities/veterinarian.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { CreateMedicalRecordDto } from '../../../src/dto/medical-record/create-medical-record.dto';
 import { CreateVaccinationDto } from '../../../src/dto/vaccination/create-vaccination.dto';
+import { Appointment } from 'src/entities/appointment.entity';
 
 describe('MedicalRecordService', () => {
   let service: MedicalRecordService;
@@ -81,6 +82,12 @@ describe('MedicalRecordService', () => {
           },
         },
         {
+          provide: getRepositoryToken(Appointment),
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
           provide: getRepositoryToken(VaccineType),
           useValue: {
             findOne: jest.fn(),
@@ -119,7 +126,9 @@ describe('MedicalRecordService', () => {
     service = module.get<MedicalRecordService>(MedicalRecordService);
     medicalRecordRepository = module.get(getRepositoryToken(MedicalRecord));
     vaccineTypeRepository = module.get(getRepositoryToken(VaccineType));
-    vaccinationHistoryRepository = module.get(getRepositoryToken(VaccinationHistory));
+    vaccinationHistoryRepository = module.get(
+      getRepositoryToken(VaccinationHistory),
+    );
     petRepository = module.get(getRepositoryToken(Pet));
     veterinarianRepository = module.get(getRepositoryToken(Veterinarian));
   });
@@ -138,13 +147,17 @@ describe('MedicalRecordService', () => {
 
     it('should create medical record via domain model', async () => {
       petRepository.findOne.mockResolvedValue(mockPet as Pet);
-      veterinarianRepository.findOne.mockResolvedValue(mockVeterinarian as Veterinarian);
+      veterinarianRepository.findOne.mockResolvedValue(
+        mockVeterinarian as Veterinarian,
+      );
       medicalRecordRepository.create.mockReturnValue(mockMedicalRecord);
       medicalRecordRepository.save.mockResolvedValue(mockMedicalRecord);
 
       const result = await service.createMedicalRecord(createDto);
 
-      expect(petRepository.findOne).toHaveBeenCalledWith({ where: { petId: 1 } });
+      expect(petRepository.findOne).toHaveBeenCalledWith({
+        where: { petId: 1 },
+      });
       expect(veterinarianRepository.findOne).toHaveBeenCalledWith({
         where: { employeeId: 1 },
       });
@@ -184,10 +197,18 @@ describe('MedicalRecordService', () => {
 
     it('should create vaccination with auto-calculated nextDueDate', async () => {
       petRepository.findOne.mockResolvedValue(mockPet as Pet);
-      vaccineTypeRepository.findOne.mockResolvedValue(mockVaccineType as VaccineType);
-      veterinarianRepository.findOne.mockResolvedValue(mockVeterinarian as Veterinarian);
-      vaccinationHistoryRepository.create.mockReturnValue(mockVaccinationHistory);
-      vaccinationHistoryRepository.save.mockResolvedValue(mockVaccinationHistory);
+      vaccineTypeRepository.findOne.mockResolvedValue(
+        mockVaccineType as VaccineType,
+      );
+      veterinarianRepository.findOne.mockResolvedValue(
+        mockVeterinarian as Veterinarian,
+      );
+      vaccinationHistoryRepository.create.mockReturnValue(
+        mockVaccinationHistory,
+      );
+      vaccinationHistoryRepository.save.mockResolvedValue(
+        mockVaccinationHistory,
+      );
       vaccinationHistoryRepository.findOne.mockResolvedValue({
         ...mockVaccinationHistory,
         vaccineType: mockVaccineType,
@@ -195,7 +216,9 @@ describe('MedicalRecordService', () => {
 
       const result = await service.addVaccination(1, createVaccinationDto);
 
-      expect(petRepository.findOne).toHaveBeenCalledWith({ where: { petId: 1 } });
+      expect(petRepository.findOne).toHaveBeenCalledWith({
+        where: { petId: 1 },
+      });
       expect(vaccineTypeRepository.findOne).toHaveBeenCalledWith({
         where: { vaccineTypeId: 1 },
       });
@@ -203,7 +226,9 @@ describe('MedicalRecordService', () => {
       expect(result.nextDueDate).toBeDefined();
       // Computed fields from domain model
       expect(typeof result.isDue).toBe('boolean');
-      expect(result.daysUntilDue === null || typeof result.daysUntilDue === 'number').toBe(true);
+      expect(
+        result.daysUntilDue === null || typeof result.daysUntilDue === 'number',
+      ).toBe(true);
     });
 
     it('should throw NotFoundException when pet not found', async () => {
@@ -225,7 +250,9 @@ describe('MedicalRecordService', () => {
 
     it('should throw BadRequestException when vet not found', async () => {
       petRepository.findOne.mockResolvedValue(mockPet as Pet);
-      vaccineTypeRepository.findOne.mockResolvedValue(mockVaccineType as VaccineType);
+      vaccineTypeRepository.findOne.mockResolvedValue(
+        mockVaccineType as VaccineType,
+      );
       veterinarianRepository.findOne.mockResolvedValue(null);
 
       await expect(
@@ -237,7 +264,10 @@ describe('MedicalRecordService', () => {
   describe('getVaccinationHistory', () => {
     it('should return vaccination history with computed isDue', async () => {
       vaccinationHistoryRepository.find.mockResolvedValue([
-        { ...mockVaccinationHistory, vaccineType: mockVaccineType } as VaccinationHistory,
+        {
+          ...mockVaccinationHistory,
+          vaccineType: mockVaccineType,
+        } as VaccinationHistory,
       ]);
 
       const result = await service.getVaccinationHistory(1);
@@ -245,7 +275,7 @@ describe('MedicalRecordService', () => {
       expect(vaccinationHistoryRepository.find).toHaveBeenCalledWith({
         where: { petId: 1 },
         order: { administrationDate: 'DESC' },
-        relations: ['vaccineType'],
+        relations: ['vaccineType', 'administrator', 'administrator.account'],
       });
       expect(result.length).toBe(1);
       expect(typeof result[0].isDue).toBe('boolean');

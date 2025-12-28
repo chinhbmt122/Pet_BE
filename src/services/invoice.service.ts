@@ -13,6 +13,7 @@ import {
   CreateInvoiceDto,
   InvoiceResponseDto,
   UpdateInvoiceDto,
+  CustomerStatisticsResponseDto,
 } from '../dto/invoice';
 import { UserType } from '../entities/account.entity';
 
@@ -413,14 +414,7 @@ export class InvoiceService {
    * Gets invoice statistics grouped by customer (pet owner)
    * Returns: totalVisits (Lượt đến), totalSpent (Tổng chi tiêu), lastVisit (Lần cuối đến)
    */
-  async getCustomerStatistics(): Promise<
-    Array<{
-      petOwnerId: number;
-      totalVisits: number;
-      totalSpent: number;
-      lastVisit: Date | null;
-    }>
-  > {
+  async getCustomerStatistics(): Promise<CustomerStatisticsResponseDto[]> {
     const result = await this.invoiceRepository
       .createQueryBuilder('invoice')
       .leftJoin('invoice.appointment', 'appointment')
@@ -434,12 +428,7 @@ export class InvoiceService {
       .groupBy('owner.petOwnerId')
       .getRawMany();
 
-    return result.map((row) => ({
-      petOwnerId: parseInt(row.petOwnerId),
-      totalVisits: parseInt(row.totalVisits),
-      totalSpent: parseFloat(row.totalSpent) || 0,
-      lastVisit: row.lastVisit ? new Date(row.lastVisit) : null,
-    }));
+    return CustomerStatisticsResponseDto.fromRawList(result);
   }
 
   /**

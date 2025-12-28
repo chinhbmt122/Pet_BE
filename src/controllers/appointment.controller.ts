@@ -95,7 +95,13 @@ export class AppointmentController {
   @RouteConfig({
     message: 'Get all appointments',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER, UserType.VETERINARIAN, UserType.CARE_STAFF],
+    roles: [
+      UserType.MANAGER,
+      UserType.RECEPTIONIST,
+      UserType.PET_OWNER,
+      UserType.VETERINARIAN,
+      UserType.CARE_STAFF,
+    ],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all appointments with optional filters' })

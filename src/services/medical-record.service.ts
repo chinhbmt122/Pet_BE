@@ -56,12 +56,20 @@ export class MedicalRecordService {
    * Retrieves all medical records (for Veterinarian/Manager).
    * Returns entities directly with relations for full data access.
    */
-  async getAllMedicalRecords(
-    user: { accountId: number; userType: UserType },
-  ): Promise<MedicalRecord[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getAllMedicalRecords(user: {
+    accountId: number;
+    userType: UserType;
+  }): Promise<MedicalRecord[]> {
     return this.medicalRecordRepository.find({
       order: { examinationDate: 'DESC' },
-      relations: ['pet', 'pet.owner', 'pet.owner.account', 'veterinarian', 'veterinarian.account'],
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'veterinarian',
+        'veterinarian.account',
+      ],
     });
   }
 
@@ -81,14 +89,18 @@ export class MedicalRecordService {
         where: { appointmentId: dto.appointmentId },
       });
       if (!appointment) {
-        throw new NotFoundException(`Appointment with ID ${dto.appointmentId} not found`);
+        throw new NotFoundException(
+          `Appointment with ID ${dto.appointmentId} not found`,
+        );
       }
       petId = appointment.petId;
     }
 
     // 2. Verify petId is provided
     if (!petId) {
-      throw new BadRequestException('Either petId or appointmentId must be provided');
+      throw new BadRequestException(
+        'Either petId or appointmentId must be provided',
+      );
     }
 
     // 3. Verify pet exists
@@ -320,12 +332,14 @@ export class MedicalRecordService {
     });
 
     const domains = VaccinationHistoryMapper.toDomainList(entities);
-    
+
     // Map with administrator name from entity
     return domains.map((d, i) => {
       const dto = VaccinationResponseDto.fromDomain(d);
       const entity = entities[i];
-      (dto as any).administeredByName = entity.administrator?.account?.email?.split('@')[0] || null;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      (dto as any).administeredByName =
+        entity.administrator?.account?.email?.split('@')[0] || null;
       return dto;
     });
   }

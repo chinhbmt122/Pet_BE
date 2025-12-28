@@ -9,7 +9,10 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateMedicalRecordDto {
-  @ApiPropertyOptional({ description: 'Pet ID (optional if appointmentId is provided - will auto-link from appointment)' })
+  @ApiPropertyOptional({
+    description:
+      'Pet ID (optional if appointmentId is provided - will auto-link from appointment)',
+  })
   @IsNumber()
   @IsOptional()
   petId?: number;
