@@ -366,7 +366,7 @@ export class PetService {
     species?: string;
     breed?: string;
     ownerId?: number;
-  }): Promise<PetResponseDto[]> {
+  }): Promise<Pet[]> {
     const where: FindOptionsWhere<Pet> = {};
 
     if (searchCriteria?.name) {
@@ -382,13 +382,11 @@ export class PetService {
       where.ownerId = searchCriteria.ownerId;
     }
 
-    const entities = await this.petRepository.find({
+    return this.petRepository.find({
       where: Object.keys(where).length > 0 ? where : undefined,
+      relations: ['owner', 'owner.account'],
       order: { createdAt: 'DESC' },
     });
-
-    const domains = PetMapper.toDomainList(entities);
-    return PetResponseDto.fromDomainList(domains);
   }
 
   /**

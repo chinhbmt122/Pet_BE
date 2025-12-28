@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MedicalRecordController } from '../controllers/medical-record.controller';
 import { MedicalRecordService } from '../services/medical-record.service';
 import { MedicalRecord } from '../entities/medical-record.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
 import { Pet } from '../entities/pet.entity';
@@ -21,6 +22,7 @@ import { PetOwner } from '../entities/pet-owner.entity';
   imports: [
     TypeOrmModule.forFeature([
       MedicalRecord,
+      Appointment,
       VaccineType,
       VaccinationHistory,
       Pet,
