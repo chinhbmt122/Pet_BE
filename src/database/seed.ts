@@ -13,6 +13,7 @@ import { Cage } from '../entities/cage.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { CageAssignment } from '../entities/cage-assignment.entity';
+import { WorkSchedule } from '../entities/work-schedule.entity';
 import { Invoice } from '../entities/invoice.entity';
 import {
   UserType,
@@ -115,6 +116,25 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         userType: UserType.PET_OWNER,
         isActive: true,
       },
+      {
+        email: 'owner4@gmail.com',
+        passwordHash,
+        userType: UserType.PET_OWNER,
+        isActive: true,
+      },
+      {
+        email: 'owner5@gmail.com',
+        passwordHash,
+        userType: UserType.PET_OWNER,
+        isActive: true,
+      },
+      // Additional Care Staff
+      {
+        email: 'care3@pawlovers.com',
+        passwordHash,
+        userType: UserType.CARE_STAFF,
+        isActive: true,
+      },
     ]);
     console.log(`✅ Created ${accounts.length} accounts`);
 
@@ -185,6 +205,16 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         isAvailable: true,
         skills: ['Lưu trú khách sạn', 'Dắt dạo thú cưng'],
       },
+      {
+        accountId: accounts[9].accountId,
+        fullName: 'Phạm Thị Hương',
+        phoneNumber: '0907890123',
+        address: '123 Điện Biên Phủ, Q.Bình Thạnh, TP.HCM',
+        hireDate: new Date('2024-01-15'),
+        salary: 7000000,
+        isAvailable: true,
+        skills: ['Tắm spa', 'Massage thú cưng', 'Vệ sinh tai mắt'],
+      },
     ]);
     console.log(`✅ Created ${careStaff.length} care staff`);
 
@@ -229,6 +259,22 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         address: '333 Võ Văn Tần, Q.3, TP.HCM',
         preferredContactMethod: 'Zalo',
         emergencyContact: undefined,
+      },
+      {
+        accountId: accounts[10].accountId,
+        fullName: 'Võ Thị Hồng Nhung',
+        phoneNumber: '0945678901',
+        address: '444 Cách Mạng Tháng 8, Q.10, TP.HCM',
+        preferredContactMethod: 'Phone',
+        emergencyContact: '0965432109',
+      },
+      {
+        accountId: accounts[11].accountId,
+        fullName: 'Đặng Minh Phúc',
+        phoneNumber: '0956789012',
+        address: '555 Hai Bà Trưng, Q.1, TP.HCM',
+        preferredContactMethod: 'Zalo',
+        emergencyContact: '0954321098',
       },
     ]);
     console.log(`✅ Created ${petOwners.length} pet owners`);
@@ -292,6 +338,62 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         birthDate: new Date('2022-10-31'),
         weight: 5.0,
         color: 'Đen tuyền',
+      },
+      // Owner 4's pets
+      {
+        ownerId: petOwners[3].petOwnerId,
+        name: 'Bí Ngô',
+        species: 'Cat',
+        breed: 'Mèo Anh Lông Ngắn',
+        gender: 'Male',
+        birthDate: new Date('2023-05-20'),
+        weight: 4.0,
+        color: 'Cam vằn',
+        specialNotes: 'Rất thích chơi đuổi bắt',
+      },
+      {
+        ownerId: petOwners[3].petOwnerId,
+        name: 'Oreo',
+        species: 'Hamster',
+        breed: 'Syrian Hamster',
+        gender: 'Male',
+        birthDate: new Date('2024-01-10'),
+        weight: 0.15,
+        color: 'Đen trắng',
+        specialNotes: 'Cần giữ trong chuồng có bánh xe',
+      },
+      // Owner 5's pets
+      {
+        ownerId: petOwners[4].petOwnerId,
+        name: 'Sóc',
+        species: 'Dog',
+        breed: 'Corgi',
+        gender: 'Female',
+        birthDate: new Date('2022-08-15'),
+        weight: 12.0,
+        color: 'Vàng nâu trắng',
+      },
+      {
+        ownerId: petOwners[4].petOwnerId,
+        name: 'Chip Chip',
+        species: 'Bird',
+        breed: 'Vẹt Yến Phụng',
+        gender: 'Male',
+        birthDate: new Date('2023-06-01'),
+        weight: 0.03,
+        color: 'Xanh vàng',
+        specialNotes: 'Biết nói vài từ đơn giản',
+      },
+      {
+        ownerId: petOwners[4].petOwnerId,
+        name: 'Mochi',
+        species: 'Dog',
+        breed: 'Shiba Inu',
+        gender: 'Female',
+        birthDate: new Date('2021-12-25'),
+        weight: 10.5,
+        color: 'Vàng',
+        specialNotes: 'Rất thân thiện với trẻ em',
       },
     ]);
     console.log(`✅ Created ${pets.length} pets`);
@@ -441,6 +543,34 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         isAvailable: true,
         requiredStaffType: 'Veterinarian',
       },
+      // Thêm 3 services mới để đạt 15
+      {
+        categoryId: categories[4].categoryId,
+        serviceName: 'Mổ lấy dị vật',
+        description: 'Phẫu thuật lấy dị vật trong đường tiêu hóa',
+        basePrice: 2500000,
+        estimatedDuration: 180,
+        isAvailable: true,
+        requiredStaffType: 'Veterinarian',
+      },
+      {
+        categoryId: categories[0].categoryId,
+        serviceName: 'Điều trị bệnh ngoài da',
+        description: 'Điều trị các bệnh về da như nấm, ghẻ, viêm da',
+        basePrice: 350000,
+        estimatedDuration: 30,
+        isAvailable: true,
+        requiredStaffType: 'Veterinarian',
+      },
+      {
+        categoryId: categories[3].categoryId,
+        serviceName: 'Dắt dạo thú cưng',
+        description: 'Dịch vụ dắt dạo cho thú cưng lưu trú',
+        basePrice: 50000,
+        estimatedDuration: 30,
+        isAvailable: true,
+        requiredStaffType: 'CareStaff',
+      },
     ]);
     console.log(`✅ Created ${services.length} services`);
 
@@ -555,6 +685,81 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         estimatedCost: services[1].basePrice,
       },
 
+      // Additional appointments for care1@pawlovers.com (careStaff[0]) - TODAY
+      // PENDING appointments
+      {
+        petId: pets[1].petId, // Lucky (Dog)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng (care1)
+        serviceId: services[5].serviceId, // Tắm + Sấy khô
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(8, 0),
+        endTime: formatTime(9, 0),
+        status: AppointmentStatus.PENDING,
+        notes: 'Tắm sạch cho chó Golden Retriever',
+        estimatedCost: services[5].basePrice,
+      },
+      {
+        petId: pets[3].petId, // Rex (Husky)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng (care1)
+        serviceId: services[6].serviceId, // Cắt tỉa tạo kiểu
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(13, 0),
+        endTime: formatTime(14, 30),
+        status: AppointmentStatus.PENDING,
+        notes: 'Cắt tỉa lông cho Husky',
+        estimatedCost: services[6].basePrice,
+      },
+      {
+        petId: pets[4].petId, // Mèo Mun (Cat)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng (care1)
+        serviceId: services[7].serviceId, // Combo Spa Full
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(15, 0),
+        endTime: formatTime(17, 0),
+        status: AppointmentStatus.PENDING,
+        notes: 'Spa toàn diện cho mèo Ba Tư',
+        estimatedCost: services[7].basePrice,
+      },
+
+      // IN_PROGRESS appointment
+      {
+        petId: pets[5].petId, // Chó Bông
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng (care1)
+        serviceId: services[5].serviceId, // Tắm + Sấy khô
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(11, 0),
+        endTime: formatTime(12, 0),
+        status: AppointmentStatus.IN_PROGRESS,
+        notes: 'Đang tắm cho chó Poodle',
+        estimatedCost: services[5].basePrice,
+      },
+
+      // COMPLETED appointments
+      {
+        petId: pets[0].petId, // Miu (Cat)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng (care1)
+        serviceId: services[5].serviceId, // Tắm + Sấy khô
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(7, 0),
+        endTime: formatTime(8, 0),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Đã hoàn thành tắm cho mèo Anh lông ngắn',
+        estimatedCost: services[5].basePrice,
+        actualCost: services[5].basePrice,
+      },
+      {
+        petId: pets[2].petId, // Bông (Dog)
+        employeeId: careStaff[0].employeeId, // Lê Thị Hồng (care1)
+        serviceId: services[6].serviceId, // Cắt tỉa tạo kiểu
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(9, 0),
+        endTime: formatTime(10, 30),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Đã hoàn thành cắt tỉa lông kiểu Poodle',
+        estimatedCost: services[6].basePrice,
+        actualCost: services[6].basePrice,
+      },
+
       // Completed Appointments
       {
         petId: pets[3].petId, // Rex (Husky)
@@ -619,6 +824,69 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         estimatedCost: services[1].basePrice,
         cancelledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
       },
+
+      // ====== APPOINTMENTS FOR VET1 (TODAY) - Testing workflow ======
+      // PENDING - waiting for confirmation
+      {
+        petId: pets[5].petId, // Bí Ngô (Cat)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan (vet1@pawlovers.com)
+        serviceId: services[0].serviceId, // Khám tổng quát
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(8, 30),
+        endTime: formatTime(9, 0),
+        status: AppointmentStatus.PENDING,
+        notes: 'Mèo bỏ ăn 2 ngày, cần khám gấp',
+        estimatedCost: services[0].basePrice,
+      },
+      // CONFIRMED - ready to start
+      {
+        petId: pets[7].petId, // Sóc (Corgi)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan (vet1@pawlovers.com)
+        serviceId: services[2].serviceId, // Tiêm vaccine 5 bệnh
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(9, 30),
+        endTime: formatTime(9, 45),
+        status: AppointmentStatus.CONFIRMED,
+        notes: 'Tiêm phòng định kỳ hàng năm',
+        estimatedCost: services[2].basePrice,
+      },
+      // CONFIRMED - ready to start
+      {
+        petId: pets[1].petId, // Lucky (Dog)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan (vet1@pawlovers.com)
+        serviceId: services[0].serviceId, // Khám tổng quát
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(10, 30),
+        endTime: formatTime(11, 0),
+        status: AppointmentStatus.CONFIRMED,
+        notes: 'Khám sức khỏe định kỳ tháng 12',
+        estimatedCost: services[0].basePrice,
+      },
+      // IN_PROGRESS - currently examining
+      {
+        petId: pets[3].petId, // Rex (Husky)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan (vet1@pawlovers.com)
+        serviceId: services[13].serviceId, // Điều trị bệnh ngoài da
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(11, 30),
+        endTime: formatTime(12, 0),
+        status: AppointmentStatus.IN_PROGRESS,
+        notes: 'Ngứa nhiều vùng lưng và cổ, nghi nấm da',
+        estimatedCost: services[13].basePrice,
+      },
+      // COMPLETED - done today
+      {
+        petId: pets[9].petId, // Mochi (Dog)
+        employeeId: vets[0].employeeId, // BS. Trần Thị Lan (vet1@pawlovers.com)
+        serviceId: services[3].serviceId, // Tiêm vaccine dại
+        appointmentDate: getDateOffset(0), // TODAY
+        startTime: formatTime(7, 30),
+        endTime: formatTime(7, 45),
+        status: AppointmentStatus.COMPLETED,
+        notes: 'Tiêm vaccine dại, thú cưng khỏe mạnh',
+        estimatedCost: services[3].basePrice,
+        actualCost: services[3].basePrice,
+      },
     ]);
     console.log(`✅ Created ${appointments.length} appointments`);
 
@@ -676,6 +944,98 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         size: CageSize.LARGE,
         status: CageStatus.AVAILABLE,
         dailyRate: 650000,
+        location: 'Khu VIP - Tầng 2',
+      },
+      // Thêm 13 cages mới
+      {
+        cageNumber: 'S-03',
+        size: CageSize.SMALL,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 250000,
+        location: 'Khu A - Tầng 1',
+      },
+      {
+        cageNumber: 'S-04',
+        size: CageSize.SMALL,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 250000,
+        location: 'Khu A - Tầng 2',
+      },
+      {
+        cageNumber: 'S-05',
+        size: CageSize.SMALL,
+        status: CageStatus.MAINTENANCE,
+        dailyRate: 250000,
+        location: 'Khu A - Tầng 2',
+      },
+      {
+        cageNumber: 'S-06',
+        size: CageSize.SMALL,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 250000,
+        location: 'Khu A - Tầng 2',
+      },
+      {
+        cageNumber: 'M-03',
+        size: CageSize.MEDIUM,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 350000,
+        location: 'Khu B - Tầng 1',
+      },
+      {
+        cageNumber: 'M-04',
+        size: CageSize.MEDIUM,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 350000,
+        location: 'Khu B - Tầng 2',
+      },
+      {
+        cageNumber: 'M-05',
+        size: CageSize.MEDIUM,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 350000,
+        location: 'Khu B - Tầng 2',
+      },
+      {
+        cageNumber: 'M-06',
+        size: CageSize.MEDIUM,
+        status: CageStatus.RESERVED,
+        dailyRate: 350000,
+        location: 'Khu B - Tầng 2',
+      },
+      {
+        cageNumber: 'L-03',
+        size: CageSize.LARGE,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 450000,
+        location: 'Khu C - Tầng 1',
+      },
+      {
+        cageNumber: 'L-04',
+        size: CageSize.LARGE,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 450000,
+        location: 'Khu C - Tầng 2',
+      },
+      {
+        cageNumber: 'L-05',
+        size: CageSize.LARGE,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 450000,
+        location: 'Khu C - Tầng 2',
+      },
+      {
+        cageNumber: 'VIP-02',
+        size: CageSize.LARGE,
+        status: CageStatus.AVAILABLE,
+        dailyRate: 650000,
+        location: 'Khu VIP - Tầng 2',
+      },
+      {
+        cageNumber: 'VIP-03',
+        size: CageSize.LARGE,
+        status: CageStatus.RESERVED,
+        dailyRate: 750000,
         location: 'Khu VIP - Tầng 2',
       },
     ]);
@@ -764,6 +1124,70 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
     );
 
     console.log(`✅ Created ${cageAssignments.length} cage assignments`);
+
+    // ====== 9. WORK SCHEDULES ======
+    console.log('📦 Seeding work schedules...');
+    const scheduleRepo = queryRunner.manager.getRepository(WorkSchedule);
+
+    const schedules = await scheduleRepo.save([
+      // Care Staff 1 (Lê Thị Hồng - care1@pawlovers.com) - TODAY
+      {
+        employeeId: careStaff[0].employeeId,
+        workDate: getDateOffset(0), // TODAY
+        startTime: formatTime(7, 0),
+        endTime: formatTime(17, 0),
+        breakStart: formatTime(12, 0),
+        breakEnd: formatTime(13, 0),
+        isAvailable: true,
+        notes: 'Ca sáng - chiều, phụ trách tắm spa và cắt tỉa',
+      },
+      // Care Staff 2 (Trần Văn Nam) - TODAY
+      {
+        employeeId: careStaff[1].employeeId,
+        workDate: getDateOffset(0), // TODAY
+        startTime: formatTime(8, 0),
+        endTime: formatTime(18, 0),
+        breakStart: formatTime(12, 30),
+        breakEnd: formatTime(13, 30),
+        isAvailable: true,
+        notes: 'Ca sáng - chiều, phụ trách lưu trú và dắt dạo',
+      },
+      // Vet 1 (BS. Trần Thị Lan) - TODAY
+      {
+        employeeId: vets[0].employeeId,
+        workDate: getDateOffset(0), // TODAY
+        startTime: formatTime(8, 0),
+        endTime: formatTime(17, 0),
+        breakStart: formatTime(12, 0),
+        breakEnd: formatTime(13, 0),
+        isAvailable: true,
+        notes: 'Ca sáng - chiều, phụ trách khám bệnh',
+      },
+      // Care Staff 1 - TOMORROW
+      {
+        employeeId: careStaff[0].employeeId,
+        workDate: getDateOffset(1), // TOMORROW
+        startTime: formatTime(7, 0),
+        endTime: formatTime(17, 0),
+        breakStart: formatTime(12, 0),
+        breakEnd: formatTime(13, 0),
+        isAvailable: true,
+        notes: 'Ca sáng - chiều',
+      },
+      // Care Staff 1 - YESTERDAY (completed)
+      {
+        employeeId: careStaff[0].employeeId,
+        workDate: getDateOffset(-1), // YESTERDAY
+        startTime: formatTime(7, 0),
+        endTime: formatTime(17, 0),
+        breakStart: formatTime(12, 0),
+        breakEnd: formatTime(13, 0),
+        isAvailable: false,
+        notes: 'Ca đã hoàn thành',
+      },
+    ]);
+
+    console.log(`✅ Created ${schedules.length} work schedules`);
 
     // ====== 10. INVOICES ======
     console.log('📦 Seeding invoices...');
@@ -893,6 +1317,43 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         recommendedAgeMonths: 4,
         boosterIntervalMonths: 12,
         description: 'Phòng bệnh ho cũi cho chó',
+      },
+      // Thêm 4 vaccine types mới để đạt 10
+      {
+        vaccineName: 'Vaccine Lyme',
+        targetSpecies: 'Dog',
+        category: VaccineCategory.NON_CORE,
+        manufacturer: 'Vanguard',
+        recommendedAgeMonths: 3,
+        boosterIntervalMonths: 12,
+        description: 'Phòng bệnh Lyme do ve gây ra',
+      },
+      {
+        vaccineName: 'Vaccine FIP',
+        targetSpecies: 'Cat',
+        category: VaccineCategory.OPTIONAL,
+        manufacturer: 'Primucell',
+        recommendedAgeMonths: 4,
+        boosterIntervalMonths: 12,
+        description: 'Phòng viêm phúc mạc truyền nhiễm ở mèo',
+      },
+      {
+        vaccineName: 'Vaccine Bordetella',
+        targetSpecies: 'Dog',
+        category: VaccineCategory.NON_CORE,
+        manufacturer: 'Nobivac KC',
+        recommendedAgeMonths: 2,
+        boosterIntervalMonths: 6,
+        description: 'Phòng bệnh viêm khí quản do Bordetella',
+      },
+      {
+        vaccineName: 'Vaccine Chlamydia',
+        targetSpecies: 'Cat',
+        category: VaccineCategory.OPTIONAL,
+        manufacturer: 'Felocell CVR-C',
+        recommendedAgeMonths: 2,
+        boosterIntervalMonths: 12,
+        description: 'Phòng bệnh Chlamydia ở mèo',
       },
     ]);
     console.log(`✅ Created ${vaccines.length} vaccine types`);

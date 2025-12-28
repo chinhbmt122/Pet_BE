@@ -67,7 +67,7 @@ export class AccountMapper {
     account: Account,
     profile?: PetOwner | Employee | null,
   ): AccountResponseDto {
-    return {
+    const response: AccountResponseDto = {
       accountId: account.accountId,
       email: account.email,
       userType: account.userType,
@@ -78,5 +78,21 @@ export class AccountMapper {
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,
     };
+
+    // Include petOwner if profile is PetOwner
+    if (profile && 'petOwnerId' in profile) {
+      response.petOwner = {
+        petOwnerId: profile.petOwnerId,
+      };
+    }
+
+    // Include employee if profile is Employee
+    if (profile && 'employeeId' in profile) {
+      response.employee = {
+        employeeId: profile.employeeId,
+      };
+    }
+
+    return response;
   }
 }

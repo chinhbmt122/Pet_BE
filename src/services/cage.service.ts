@@ -337,7 +337,7 @@ export class CageService {
   async getAllActiveAssignments(): Promise<CageAssignment[]> {
     return this.assignmentRepository.find({
       where: { status: CageAssignmentStatus.ACTIVE },
-      relations: ['cage', 'pet'],
+      relations: ['cage', 'pet', 'pet.owner'],
       order: { checkInDate: 'ASC' },
     });
   }

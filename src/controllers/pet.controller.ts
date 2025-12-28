@@ -21,6 +21,7 @@ import { PetService } from '../services/pet.service';
 import { CreatePetDto, UpdatePetDto, PetResponseDto } from '../dto/pet';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
+import { Pet } from '../entities/pet.entity';
 import { GetUser } from '../middleware/decorators/user.decorator';
 
 /**
@@ -54,7 +55,7 @@ export class PetController {
     @Query('species') species?: string,
     @Query('breed') breed?: string,
     @Query('ownerId', new ParseIntPipe({ optional: true })) ownerId?: number,
-  ): Promise<PetResponseDto[]> {
+  ): Promise<Pet[]> {
     return this.petService.getAllPets({ name, species, breed, ownerId });
   }
 
@@ -124,7 +125,7 @@ export class PetController {
     @Query('species') species?: string,
     @Query('breed') breed?: string,
     @Query('ownerId', new ParseIntPipe({ optional: true })) ownerId?: number,
-  ): Promise<PetResponseDto[]> {
+  ): Promise<Pet[]> {
     return this.petService.getAllPets({ name, species, breed, ownerId });
   }
 

@@ -57,7 +57,7 @@ export class CageController {
   @RouteConfig({
     message: 'Get all cages',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all cages with optional filters' })
@@ -75,7 +75,7 @@ export class CageController {
   @RouteConfig({
     message: 'Get available cages',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get available cages' })
@@ -241,7 +241,7 @@ export class CageController {
   @RouteConfig({
     message: 'Assign pet to cage (check-in)',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Assign pet to cage (check-in)' })
@@ -267,7 +267,7 @@ export class CageController {
   @RouteConfig({
     message: 'Check out pet from cage',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Check out pet from cage' })
@@ -289,7 +289,7 @@ export class CageController {
   @RouteConfig({
     message: 'Get cage assignments',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all assignments for a cage' })
@@ -334,7 +334,7 @@ export class CageController {
   @RouteConfig({
     message: 'Get all active assignments',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.CARE_STAFF, UserType.VETERINARIAN],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all active cage assignments' })

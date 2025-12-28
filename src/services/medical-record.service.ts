@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { MedicalRecord } from '../entities/medical-record.entity';
+import { Appointment } from '../entities/appointment.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
 import { Pet } from '../entities/pet.entity';
@@ -37,6 +38,8 @@ export class MedicalRecordService {
   constructor(
     @InjectRepository(MedicalRecord)
     private readonly medicalRecordRepository: Repository<MedicalRecord>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(VaccineType)
     private readonly vaccineTypeRepository: Repository<VaccineType>,
     @InjectRepository(VaccinationHistory)
@@ -50,21 +53,53 @@ export class MedicalRecordService {
   ) {}
 
   /**
+   * Retrieves all medical records (for Veterinarian/Manager).
+   * Returns entities directly with relations for full data access.
+   */
+  async getAllMedicalRecords(
+    user: { accountId: number; userType: UserType },
+  ): Promise<MedicalRecord[]> {
+    return this.medicalRecordRepository.find({
+      order: { examinationDate: 'DESC' },
+      relations: ['pet', 'pet.owner', 'pet.owner.account', 'veterinarian', 'veterinarian.account'],
+    });
+  }
+
+  /**
    * Creates new medical record for pet with diagnosis and treatment.
    * Validates that veterinarian exists.
+   * Auto-links petId from appointment if appointmentId is provided.
    */
   async createMedicalRecord(
     dto: CreateMedicalRecordDto,
   ): Promise<MedicalRecordResponseDto> {
-    // 1. Verify pet exists
-    const pet = await this.petRepository.findOne({
-      where: { petId: dto.petId },
-    });
-    if (!pet) {
-      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+    let petId = dto.petId;
+
+    // 1. If appointmentId provided but no petId, auto-link from appointment
+    if (dto.appointmentId && !petId) {
+      const appointment = await this.appointmentRepository.findOne({
+        where: { appointmentId: dto.appointmentId },
+      });
+      if (!appointment) {
+        throw new NotFoundException(`Appointment with ID ${dto.appointmentId} not found`);
+      }
+      petId = appointment.petId;
     }
 
-    // 2. Verify vet exists (Veterinarian entity already ensures role)
+    // 2. Verify petId is provided
+    if (!petId) {
+      throw new BadRequestException('Either petId or appointmentId must be provided');
+    }
+
+    // 3. Verify pet exists
+    const pet = await this.petRepository.findOne({
+      where: { petId },
+    });
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${petId} not found`);
+    }
+
+    // 4. Verify vet exists (Veterinarian entity already ensures role)
     const vet = await this.veterinarianRepository.findOne({
       where: { employeeId: dto.veterinarianId },
     });
@@ -74,9 +109,9 @@ export class MedicalRecordService {
       );
     }
 
-    // 3. Create domain model
+    // 5. Create domain model
     const domain = MedicalRecordDomainModel.create({
-      petId: dto.petId,
+      petId,
       veterinarianId: dto.veterinarianId,
       diagnosis: dto.diagnosis,
       treatment: dto.treatment,
@@ -85,12 +120,12 @@ export class MedicalRecordService {
       followUpDate: dto.followUpDate ? new Date(dto.followUpDate) : undefined,
     });
 
-    // 4. Convert to entity and save
+    // 6. Convert to entity and save
     const entityData = MedicalRecordMapper.toPersistence(domain);
     const entity = this.medicalRecordRepository.create(entityData);
     const saved = await this.medicalRecordRepository.save(entity);
 
-    // 5. Return response DTO
+    // 7. Return response DTO
     const savedDomain = MedicalRecordMapper.toDomain(saved);
     return MedicalRecordResponseDto.fromDomain(savedDomain);
   }
@@ -281,11 +316,18 @@ export class MedicalRecordService {
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
       order: { administrationDate: 'DESC' },
-      relations: ['vaccineType'],
+      relations: ['vaccineType', 'administrator', 'administrator.account'],
     });
 
     const domains = VaccinationHistoryMapper.toDomainList(entities);
-    return domains.map((d) => VaccinationResponseDto.fromDomain(d));
+    
+    // Map with administrator name from entity
+    return domains.map((d, i) => {
+      const dto = VaccinationResponseDto.fromDomain(d);
+      const entity = entities[i];
+      (dto as any).administeredByName = entity.administrator?.account?.email?.split('@')[0] || null;
+      return dto;
+    });
   }
 
   /**
@@ -376,5 +418,15 @@ export class MedicalRecordService {
     const overdueDomains = domains.filter((d) => d.isFollowUpOverdue());
 
     return overdueDomains.map((d) => MedicalRecordResponseDto.fromDomain(d));
+  }
+
+  /**
+   * Gets all active vaccine types for dropdown selection.
+   */
+  async getAllVaccineTypes(): Promise<VaccineType[]> {
+    return this.vaccineTypeRepository.find({
+      where: { isActive: true },
+      order: { vaccineName: 'ASC' },
+    });
   }
 }

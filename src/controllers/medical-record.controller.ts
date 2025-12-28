@@ -23,6 +23,7 @@ import {
   UpdateMedicalRecordDto,
   MedicalRecordResponseDto,
 } from '../dto/medical-record';
+import { MedicalRecord } from '../entities/medical-record.entity';
 import {
   CreateVaccinationDto,
   VaccinationResponseDto,
@@ -45,6 +46,29 @@ export class MedicalRecordController {
   // ============================================
   // MEDICAL RECORDS
   // ============================================
+
+  /**
+   * GET /api/medical-records
+   * Retrieves all medical records (for Veterinarian/Manager).
+   */
+  @Get('medical-records')
+  @RouteConfig({
+    message: 'Get all medical records',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all medical records' })
+  @ApiResponse({
+    status: 200,
+    description: 'Medical records retrieved',
+    type: [MedicalRecordResponseDto],
+  })
+  async getAllMedicalRecords(
+    @GetUser() user: Account,
+  ): Promise<MedicalRecord[]> {
+    return this.medicalRecordService.getAllMedicalRecords(user);
+  }
 
   /**
    * POST /api/medical-records
@@ -170,6 +194,30 @@ export class MedicalRecordController {
     @Param('petId', ParseIntPipe) petId: number,
   ): Promise<MedicalRecordResponseDto[]> {
     return this.medicalRecordService.getOverdueFollowUps(petId);
+  }
+
+  // ============================================
+  // VACCINE TYPES (Catalog)
+  // ============================================
+
+  /**
+   * GET /api/vaccine-types
+   * Retrieves all active vaccine types for dropdown selection.
+   */
+  @Get('vaccine-types')
+  @RouteConfig({
+    message: 'Get all vaccine types',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN, UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all vaccine types for dropdown' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vaccine types retrieved',
+  })
+  async getAllVaccineTypes() {
+    return this.medicalRecordService.getAllVaccineTypes();
   }
 
   // ============================================
