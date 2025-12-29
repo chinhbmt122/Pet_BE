@@ -48,6 +48,33 @@ export class MedicalRecordController {
   // ============================================
 
   /**
+   * GET /api/medical-records/me
+   * Retrieves all medical records created by the current veterinarian.
+   */
+  @Get('medical-records/me')
+  @RouteConfig({
+    message: 'Get my medical records',
+    requiresAuth: true,
+    roles: [UserType.VETERINARIAN],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get medical records created by current veterinarian',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Medical records retrieved',
+    type: [MedicalRecordResponseDto],
+  })
+  async getMyMedicalRecords(
+    @GetUser() user: Account,
+  ): Promise<MedicalRecord[]> {
+    return this.medicalRecordService.getMedicalRecordsByVeterinarian(
+      user.accountId,
+    );
+  }
+
+  /**
    * GET /api/medical-records
    * Retrieves all medical records (for Veterinarian/Manager).
    */

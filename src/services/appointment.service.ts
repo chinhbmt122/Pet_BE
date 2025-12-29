@@ -129,33 +129,37 @@ export class AppointmentService {
   }
 
   /**
-   * Creates appointment for current pet owner.
-   * Automatically validates pet ownership.
+   * Creates appointment for current user.
+   * - PET_OWNER: Validates pet ownership
+   * - VET/RECEPTIONIST: Can create appointment for any pet
    */
   async createMyAppointment(
     dto: CreateAppointmentDto,
     user: { accountId: number; userType: UserType },
   ): Promise<Appointment> {
-    // Get pet owner
-    const petOwner = await this.petOwnerRepository.findOne({
-      where: { accountId: user.accountId },
-    });
-    if (!petOwner) {
-      throw new NotFoundException('Pet owner account not found');
-    }
-
-    // Validate pet exists and belongs to this owner
+    // Validate pet exists
     const pet = await this.petRepository.findOne({
       where: { petId: dto.petId },
     });
     if (!pet) {
       throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
     }
-    if (pet.ownerId !== petOwner.petOwnerId) {
-      throw new NotFoundException(
-        `Pet with ID ${dto.petId} not found or does not belong to you`,
-      );
+
+    // If PET_OWNER, validate they own the pet
+    if (user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!petOwner) {
+        throw new NotFoundException('Pet owner account not found');
+      }
+      if (pet.ownerId !== petOwner.petOwnerId) {
+        throw new NotFoundException(
+          `Pet with ID ${dto.petId} not found or does not belong to you`,
+        );
+      }
     }
+    // VET, RECEPTIONIST, and other staff can create appointments for any pet
 
     // Validate employee exists
     const employee = await this.employeeRepository.findOne({
@@ -380,26 +384,48 @@ export class AppointmentService {
   /**
    * Gets appointments for the current user
    * - PET_OWNER: Returns appointments for their pets
+   * - VET/CARE_STAFF: Returns appointments assigned to them
+   * - RECEPTIONIST/MANAGER: Returns all appointments
    */
   async getMyAppointments(
     user: { accountId: number; userType: UserType },
     status?: AppointmentStatus,
   ): Promise<Appointment[]> {
-    const petOwner = await this.petOwnerRepository.findOne({
-      where: { accountId: user.accountId },
-      relations: ['pets'],
-    });
-    if (!petOwner || !petOwner.pets?.length) {
-      return [];
-    }
-    const petIds = petOwner.pets.map((pet) => pet.petId);
-
     const qb = this.appointmentRepository
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.pet', 'pet')
+      .leftJoinAndSelect('pet.owner', 'owner')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.service', 'service')
-      .where('appointment.petId IN (:...petIds)', { petIds });
+      .leftJoinAndSelect('appointment.service', 'service');
+
+    // PET_OWNER: Only their pets' appointments
+    if (user.userType === UserType.PET_OWNER) {
+      const petOwner = await this.petOwnerRepository.findOne({
+        where: { accountId: user.accountId },
+        relations: ['pets'],
+      });
+      if (!petOwner || !petOwner.pets?.length) {
+        return [];
+      }
+      const petIds = petOwner.pets.map((pet) => pet.petId);
+      qb.where('appointment.petId IN (:...petIds)', { petIds });
+    }
+    // VET/CARE_STAFF: Only appointments assigned to them
+    else if (
+      user.userType === UserType.VETERINARIAN ||
+      user.userType === UserType.CARE_STAFF
+    ) {
+      const employee = await this.employeeRepository.findOne({
+        where: { accountId: user.accountId },
+      });
+      if (!employee) {
+        return [];
+      }
+      qb.where('appointment.employeeId = :employeeId', {
+        employeeId: employee.employeeId,
+      });
+    }
+    // RECEPTIONIST/MANAGER: All appointments (no filter needed)
 
     if (status) {
       qb.andWhere('appointment.status = :status', { status });

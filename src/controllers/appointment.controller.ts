@@ -69,7 +69,7 @@ export class AppointmentController {
   @RouteConfig({
     message: 'Create appointment for current user',
     requiresAuth: true,
-    roles: [UserType.PET_OWNER],
+    roles: [UserType.PET_OWNER, UserType.VETERINARIAN, UserType.CARE_STAFF],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create appointment for current user (pet owner)' })
@@ -134,7 +134,7 @@ export class AppointmentController {
   @RouteConfig({
     message: 'Get current user appointments',
     requiresAuth: true,
-    roles: [UserType.PET_OWNER],
+    roles: [UserType.PET_OWNER, UserType.VETERINARIAN, UserType.CARE_STAFF],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get appointments for current user' })

@@ -99,6 +99,45 @@ export class PetOwnerController {
   }
 
   /**
+   * GET /api/pet-owners/me
+   * Get current logged-in pet owner's profile
+   */
+  @Get('me')
+  @RouteConfig({
+    message: 'Get current pet owner profile',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current pet owner profile' })
+  @ApiResponse({ status: 200, type: PetOwnerResponseDto })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  async getMyProfile(@GetUser() user: Account): Promise<PetOwner> {
+    return this.petOwnerService.getByAccountId(user.accountId, user);
+  }
+
+  /**
+   * PUT /api/pet-owners/me
+   * Update current logged-in pet owner's profile
+   */
+  @Put('me')
+  @RouteConfig({
+    message: 'Update current pet owner profile',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current pet owner profile' })
+  @ApiResponse({ status: 200, type: PetOwnerResponseDto })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  async updateMyProfile(
+    @Body() dto: UpdatePetOwnerDto,
+    @GetUser() user: Account,
+  ): Promise<PetOwner> {
+    return this.petOwnerService.updateProfile(user.accountId, dto, user);
+  }
+
+  /**
    * GET /api/pet-owners/:accountId
    * Get PetOwner by account ID
    */

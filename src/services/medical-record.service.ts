@@ -74,6 +74,35 @@ export class MedicalRecordService {
   }
 
   /**
+   * Retrieves all medical records created by a specific veterinarian.
+   * Returns entities directly with relations for full data access.
+   */
+  async getMedicalRecordsByVeterinarian(
+    accountId: number,
+  ): Promise<MedicalRecord[]> {
+    // Find the veterinarian record by accountId
+    const veterinarian = await this.veterinarianRepository.findOne({
+      where: { accountId },
+    });
+
+    if (!veterinarian) {
+      throw new NotFoundException('Veterinarian not found');
+    }
+
+    return this.medicalRecordRepository.find({
+      where: { veterinarianId: veterinarian.employeeId },
+      order: { examinationDate: 'DESC' },
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'veterinarian',
+        'veterinarian.account',
+      ],
+    });
+  }
+
+  /**
    * Creates new medical record for pet with diagnosis and treatment.
    * Validates that veterinarian exists.
    * Auto-links petId from appointment if appointmentId is provided.

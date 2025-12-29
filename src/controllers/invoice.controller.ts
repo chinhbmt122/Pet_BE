@@ -27,6 +27,7 @@ import {
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
 import { GetUser } from '../middleware/decorators/user.decorator';
+import { InvoiceStatus } from 'src/entities/invoice.entity';
 
 /**
  * InvoiceController
@@ -122,6 +123,46 @@ export class InvoiceController {
     @Body() dto: CreateInvoiceDto,
   ): Promise<InvoiceResponseDto> {
     return this.invoiceService.createInvoice(dto);
+  }
+
+  @Get('me')
+  @RouteConfig({
+    message: 'Get current pet owner invoices',
+    requiresAuth: true,
+    roles: [UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get invoices for current logged-in pet owner' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: InvoiceStatus,
+  })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'includeAppointment', required: false, type: Boolean })
+  @ApiQuery({ name: 'includePet', required: false, type: Boolean })
+  @ApiResponse({
+    status: 200,
+    description: 'List of current pet owner invoices',
+    type: [InvoiceResponseDto],
+  })
+  async getMyInvoices(
+    @GetUser() user: Account,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('includeAppointment') includeAppointment?: boolean,
+    @Query('includePet') includePet?: boolean,
+  ): Promise<InvoiceResponseDto[]> {
+    return this.invoiceService.getAllInvoices(user, {
+      status,
+      startDate,
+      endDate,
+      includeAppointment,
+      includePetOwner: false, // Pet owner viewing own invoices doesn't need this
+      includePet,
+    });
   }
 
   @Get()
