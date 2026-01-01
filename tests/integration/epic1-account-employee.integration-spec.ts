@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { I18nModule, AcceptLanguageResolver, QueryResolver } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 import { AccountService } from '../../src/services/account.service';
 import { EmployeeService } from '../../src/services/employee.service';
@@ -158,6 +159,18 @@ describe('Epic 1 Integration Tests - Account & Employee Domain', () => {
           isGlobal: true,
           envFilePath: '.env.test',
         }),
+        I18nModule.forRoot({
+          fallbackLanguage: 'vi',
+          loaderOptions: {
+            path: path.join(__dirname, '../../src/i18n/'),
+            watch: true,
+          },
+          resolvers: [
+            { use: QueryResolver, options: ['lang'] },
+            AcceptLanguageResolver,
+          ],
+          throwOnMissingKey: true,
+        }),
         TypeOrmModule.forRoot(testDatabaseConfig),
         AccountModule,
         EmployeeModule,
@@ -275,7 +288,13 @@ describe('Epic 1 Integration Tests - Account & Employee Domain', () => {
       // Verify login fails after deactivation
       await expect(
         authService.login(accountData.email, accountData.password),
-      ).rejects.toThrow('Account is inactive');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.unauthorized.accountInactive',
+          }),
+        }),
+      );
     });
 
     it('should change password and allow login with new password', async () => {
@@ -300,7 +319,13 @@ describe('Epic 1 Integration Tests - Account & Employee Domain', () => {
       // Verify login fails with old password
       await expect(
         authService.login(accountData.email, accountData.password),
-      ).rejects.toThrow('Invalid credentials');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.unauthorized.invalidCredentials',
+          }),
+        }),
+      );
 
       // Verify login works with new password
       const loginResult = await authService.login(
@@ -678,7 +703,7 @@ describe('Epic 1 Integration Tests - Account & Employee Domain', () => {
       };
 
       const updatedOwner = await petOwnerService.updateProfile(
-        owner.accountId,  // updateProfile expects accountId, not petOwnerId
+        owner.accountId, // updateProfile expects accountId, not petOwnerId
         updateData,
       );
 

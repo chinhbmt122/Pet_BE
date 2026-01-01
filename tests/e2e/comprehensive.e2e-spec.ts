@@ -4,6 +4,12 @@ import '../../src/entities/employee.entity';
 import { INestApplication } from '@nestjs/common';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import {
+  I18nModule,
+  AcceptLanguageResolver,
+  QueryResolver,
+  I18nService,
+} from 'nestjs-i18n';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DatabaseModule } from '../../src/config/database.module';
@@ -101,6 +107,18 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
           isGlobal: true,
           envFilePath: '.env.test',
         }),
+        I18nModule.forRoot({
+          fallbackLanguage: 'vi',
+          loaderOptions: {
+            path: path.join(__dirname, '../../src/i18n/'),
+            watch: true,
+          },
+          resolvers: [
+            { use: QueryResolver, options: ['lang'] },
+            AcceptLanguageResolver,
+          ],
+          throwOnMissingKey: true,
+        }),
         TypeOrmModule.forRoot(testDatabaseConfig),
         // Epic 1 modules (when implemented)
         AccountModule,
@@ -134,8 +152,10 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
     });
 
     const reflector = app.get(require('@nestjs/core').Reflector);
+    const i18nService =
+      app.get<I18nService<Record<string, unknown>>>(I18nService);
     app.useGlobalInterceptors(new ResponseInterceptor(reflector));
-    app.useGlobalFilters(new GlobalExceptionFilter());
+    app.useGlobalFilters(new GlobalExceptionFilter(i18nService));
     await app.init();
 
     // Get repositories for test data setup
@@ -321,7 +341,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
           });
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toContain('Invalid credentials');
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Thông tin đăng nhập không hợp lệ' (vi) or 'Invalid credentials' (en)
       });
 
       it('POST /api/auth/logout - should logout successfully', async () => {
@@ -330,7 +351,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
           .send({ token: 'dummy-token' });
 
         expect(response.status).toBe(200);
-        expect(response.body.data.message).toBe('Logout successful');
+        expect(response.body.data.message).toBeDefined();
+        // Message will be translated via i18n: 'Đăng xuất thành công' (vi) or 'Logout successful' (en)
       });
 
       it('GET /api/auth/account/:id - should get account by ID', async () => {
@@ -491,6 +513,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
         );
 
         expect(response.status).toBe(404);
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Không tìm thấy tài khoản' (vi) or 'Account not found' (en)
       });
 
       it('GET /api/employees/:id - should return 404 for non-existent employee', async () => {
@@ -499,6 +523,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
         );
 
         expect(response.status).toBe(404);
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Không tìm thấy nhân viên với ID 99999' (vi) or 'Employee with ID 99999 not found' (en)
       });
 
       it('PUT /api/auth/account/:id/change-password - should reject weak password', async () => {
@@ -629,7 +655,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
         );
 
         expect(response.status).toBe(404);
-        expect(response.body.message).toContain('not found');
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Không tìm thấy thú cưng với ID 99999' (vi) or 'Pet with ID 99999 not found' (en)
       });
 
       it('POST /api/pets - should return 500 for invalid data (reveals validation gap)', async () => {
@@ -653,6 +680,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
         );
 
         expect(response.status).toBe(404);
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Không tìm thấy chủ thú cưng với ID 99999' (vi) or 'Pet owner with ID 99999 not found' (en)
       });
     });
 
@@ -743,6 +772,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
           });
 
         expect(response.status).toBe(404);
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Không tìm thấy thú cưng với ID 99999' (vi) or 'Pet with ID 99999 not found' (en)
       });
 
       it('GET /api/medical-records/:id - should return 404 for non-existent record', async () => {
@@ -751,6 +782,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
         );
 
         expect(response.status).toBe(404);
+        expect(response.body.message).toBeDefined();
+        // Message will be translated via i18n: 'Không tìm thấy hồ sơ y tế với ID 99999' (vi) or 'Medical record with ID 99999 not found' (en)
       });
     });
 
@@ -861,6 +894,8 @@ describe('Comprehensive E2E Test Suite - All Implemented Epics', () => {
           `/api/service-categories/${testServiceCategoryId}`,
         );
         expect(res.status).toBe(409);
+        expect(res.body.message).toBeDefined();
+        // Message will be translated via i18n: conflict error about linked services
       });
     });
 

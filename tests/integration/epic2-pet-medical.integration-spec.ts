@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { I18nModule, AcceptLanguageResolver, QueryResolver } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 import { PetModule } from '../../src/modules/pet.module';
 import { MedicalRecordModule } from '../../src/modules/medical-record.module';
@@ -19,6 +20,7 @@ import {
   VaccineCategory,
 } from '../../src/entities/types/entity.types';
 import { getTestDatabaseConfig } from '../e2e/test-db.config';
+import * as path from 'path';
 
 /**
  * Epic 2 Integration Tests - Pet & Medical Domain
@@ -60,6 +62,18 @@ describe('Epic 2 Integration Tests - Pet & Medical Domain', () => {
         ConfigModule.forRoot({
           isGlobal: true,
           envFilePath: '.env.test',
+        }),
+        I18nModule.forRoot({
+          fallbackLanguage: 'vi',
+          loaderOptions: {
+            path: path.join(__dirname, '../../src/i18n/'),
+            watch: true,
+          },
+          resolvers: [
+            { use: QueryResolver, options: ['lang'] },
+            AcceptLanguageResolver,
+          ],
+          throwOnMissingKey: true,
         }),
         TypeOrmModule.forRoot(testDatabaseConfig),
         PetModule,
@@ -431,12 +445,13 @@ describe('Epic 2 Integration Tests - Pet & Medical Domain', () => {
         veterinarianId: testVetId,
         diagnosis: 'Future checkup',
         treatment: 'Monitoring',
-        followUpDate: new Date('2026-01-01'), // Future date
+        followUpDate: new Date('2027-06-01'), // Future date
       });
 
       // Get overdue follow-ups
       const overdue = await medicalRecordService.getOverdueFollowUps(testPetId);
 
+      // console.log(overdue);
       expect(overdue.length).toBe(1);
       expect(new Date(overdue[0].followUpDate).getTime()).toBeLessThan(
         new Date().getTime(),

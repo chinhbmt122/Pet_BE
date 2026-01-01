@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { I18nModule, AcceptLanguageResolver, QueryResolver } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 import { ServiceModule } from '../../src/modules/service.module';
 import { ServiceCategoryModule } from '../../src/modules/service-category.module';
@@ -17,6 +18,8 @@ import { CareStaff } from '../../src/entities/care-staff.entity';
 import { Account } from '../../src/entities/account.entity';
 import { UserType } from '../../src/entities/types/entity.types';
 import { getTestDatabaseConfig } from '../e2e/test-db.config';
+import * as path from 'path';
+import { ConflictException } from '@nestjs/common';
 
 /**
  * Epic 3 Integration Tests - Service & Schedule Domain
@@ -56,6 +59,18 @@ describe('Epic 3 Integration Tests - Service & Schedule Domain', () => {
         ConfigModule.forRoot({
           isGlobal: true,
           envFilePath: '.env.test',
+        }),
+        I18nModule.forRoot({
+          fallbackLanguage: 'vi',
+          loaderOptions: {
+            path: path.join(__dirname, '../../src/i18n/'),
+            watch: true,
+          },
+          resolvers: [
+            { use: QueryResolver, options: ['lang'] },
+            AcceptLanguageResolver,
+          ],
+          throwOnMissingKey: true,
         }),
         TypeOrmModule.forRoot(testDatabaseConfig),
         ServiceModule,
@@ -203,7 +218,7 @@ describe('Epic 3 Integration Tests - Service & Schedule Domain', () => {
       // Attempt to delete category with linked services should fail
       await expect(
         serviceCategoryService.deleteCategory(category.id),
-      ).rejects.toThrow();
+      ).rejects.toThrow(ConflictException);
 
       // Verify category still exists
       const dbCategory = await serviceCategoryRepository.findOne({
@@ -286,7 +301,9 @@ describe('Epic 3 Integration Tests - Service & Schedule Domain', () => {
       expect(priceResult.modifier).toBeGreaterThan(1);
       // Final price should be higher than base price for large size
       expect(priceResult.finalPrice).toBeGreaterThan(priceResult.basePrice);
-      expect(priceResult.finalPrice).toBe(priceResult.basePrice * priceResult.modifier);
+      expect(priceResult.finalPrice).toBe(
+        priceResult.basePrice * priceResult.modifier,
+      );
     });
 
     it('should toggle service availability', async () => {
