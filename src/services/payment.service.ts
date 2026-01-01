@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Invoice } from '../entities/invoice.entity';
@@ -73,32 +74,37 @@ export class PaymentService {
     });
 
     if (!invoice) {
-      throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', {
+        id: dto.invoiceId,
+      });
     }
 
     // 2. Validate invoice status
     if (!invoice.canPayByCash()) {
-      throw new BadRequestException(
-        `Cannot process payment: invoice status is ${invoice.status}`,
-      );
+      I18nException.badRequest('errors.badRequest.invalidInvoiceStatus', {
+        status: invoice.status,
+      });
     }
 
     // 3. Validate payment amount
     if (dto.amount !== Number(invoice.totalAmount)) {
-      throw new BadRequestException(
-        `Payment amount (${dto.amount}) does not match invoice total (${invoice.totalAmount})`,
-      );
+      I18nException.badRequest('errors.badRequest.paymentAmountMismatch', {
+        amount: dto.amount,
+        total: invoice.totalAmount,
+      });
     }
 
     // 4. Validate payment method and create payment
     if (dto.paymentMethod !== PaymentMethod.CASH) {
-      throw new BadRequestException(
-        `Use initiateOnlinePayment for ${dto.paymentMethod} payments`,
-      );
+      I18nException.badRequest('errors.badRequest.useOnlinePaymentMethod', {
+        method: dto.paymentMethod,
+      });
     }
 
     if (!dto.receivedBy) {
-      throw new BadRequestException('receivedBy is required for cash payments');
+      I18nException.badRequest('errors.badRequest.missingRequiredField', {
+        field: 'receivedBy',
+      });
     }
 
     const payment = Payment.createCashPayment({
@@ -138,7 +144,9 @@ export class PaymentService {
     });
 
     if (!invoice) {
-      throw new NotFoundException(`Invoice with ID ${dto.invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', {
+        id: dto.invoiceId,
+      });
     }
 
     // 2. If PET_OWNER, validate they own this invoice
@@ -150,17 +158,17 @@ export class PaymentService {
         !petOwner ||
         invoice.appointment?.pet?.ownerId !== petOwner.petOwnerId
       ) {
-        throw new NotFoundException(
-          `Invoice with ID ${dto.invoiceId} not found`,
-        );
+        I18nException.notFound('errors.notFound.invoice', {
+          id: dto.invoiceId,
+        });
       }
     }
 
     // 3. Validate invoice status
     if (!invoice.canStartOnlinePayment()) {
-      throw new BadRequestException(
-        `Cannot start online payment: invoice status is ${invoice.status}`,
-      );
+      I18nException.badRequest('errors.badRequest.invalidInvoiceStatus', {
+        status: invoice.status,
+      });
     }
 
     // 4. Generate idempotency key
@@ -215,7 +223,9 @@ export class PaymentService {
     ).verifyCallback(callbackData);
 
     if (!verification.isValid) {
-      throw new BadRequestException('Invalid callback signature');
+      I18nException.badRequest('errors.badRequest.invalidValue', {
+        field: 'signature',
+      });
     }
 
     // 2. Find payment by order ID (payment ID stored in vnp_TxnRef)
@@ -226,7 +236,9 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+      I18nException.notFound('errors.notFound.payment', {
+        id: paymentId,
+      });
     }
 
     const invoice = payment.invoice;
@@ -272,21 +284,24 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+      I18nException.notFound('errors.notFound.payment', {
+        id: paymentId,
+      });
     }
 
     // 2. Validate refund can be processed
     if (!payment.canRefund()) {
-      throw new BadRequestException(
-        `Cannot refund: payment status is ${payment.paymentStatus}`,
-      );
+      I18nException.badRequest('errors.badRequest.invalidPaymentStatus', {
+        status: payment.paymentStatus,
+      });
     }
 
     // 3. Validate refund amount
     if (dto.amount > Number(payment.amount)) {
-      throw new BadRequestException(
-        `Refund amount (${dto.amount}) cannot exceed payment amount (${payment.amount})`,
-      );
+      I18nException.badRequest('errors.badRequest.refundAmountExceeded', {
+        refundAmount: dto.amount,
+        paymentAmount: payment.amount,
+      });
     }
 
     // 4. Process refund via gateway (if online payment)
@@ -301,9 +316,9 @@ export class PaymentService {
       });
 
       if (!refundResponse.success) {
-        throw new BadRequestException(
-          `Refund failed: ${refundResponse.message}`,
-        );
+        I18nException.badRequest('errors.badRequest.refundFailed', {
+          message: refundResponse.message,
+        });
       }
 
       // Archive refund gateway response
@@ -373,7 +388,9 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+      I18nException.notFound('errors.notFound.payment', {
+        id: paymentId,
+      });
     }
 
     // If PET_OWNER, validate they own the invoice
@@ -385,7 +402,9 @@ export class PaymentService {
         !petOwner ||
         payment.invoice?.appointment?.pet?.ownerId !== petOwner.petOwnerId
       ) {
-        throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+        I18nException.notFound('errors.notFound.payment', {
+          id: paymentId,
+        });
       }
     }
 
@@ -417,7 +436,9 @@ export class PaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+      I18nException.notFound('errors.notFound.payment', {
+        id: paymentId,
+      });
     }
 
     // Only verify online payments

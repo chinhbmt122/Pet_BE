@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, FindOptionsWhere } from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
@@ -52,7 +48,7 @@ export class AppointmentService {
       where: { petId: dto.petId },
     });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
     }
 
     // If PET_OWNER, validate they own the pet
@@ -61,7 +57,7 @@ export class AppointmentService {
         where: { accountId: user.accountId },
       });
       if (!petOwner || pet.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+        I18nException.notFound('errors.notFound.pet', { id: dto.petId });
       }
     }
 
@@ -70,9 +66,9 @@ export class AppointmentService {
       where: { employeeId: dto.employeeId },
     });
     if (!employee) {
-      throw new NotFoundException(
-        `Employee with ID ${dto.employeeId} not found`,
-      );
+      I18nException.notFound('errors.notFound.employee', {
+        id: dto.employeeId,
+      });
     }
 
     // Validate service exists
@@ -80,12 +76,12 @@ export class AppointmentService {
       where: { serviceId: dto.serviceId },
     });
     if (!service) {
-      throw new NotFoundException(`Service with ID ${dto.serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: dto.serviceId });
     }
 
     // Validate time (end must be after start)
     if (dto.endTime <= dto.startTime) {
-      throw new BadRequestException('End time must be after start time');
+      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
     }
 
     // Check for schedule conflicts
@@ -106,9 +102,9 @@ export class AppointmentService {
         (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
         (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
       ) {
-        throw new ConflictException(
-          `Employee has a conflicting appointment at ${conflict.startTime} - ${conflict.endTime}`,
-        );
+        I18nException.conflict('errors.badRequest.conflictingAppointment', {
+          time: `${conflict.startTime} - ${conflict.endTime}`,
+        });
       }
     }
 
@@ -142,7 +138,7 @@ export class AppointmentService {
       where: { petId: dto.petId },
     });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
     }
 
     // If PET_OWNER, validate they own the pet
@@ -151,12 +147,10 @@ export class AppointmentService {
         where: { accountId: user.accountId },
       });
       if (!petOwner) {
-        throw new NotFoundException('Pet owner account not found');
+        I18nException.notFound('errors.notFound.owner');
       }
       if (pet.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(
-          `Pet with ID ${dto.petId} not found or does not belong to you`,
-        );
+        I18nException.notFound('errors.notFound.pet', { id: dto.petId });
       }
     }
     // VET, RECEPTIONIST, and other staff can create appointments for any pet
@@ -166,9 +160,9 @@ export class AppointmentService {
       where: { employeeId: dto.employeeId },
     });
     if (!employee) {
-      throw new NotFoundException(
-        `Employee with ID ${dto.employeeId} not found`,
-      );
+      I18nException.notFound('errors.notFound.employee', {
+        id: dto.employeeId,
+      });
     }
 
     // Validate service exists
@@ -176,12 +170,12 @@ export class AppointmentService {
       where: { serviceId: dto.serviceId },
     });
     if (!service) {
-      throw new NotFoundException(`Service with ID ${dto.serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: dto.serviceId });
     }
 
     // Validate time (end must be after start)
     if (dto.endTime <= dto.startTime) {
-      throw new BadRequestException('End time must be after start time');
+      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
     }
 
     // Check for schedule conflicts
@@ -202,9 +196,9 @@ export class AppointmentService {
         (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
         (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
       ) {
-        throw new ConflictException(
-          `Employee has a conflicting appointment at ${conflict.startTime} - ${conflict.endTime}`,
-        );
+        I18nException.conflict('errors.badRequest.conflictingAppointment', {
+          time: `${conflict.startTime} - ${conflict.endTime}`,
+        });
       }
     }
 
@@ -235,9 +229,9 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     // Validate employee if being updated
@@ -246,9 +240,9 @@ export class AppointmentService {
         where: { employeeId: dto.employeeId },
       });
       if (!employee) {
-        throw new NotFoundException(
-          `Employee with ID ${dto.employeeId} not found`,
-        );
+        I18nException.notFound('errors.notFound.employee', {
+          id: dto.employeeId,
+        });
       }
     }
 
@@ -256,7 +250,7 @@ export class AppointmentService {
     const startTime = dto.startTime ?? appointment.startTime;
     const endTime = dto.endTime ?? appointment.endTime;
     if (endTime <= startTime) {
-      throw new BadRequestException('End time must be after start time');
+      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
     }
 
     Object.assign(appointment, dto);
@@ -276,9 +270,9 @@ export class AppointmentService {
       relations: ['pet', 'employee', 'service', 'pet.owner'],
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     // If PET_OWNER, validate ownership
@@ -287,9 +281,9 @@ export class AppointmentService {
         where: { accountId: user.accountId },
       });
       if (!petOwner || appointment.pet?.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(
-          `Appointment with ID ${appointmentId} not found`,
-        );
+        I18nException.notFound('errors.notFound.appointment', {
+          id: appointmentId,
+        });
       }
     }
 
@@ -485,7 +479,7 @@ export class AppointmentService {
         where: { accountId: user.accountId },
       });
       if (!employee || employee.employeeId !== employeeId) {
-        throw new NotFoundException('Appointments not found');
+        I18nException.notFound('errors.notFound.resource');
       }
     }
 
@@ -527,13 +521,13 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     if (appointment.status !== AppointmentStatus.PENDING) {
-      throw new BadRequestException('Can only delete pending appointments');
+      I18nException.badRequest('errors.badRequest.canOnlyDeletePending');
     }
 
     await this.appointmentRepository.remove(appointment);
@@ -551,13 +545,13 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     if (appointment.status !== AppointmentStatus.PENDING) {
-      throw new BadRequestException('Can only confirm pending appointments');
+      I18nException.badRequest('errors.badRequest.canOnlyConfirmPending');
     }
 
     appointment.status = AppointmentStatus.CONFIRMED;
@@ -572,13 +566,13 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     if (appointment.status !== AppointmentStatus.CONFIRMED) {
-      throw new BadRequestException('Can only start confirmed appointments');
+      I18nException.badRequest('errors.badRequest.canOnlyStartConfirmed');
     }
 
     appointment.status = AppointmentStatus.IN_PROGRESS;
@@ -596,15 +590,13 @@ export class AppointmentService {
       where: { appointmentId },
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
-      throw new BadRequestException(
-        'Can only complete in-progress appointments',
-      );
+      I18nException.badRequest('errors.badRequest.canOnlyCompleteInProgress');
     }
 
     appointment.status = AppointmentStatus.COMPLETED;
@@ -628,9 +620,9 @@ export class AppointmentService {
       relations: ['pet'],
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
     }
 
     // If PET_OWNER, validate ownership
@@ -639,18 +631,18 @@ export class AppointmentService {
         where: { accountId: user.accountId },
       });
       if (!petOwner || appointment.pet?.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(
-          `Appointment with ID ${appointmentId} not found`,
-        );
+        I18nException.notFound('errors.notFound.appointment', {
+          id: appointmentId,
+        });
       }
     }
 
     if (appointment.status === AppointmentStatus.COMPLETED) {
-      throw new BadRequestException('Cannot cancel completed appointments');
+      I18nException.badRequest('errors.badRequest.cannotCancelCompleted');
     }
 
     if (appointment.status === AppointmentStatus.CANCELLED) {
-      throw new BadRequestException('Appointment is already cancelled');
+      I18nException.badRequest('errors.badRequest.alreadyCancelled');
     }
 
     appointment.status = AppointmentStatus.CANCELLED;

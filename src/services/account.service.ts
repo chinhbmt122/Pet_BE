@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -50,7 +51,7 @@ export class AccountService {
     // If user provided and not MANAGER, validate self-access only
     if (user && user.userType !== UserType.MANAGER) {
       if (user.accountId !== accountId) {
-        throw new ForbiddenException('You can only access your own account');
+        I18nException.forbidden('errors.forbidden.selfAccessOnly');
       }
     }
 
@@ -58,7 +59,7 @@ export class AccountService {
       where: { accountId },
     });
     if (!account) {
-      throw new NotFoundException('Account not found');
+      I18nException.notFound('errors.notFound.account');
     }
     return account;
   }
@@ -77,7 +78,7 @@ export class AccountService {
     // Validate access
     if (user && user.userType !== UserType.MANAGER) {
       if (user.accountId !== accountId) {
-        throw new ForbiddenException('You can only access your own profile');
+        I18nException.forbidden('errors.forbidden.selfAccessOnly');
       }
     }
 
@@ -99,7 +100,7 @@ export class AccountService {
   ): Promise<boolean> {
     // Validate self-access only (even MANAGER cannot change others' passwords)
     if (user && user.accountId !== accountId) {
-      throw new ForbiddenException('You can only change your own password');
+      I18nException.forbidden('errors.forbidden.selfChangePasswordOnly');
     }
 
     // 1. Find account
@@ -107,7 +108,7 @@ export class AccountService {
       where: { accountId },
     });
     if (!entity) {
-      throw new NotFoundException('Account not found');
+      I18nException.notFound('errors.notFound.account');
     }
 
     // 2. Convert to domain model
@@ -116,14 +117,12 @@ export class AccountService {
     // 3. Validate old password
     const isValid = await domain.validatePassword(oldPassword);
     if (!isValid) {
-      throw new UnauthorizedException('Old password is incorrect');
+      I18nException.unauthorized('errors.unauthorized.oldPasswordIncorrect');
     }
 
     // 4. Validate new password is different
     if (oldPassword === newPassword) {
-      throw new BadRequestException(
-        'New password must be different from old password',
-      );
+      I18nException.badRequest('errors.badRequest.newPasswordDifferent');
     }
 
     // 5. Hash and update password via domain model
@@ -145,7 +144,7 @@ export class AccountService {
       where: { accountId },
     });
     if (!entity) {
-      throw new NotFoundException('Account not found');
+      I18nException.notFound('errors.notFound.account');
     }
 
     const domain = AccountMapper.toDomain(entity);
@@ -163,7 +162,7 @@ export class AccountService {
       where: { accountId },
     });
     if (!entity) {
-      throw new NotFoundException('Account not found');
+      I18nException.notFound('errors.notFound.account');
     }
 
     const domain = AccountMapper.toDomain(entity);

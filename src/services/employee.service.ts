@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Account } from '../entities/account.entity';
@@ -52,9 +49,7 @@ export class EmployeeService {
     await this.verifyIsManager(callerAccountId);
 
     if (dto.userType === UserType.PET_OWNER) {
-      throw new ForbiddenException(
-        'Cannot create PetOwner via EmployeeService',
-      );
+      I18nException.forbidden('errors.forbidden.accessDenied');
     }
 
     return this.dataSource.transaction(async (manager) => {
@@ -98,9 +93,7 @@ export class EmployeeService {
           employee = this.employeeFactory.createReceptionist(baseProps);
           break;
         default:
-          throw new ForbiddenException(
-            `Unknown employee type: ${dto.userType}`,
-          );
+          I18nException.forbidden('errors.forbidden.accessDenied');
       }
 
       return manager.save(employee);
@@ -148,7 +141,7 @@ export class EmployeeService {
       where: { employeeId },
     });
     if (!employee) {
-      throw new NotFoundException('Employee not found');
+      I18nException.notFound('errors.notFound.employee');
     }
     return employee;
   }
@@ -161,7 +154,7 @@ export class EmployeeService {
       where: { accountId },
     });
     if (!employee) {
-      throw new NotFoundException('Employee not found');
+      I18nException.notFound('errors.notFound.employee');
     }
     return employee;
   }
@@ -222,17 +215,17 @@ export class EmployeeService {
     const isManager = await this.isManager(callerAccountId);
 
     if (!isSelf && !isManager) {
-      throw new ForbiddenException('Not authorized to update this employee');
+      I18nException.forbidden('errors.forbidden.accessDenied');
     }
 
     // Only Manager can change salary
     if (updates.salary !== undefined && !isManager) {
-      throw new ForbiddenException('Only Managers can change salary');
+      I18nException.forbidden('errors.forbidden.insufficientPermissions');
     }
 
     // Only Manager can change licenseNumber (official credential)
     if (updates.licenseNumber !== undefined && !isManager) {
-      throw new ForbiddenException('Only Managers can update license number');
+      I18nException.forbidden('errors.forbidden.insufficientPermissions');
     }
 
     // Convert to domain, update, save
@@ -318,7 +311,7 @@ export class EmployeeService {
       where: { accountId },
     });
     if (!account || account.userType !== UserType.MANAGER) {
-      throw new ForbiddenException('Only Managers can perform this action');
+      I18nException.forbidden('errors.forbidden.insufficientPermissions');
     }
   }
 

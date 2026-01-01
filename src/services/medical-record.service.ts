@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { MedicalRecord } from '../entities/medical-record.entity';
@@ -86,7 +83,7 @@ export class MedicalRecordService {
     });
 
     if (!veterinarian) {
-      throw new NotFoundException('Veterinarian not found');
+      I18nException.notFound('errors.notFound.employee');
     }
 
     return this.medicalRecordRepository.find({
@@ -118,18 +115,16 @@ export class MedicalRecordService {
         where: { appointmentId: dto.appointmentId },
       });
       if (!appointment) {
-        throw new NotFoundException(
-          `Appointment with ID ${dto.appointmentId} not found`,
-        );
+        I18nException.notFound('errors.notFound.appointment', {
+          id: dto.appointmentId,
+        });
       }
-      petId = appointment.petId;
+      petId = appointment?.petId;
     }
 
     // 2. Verify petId is provided
     if (!petId) {
-      throw new BadRequestException(
-        'Either petId or appointmentId must be provided',
-      );
+      I18nException.badRequest('errors.badRequest.petOrAppointmentRequired');
     }
 
     // 3. Verify pet exists
@@ -137,7 +132,7 @@ export class MedicalRecordService {
       where: { petId },
     });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // 4. Verify vet exists (Veterinarian entity already ensures role)
@@ -145,14 +140,14 @@ export class MedicalRecordService {
       where: { employeeId: dto.veterinarianId },
     });
     if (!vet) {
-      throw new BadRequestException(
-        `Employee ${dto.veterinarianId} is not a veterinarian`,
-      );
+      I18nException.badRequest('errors.badRequest.notVeterinarian', {
+        id: dto.veterinarianId,
+      });
     }
 
     // 5. Create domain model
     const domain = MedicalRecordDomainModel.create({
-      petId,
+      petId: petId,
       veterinarianId: dto.veterinarianId,
       diagnosis: dto.diagnosis,
       treatment: dto.treatment,
@@ -182,9 +177,7 @@ export class MedicalRecordService {
       where: { recordId },
     });
     if (!entity) {
-      throw new NotFoundException(
-        `Medical record with ID ${recordId} not found`,
-      );
+      I18nException.notFound('errors.notFound.medicalRecord', { id: recordId });
     }
 
     // Convert to domain and update
@@ -217,9 +210,7 @@ export class MedicalRecordService {
       relations: ['pet', 'veterinarian'],
     });
     if (!entity) {
-      throw new NotFoundException(
-        `Medical record with ID ${recordId} not found`,
-      );
+      I18nException.notFound('errors.notFound.medicalRecord', { id: recordId });
     }
 
     // If PET_OWNER, validate ownership
@@ -232,9 +223,9 @@ export class MedicalRecordService {
           where: { petId: entity.petId },
         });
         if (!pet || pet.ownerId !== petOwner?.petOwnerId) {
-          throw new NotFoundException(
-            `Medical record with ID ${recordId} not found`,
-          );
+          I18nException.notFound('errors.notFound.medicalRecord', {
+            id: recordId,
+          });
         }
       }
     }
@@ -283,7 +274,7 @@ export class MedicalRecordService {
     // 1. Verify pet exists
     const pet = await this.petRepository.findOne({ where: { petId } });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // 2. Get VaccineType for booster interval
@@ -291,9 +282,9 @@ export class MedicalRecordService {
       where: { vaccineTypeId: dto.vaccineTypeId },
     });
     if (!vaccineType) {
-      throw new NotFoundException(
-        `Vaccine type with ID ${dto.vaccineTypeId} not found`,
-      );
+      I18nException.notFound('errors.notFound.vaccineType', {
+        id: dto.vaccineTypeId,
+      });
     }
 
     // 3. Verify vet exists
@@ -301,9 +292,9 @@ export class MedicalRecordService {
       where: { employeeId: dto.administeredBy },
     });
     if (!vet) {
-      throw new BadRequestException(
-        `Employee ${dto.administeredBy} is not a veterinarian`,
-      );
+      I18nException.badRequest('errors.badRequest.notVeterinarian', {
+        id: dto.administeredBy,
+      });
     }
 
     // 4. Create domain model (nextDueDate auto-calculated)
@@ -350,7 +341,7 @@ export class MedicalRecordService {
       });
       const pet = await this.petRepository.findOne({ where: { petId } });
       if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException('Pet not found');
+        I18nException.notFound('errors.notFound.pet');
       }
     }
 
@@ -389,7 +380,7 @@ export class MedicalRecordService {
       });
       const pet = await this.petRepository.findOne({ where: { petId } });
       if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException('Pet not found');
+        I18nException.notFound('errors.notFound.pet');
       }
     }
 
@@ -431,7 +422,7 @@ export class MedicalRecordService {
       });
       const pet = await this.petRepository.findOne({ where: { petId } });
       if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException('Pet not found');
+        I18nException.notFound('errors.notFound.pet');
       }
     }
 
