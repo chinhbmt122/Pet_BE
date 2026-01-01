@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, ILike } from 'typeorm';
 import { Service } from '../entities/service.entity';
@@ -37,9 +38,7 @@ export class ServiceService {
       where: { serviceName: dto.serviceName },
     });
     if (existing) {
-      throw new ConflictException(
-        `Service '${dto.serviceName}' already exists`,
-      );
+      I18nException.conflict('errors.conflict.resourceAlreadyExists');
     }
 
     // Verify category exists
@@ -47,9 +46,9 @@ export class ServiceService {
       where: { categoryId: dto.categoryId },
     });
     if (!category) {
-      throw new NotFoundException(
-        `Category with ID ${dto.categoryId} not found`,
-      );
+      I18nException.notFound('errors.notFound.serviceCategory', {
+        id: dto.categoryId,
+      });
     }
 
     const entity = this.serviceRepository.create({
@@ -86,7 +85,7 @@ export class ServiceService {
       relations: ['serviceCategory'],
     });
     if (!entity) {
-      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: serviceId });
     }
 
     // Check for name conflict if updating name
@@ -95,9 +94,7 @@ export class ServiceService {
         where: { serviceName: dto.serviceName },
       });
       if (existing) {
-        throw new ConflictException(
-          `Service '${dto.serviceName}' already exists`,
-        );
+        I18nException.conflict('errors.conflict.resourceAlreadyExists');
       }
     }
 
@@ -107,9 +104,9 @@ export class ServiceService {
         where: { categoryId: dto.categoryId },
       });
       if (!category) {
-        throw new NotFoundException(
-          `Category with ID ${dto.categoryId} not found`,
-        );
+        I18nException.notFound('errors.notFound.serviceCategory', {
+          id: dto.categoryId,
+        });
       }
     }
 
@@ -131,7 +128,7 @@ export class ServiceService {
       where: { serviceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: serviceId });
     }
 
     entity.isAvailable = false;
@@ -148,7 +145,7 @@ export class ServiceService {
       relations: ['serviceCategory'],
     });
     if (!entity) {
-      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: serviceId });
     }
 
     return ServiceResponseDto.fromEntity(entity);
@@ -233,7 +230,7 @@ export class ServiceService {
       relations: ['serviceCategory'],
     });
     if (!entity) {
-      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: serviceId });
     }
 
     entity.isAvailable = isAvailable;
@@ -254,7 +251,7 @@ export class ServiceService {
       where: { serviceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Service with ID ${serviceId} not found`);
+      I18nException.notFound('errors.notFound.service', { id: serviceId });
     }
 
     const modifiers: Record<string, number> = {

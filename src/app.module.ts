@@ -21,6 +21,8 @@ import { GlobalExceptionFilter } from './middleware/filters/global.filter';
 import { AuthGuard } from './middleware/guards/auth.guard';
 import { RolesGuard } from './middleware/guards/roles.guard';
 import { RequestLoggerMiddleware } from './middleware/interceptors/requestLog.interceptor';
+import { I18nModule, AcceptLanguageResolver, QueryResolver } from 'nestjs-i18n';
+import * as path from 'path';
 
 @Module({
   imports: [
@@ -28,6 +30,19 @@ import { RequestLoggerMiddleware } from './middleware/interceptors/requestLog.in
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+    // i18n configuration
+    I18nModule.forRoot({
+      fallbackLanguage: 'vi',
+      loaderOptions: {
+        path: path.join(__dirname, '../i18n/'),
+        watch: true,
+      },
+      resolvers: [
+        { use: QueryResolver, options: ['lang'] },
+        AcceptLanguageResolver,
+      ],
+      throwOnMissingKey: true,
     }),
     // Database configuration
     DatabaseModule,

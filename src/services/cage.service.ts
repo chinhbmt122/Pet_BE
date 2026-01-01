@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cage } from '../entities/cage.entity';
@@ -48,9 +49,9 @@ export class CageService {
       where: { cageNumber: dto.cageNumber },
     });
     if (existing) {
-      throw new ConflictException(
-        `Cage with number ${dto.cageNumber} already exists`,
-      );
+      I18nException.conflict('errors.conflict.cageNumber', {
+        cageNumber: dto.cageNumber,
+      });
     }
 
     const cage = this.cageRepository.create({
@@ -67,7 +68,7 @@ export class CageService {
   async updateCage(cageId: number, dto: UpdateCageDto): Promise<Cage> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     // Check cage number uniqueness if being updated
@@ -76,9 +77,9 @@ export class CageService {
         where: { cageNumber: dto.cageNumber },
       });
       if (existing) {
-        throw new ConflictException(
-          `Cage with number ${dto.cageNumber} already exists`,
-        );
+        I18nException.conflict('errors.conflict.cageNumber', {
+          cageNumber: dto.cageNumber,
+        });
       }
     }
 
@@ -92,7 +93,7 @@ export class CageService {
   async getCageById(cageId: number): Promise<Cage> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
     return cage;
   }
@@ -152,7 +153,7 @@ export class CageService {
   async deleteCage(cageId: number): Promise<void> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     // Check if cage has active assignments
@@ -164,8 +165,9 @@ export class CageService {
     });
 
     if (activeAssignment) {
-      throw new BadRequestException(
-        `Cannot delete cage ${cage.cageNumber} - it has active assignments`,
+      I18nException.badRequest(
+        'errors.badRequest.cannotDeleteCageWithActiveAssignments',
+        { cageNumber: cage.cageNumber },
       );
     }
 
@@ -188,13 +190,14 @@ export class CageService {
     // Validate cage
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     if (cage.status !== CageStatus.AVAILABLE) {
-      throw new BadRequestException(
-        `Cage ${cage.cageNumber} is not available (status: ${cage.status})`,
-      );
+      I18nException.badRequest('errors.badRequest.cageNotAvailable', {
+        cageNumber: cage.cageNumber,
+        status: cage.status,
+      });
     }
 
     // Validate pet
@@ -202,7 +205,7 @@ export class CageService {
       where: { petId: dto.petId },
     });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${dto.petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
     }
 
     // Check if pet already has an active assignment
@@ -214,8 +217,9 @@ export class CageService {
     });
 
     if (existingAssignment) {
-      throw new BadRequestException(
-        `Pet ${pet.name} already has an active cage assignment`,
+      I18nException.badRequest(
+        'errors.badRequest.petAlreadyHasActiveAssignment',
+        { petName: pet.name },
       );
     }
 
@@ -225,9 +229,9 @@ export class CageService {
         where: { employeeId: dto.assignedById },
       });
       if (!employee) {
-        throw new NotFoundException(
-          `Employee with ID ${dto.assignedById} not found`,
-        );
+        I18nException.notFound('errors.notFound.employee', {
+          id: dto.assignedById,
+        });
       }
     }
 
@@ -267,15 +271,15 @@ export class CageService {
     });
 
     if (!assignment) {
-      throw new NotFoundException(
-        `Assignment with ID ${assignmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.assignment', {
+        id: assignmentId,
+      });
     }
 
     if (assignment.status !== CageAssignmentStatus.ACTIVE) {
-      throw new BadRequestException(
-        `Assignment is not active (status: ${assignment.status})`,
-      );
+      I18nException.badRequest('errors.badRequest.assignmentNotActive', {
+        status: assignment.status,
+      });
     }
 
     // Update assignment
@@ -369,11 +373,13 @@ export class CageService {
   async startMaintenance(cageId: number): Promise<Cage> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     if (cage.status === CageStatus.OCCUPIED) {
-      throw new BadRequestException('Cannot put occupied cage in maintenance');
+      I18nException.badRequest(
+        'errors.badRequest.cannotPutOccupiedCageInMaintenance',
+      );
     }
 
     cage.status = CageStatus.MAINTENANCE;
@@ -386,11 +392,11 @@ export class CageService {
   async completeMaintenance(cageId: number): Promise<Cage> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     if (cage.status !== CageStatus.MAINTENANCE) {
-      throw new BadRequestException('Cage is not in maintenance');
+      I18nException.badRequest('errors.badRequest.cageNotInMaintenance');
     }
 
     cage.status = CageStatus.AVAILABLE;
@@ -403,13 +409,13 @@ export class CageService {
   async reserveCage(cageId: number): Promise<Cage> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     if (cage.status !== CageStatus.AVAILABLE) {
-      throw new BadRequestException(
-        `Cannot reserve cage in ${cage.status} status`,
-      );
+      I18nException.badRequest('errors.badRequest.cannotReserveCage', {
+        status: cage.status,
+      });
     }
 
     cage.status = CageStatus.RESERVED;
@@ -422,11 +428,11 @@ export class CageService {
   async cancelReservation(cageId: number): Promise<Cage> {
     const cage = await this.cageRepository.findOne({ where: { cageId } });
     if (!cage) {
-      throw new NotFoundException(`Cage with ID ${cageId} not found`);
+      I18nException.notFound('errors.notFound.cage', { id: cageId });
     }
 
     if (cage.status !== CageStatus.RESERVED) {
-      throw new BadRequestException('Cage is not reserved');
+      I18nException.badRequest('errors.badRequest.cageNotReserved');
     }
 
     cage.status = CageStatus.AVAILABLE;

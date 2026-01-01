@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindOptionsWhere } from 'typeorm';
+import { I18nException } from '../utils/i18n-exception.util';
 import { Pet } from '../entities/pet.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Appointment } from '../entities/appointment.entity';
@@ -42,15 +43,13 @@ export class PetService {
       where: { accountId: user.accountId },
     });
     if (!owner) {
-      throw new NotFoundException(`Owner with ID ${user.accountId} not found`);
+      I18nException.notFound('errors.notFound.owner', { id: user.accountId });
     }
 
     // 2. If PET_OWNER, validate they can only register for themselves
     if (user && user.userType === UserType.PET_OWNER) {
       if (owner.accountId !== user.accountId) {
-        throw new NotFoundException(
-          `Owner with ID ${user.accountId} not found`,
-        );
+        I18nException.notFound('errors.notFound.owner', { id: user.accountId });
       }
     }
 
@@ -92,13 +91,13 @@ export class PetService {
       where: { petOwnerId: ownerId },
     });
     if (!owner) {
-      throw new NotFoundException(`Owner with ID ${ownerId} not found`);
+      I18nException.notFound('errors.notFound.owner', { id: ownerId });
     }
 
     // 2. If PET_OWNER, validate they can only register for themselves
     if (user && user.userType === UserType.PET_OWNER) {
       if (owner.accountId !== user.accountId) {
-        throw new NotFoundException(`Owner with ID ${ownerId} not found`);
+        I18nException.notFound('errors.notFound.owner', { id: ownerId });
       }
     }
 
@@ -140,7 +139,7 @@ export class PetService {
       where: { petId },
     });
     if (!entity) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // 2. If PET_OWNER, validate ownership
@@ -149,7 +148,7 @@ export class PetService {
         where: { accountId: user.accountId },
       });
       if (!petOwner || entity.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(`Pet with ID ${petId} not found`);
+        I18nException.notFound('errors.notFound.pet', { id: petId });
       }
     }
 
@@ -190,7 +189,7 @@ export class PetService {
       relations: ['owner'],
     });
     if (!entity) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // If PET_OWNER, validate ownership
@@ -199,7 +198,7 @@ export class PetService {
         where: { accountId: user.accountId },
       });
       if (!petOwner || entity.ownerId !== petOwner.petOwnerId) {
-        throw new NotFoundException(`Pet with ID ${petId} not found`);
+        I18nException.notFound('errors.notFound.pet', { id: petId });
       }
     }
 
@@ -264,7 +263,7 @@ export class PetService {
     });
 
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     await this.petRepository.softDelete(petId);
@@ -277,9 +276,7 @@ export class PetService {
   async restore(petId: number): Promise<PetResponseDto> {
     const result = await this.petRepository.restore(petId);
     if (result.affected === 0) {
-      throw new NotFoundException(
-        `Pet with ID ${petId} not found or not deleted`,
-      );
+      I18nException.notFound('errors.notFound.petOrNotDeleted', { id: petId });
     }
 
     const entity = await this.petRepository.findOne({ where: { petId } });
@@ -326,7 +323,7 @@ export class PetService {
     // Verify pet exists
     const pet = await this.petRepository.findOne({ where: { petId } });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // Verify new owner exists
@@ -334,7 +331,7 @@ export class PetService {
       where: { petOwnerId: newOwnerId },
     });
     if (!newOwner) {
-      throw new NotFoundException(`Owner with ID ${newOwnerId} not found`);
+      I18nException.notFound('errors.notFound.owner', { id: newOwnerId });
     }
 
     // Update ownership
@@ -396,7 +393,7 @@ export class PetService {
     // Verify pet exists
     const pet = await this.petRepository.findOne({ where: { petId } });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // Get all medical records for this pet
@@ -416,7 +413,7 @@ export class PetService {
     // Verify pet exists
     const pet = await this.petRepository.findOne({ where: { petId } });
     if (!pet) {
-      throw new NotFoundException(`Pet with ID ${petId} not found`);
+      I18nException.notFound('errors.notFound.pet', { id: petId });
     }
 
     // Get all appointments for this pet

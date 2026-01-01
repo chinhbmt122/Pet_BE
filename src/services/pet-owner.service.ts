@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Account, UserType } from '../entities/account.entity';
@@ -94,7 +95,7 @@ export class PetOwnerService {
     // If PET_OWNER, validate self-access only
     if (user && user.userType === UserType.PET_OWNER) {
       if (user.accountId !== accountId) {
-        throw new ForbiddenException('You can only access your own profile');
+        I18nException.forbidden('errors.forbidden.selfAccessOnly');
       }
     }
 
@@ -102,7 +103,7 @@ export class PetOwnerService {
       where: { accountId },
     });
     if (!petOwner) {
-      throw new NotFoundException('PetOwner not found');
+      I18nException.notFound('errors.notFound.owner');
     }
     return petOwner;
   }
@@ -124,7 +125,7 @@ export class PetOwnerService {
     // If PET_OWNER, validate self-access only
     if (user && user.userType === UserType.PET_OWNER) {
       if (user.accountId !== accountId) {
-        throw new ForbiddenException('You can only update your own profile');
+        I18nException.forbidden('errors.forbidden.selfAccessOnly');
       }
     }
 
@@ -133,7 +134,7 @@ export class PetOwnerService {
       where: { accountId },
     });
     if (!entity) {
-      throw new NotFoundException('PetOwner not found');
+      I18nException.notFound('errors.notFound.owner');
     }
 
     // 2. Convert to domain model
@@ -162,9 +163,7 @@ export class PetOwnerService {
     // If PET_OWNER, validate self-access only
     if (user && user.userType === UserType.PET_OWNER) {
       if (user.accountId !== accountId) {
-        throw new ForbiddenException(
-          'You can only update your own preferences',
-        );
+        I18nException.forbidden('errors.forbidden.selfAccessOnly');
       }
     }
 
@@ -173,7 +172,7 @@ export class PetOwnerService {
       where: { accountId },
     });
     if (!entity) {
-      throw new NotFoundException('PetOwner not found');
+      I18nException.notFound('errors.notFound.owner');
     }
 
     // 2. Convert to domain model
@@ -230,7 +229,7 @@ export class PetOwnerService {
       where: { petOwnerId },
     });
     if (!petOwner) {
-      throw new NotFoundException('Pet owner not found');
+      I18nException.notFound('errors.notFound.owner');
     }
 
     // Get all pets for this owner
@@ -272,7 +271,7 @@ export class PetOwnerService {
       where: { petOwnerId },
     });
     if (!petOwner) {
-      throw new NotFoundException('Pet owner not found');
+      I18nException.notFound('errors.notFound.owner');
     }
 
     // Get all pets for this owner

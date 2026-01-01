@@ -4,6 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { I18nException } from '../utils/i18n-exception.util';
 import { Repository } from 'typeorm';
 import { ServiceCategory } from '../entities/service-category.entity';
 import {
@@ -35,9 +36,7 @@ export class ServiceCategoryService {
       where: { categoryName: dto.categoryName },
     });
     if (existing) {
-      throw new ConflictException(
-        `Category '${dto.categoryName}' already exists`,
-      );
+      I18nException.conflict('errors.conflict.resourceAlreadyExists');
     }
 
     const entity = this.categoryRepository.create({
@@ -62,7 +61,9 @@ export class ServiceCategoryService {
       relations: ['services'],
     });
     if (!entity) {
-      throw new NotFoundException(`Category with ID ${categoryId} not found`);
+      I18nException.notFound('errors.notFound.serviceCategory', {
+        id: categoryId,
+      });
     }
 
     if (dto.categoryName && dto.categoryName !== entity.categoryName) {
@@ -70,9 +71,7 @@ export class ServiceCategoryService {
         where: { categoryName: dto.categoryName },
       });
       if (existing) {
-        throw new ConflictException(
-          `Category '${dto.categoryName}' already exists`,
-        );
+        I18nException.conflict('errors.conflict.resourceAlreadyExists');
       }
     }
 
@@ -91,7 +90,9 @@ export class ServiceCategoryService {
       relations: ['services'],
     });
     if (!entity) {
-      throw new NotFoundException(`Category with ID ${categoryId} not found`);
+      I18nException.notFound('errors.notFound.serviceCategory', {
+        id: categoryId,
+      });
     }
 
     return ServiceCategoryResponseDto.fromEntity(entity);
@@ -123,7 +124,9 @@ export class ServiceCategoryService {
       relations: ['services'],
     });
     if (!entity) {
-      throw new NotFoundException(`Category with ID ${categoryId} not found`);
+      I18nException.notFound('errors.notFound.serviceCategory', {
+        id: categoryId,
+      });
     }
 
     entity.isActive = !entity.isActive;
@@ -140,13 +143,13 @@ export class ServiceCategoryService {
       relations: ['services'],
     });
     if (!entity) {
-      throw new NotFoundException(`Category with ID ${categoryId} not found`);
+      I18nException.notFound('errors.notFound.serviceCategory', {
+        id: categoryId,
+      });
     }
 
     if (entity.services && entity.services.length > 0) {
-      throw new ConflictException(
-        `Cannot delete category with ${entity.services.length} linked services`,
-      );
+      I18nException.conflict('errors.conflict.resourceAlreadyExists');
     }
 
     await this.categoryRepository.remove(entity);

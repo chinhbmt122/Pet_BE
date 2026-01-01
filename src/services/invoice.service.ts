@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
@@ -41,15 +42,16 @@ export class InvoiceService {
     });
 
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${dto.appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: dto.appointmentId,
+      });
     }
 
     if (appointment.status !== AppointmentStatus.COMPLETED) {
-      throw new BadRequestException(
-        `Cannot generate invoice: appointment status is ${appointment.status}, expected COMPLETED`,
-      );
+      I18nException.badRequest('errors.badRequest.appointmentNotCompleted', {
+        status: appointment.status,
+        expected: AppointmentStatus.COMPLETED,
+      });
     }
 
     // Delegate invoice creation to InvoiceService
@@ -68,9 +70,9 @@ export class InvoiceService {
       relations: ['service'],
     });
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment with ID ${dto.appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.appointment', {
+        id: dto.appointmentId,
+      });
     }
 
     // Check if invoice already exists for this appointment
@@ -78,9 +80,9 @@ export class InvoiceService {
       where: { appointmentId: dto.appointmentId },
     });
     if (existingInvoice) {
-      throw new ConflictException(
-        `Invoice already exists for appointment ${dto.appointmentId}`,
-      );
+      I18nException.conflict('errors.conflict.invoiceAlreadyExists', {
+        appointmentId: dto.appointmentId,
+      });
     }
 
     // Calculate invoice amounts from service
@@ -159,7 +161,7 @@ export class InvoiceService {
       where: { invoiceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
     // Update using entity business methods
@@ -192,7 +194,7 @@ export class InvoiceService {
       where: { invoiceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
     // If PET_OWNER, validate ownership via appointment → pet → owner
@@ -209,7 +211,7 @@ export class InvoiceService {
         !appointment ||
         appointment.pet?.ownerId !== petOwner.petOwnerId
       ) {
-        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+        I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
       }
     }
 
@@ -229,9 +231,9 @@ export class InvoiceService {
       relations: ['appointment', 'appointment.pet'],
     });
     if (!entity) {
-      throw new NotFoundException(
-        `Invoice with number ${invoiceNumber} not found`,
-      );
+      I18nException.notFound('errors.notFound.invoiceByNumber', {
+        number: invoiceNumber,
+      });
     }
 
     // If PET_OWNER, validate they own the pet
@@ -243,9 +245,9 @@ export class InvoiceService {
         !petOwner ||
         entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
       ) {
-        throw new NotFoundException(
-          `Invoice with number ${invoiceNumber} not found`,
-        );
+        I18nException.notFound('errors.notFound.invoiceByNumber', {
+          number: invoiceNumber,
+        });
       }
     }
 
@@ -262,9 +264,9 @@ export class InvoiceService {
       where: { appointmentId },
     });
     if (!entity) {
-      throw new NotFoundException(
-        `Invoice for appointment ${appointmentId} not found`,
-      );
+      I18nException.notFound('errors.notFound.invoiceByAppointment', {
+        appointmentId,
+      });
     }
 
     return InvoiceResponseDto.fromEntity(entity);
@@ -346,8 +348,7 @@ export class InvoiceService {
     }
 
     // For MANAGER and other staff, return all invoices
-    const qb = this.invoiceRepository
-      .createQueryBuilder('invoice');
+    const qb = this.invoiceRepository.createQueryBuilder('invoice');
 
     // Include related entities if requested
     if (filters?.includeAppointment) {
@@ -479,7 +480,7 @@ export class InvoiceService {
       where: { invoiceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
     // Use entity business method
@@ -497,7 +498,7 @@ export class InvoiceService {
       where: { invoiceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
     // Use entity business method
@@ -520,7 +521,7 @@ export class InvoiceService {
       relations: ['appointment', 'appointment.pet'],
     });
     if (!entity) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
     // If PET_OWNER, validate they own the pet
@@ -532,7 +533,7 @@ export class InvoiceService {
         !petOwner ||
         entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
       ) {
-        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+        I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
       }
     }
 
@@ -551,12 +552,12 @@ export class InvoiceService {
       where: { invoiceId },
     });
     if (!entity) {
-      throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
     // Use entity business method
     if (entity.isPaid()) {
-      throw new BadRequestException('Cannot delete paid invoice');
+      I18nException.badRequest('errors.badRequest.cannotDeletePaidInvoice');
     }
 
     await this.invoiceRepository.remove(entity);

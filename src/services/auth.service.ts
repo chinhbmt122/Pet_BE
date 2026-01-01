@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -53,7 +54,7 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!entity) {
-      throw new UnauthorizedException('Invalid credentials');
+      I18nException.unauthorized('errors.unauthorized.invalidCredentials');
     }
 
     // 2. Convert to domain model for business logic
@@ -62,12 +63,12 @@ export class AuthService {
     // 3. Validate password using domain model
     const isValid = await domain.validatePassword(password);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      I18nException.unauthorized('errors.unauthorized.invalidCredentials');
     }
 
     // 4. Check account is active
     if (!domain.isActive) {
-      throw new UnauthorizedException('Account is inactive');
+      I18nException.unauthorized('errors.unauthorized.accountInactive');
     }
 
     // 5. Generate JWT token
