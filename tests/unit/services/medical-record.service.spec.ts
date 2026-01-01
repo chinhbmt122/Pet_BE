@@ -172,7 +172,11 @@ describe('MedicalRecordService', () => {
       petRepository.findOne.mockResolvedValue(null);
 
       await expect(service.createMedicalRecord(createDto)).rejects.toThrow(
-        NotFoundException,
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.pet',
+          }),
+        }),
       );
     });
 
@@ -181,7 +185,11 @@ describe('MedicalRecordService', () => {
       veterinarianRepository.findOne.mockResolvedValue(null);
 
       await expect(service.createMedicalRecord(createDto)).rejects.toThrow(
-        BadRequestException,
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.badRequest.notVeterinarian',
+          }),
+        }),
       );
     });
   });
@@ -236,7 +244,13 @@ describe('MedicalRecordService', () => {
 
       await expect(
         service.addVaccination(999, createVaccinationDto),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.pet',
+          }),
+        }),
+      );
     });
 
     it('should throw NotFoundException when vaccine type not found', async () => {
@@ -245,7 +259,13 @@ describe('MedicalRecordService', () => {
 
       await expect(
         service.addVaccination(1, createVaccinationDto),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.vaccineType',
+          }),
+        }),
+      );
     });
 
     it('should throw BadRequestException when vet not found', async () => {
@@ -257,7 +277,13 @@ describe('MedicalRecordService', () => {
 
       await expect(
         service.addVaccination(1, createVaccinationDto),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.badRequest.notVeterinarian',
+          }),
+        }),
+      );
     });
   });
 

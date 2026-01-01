@@ -124,7 +124,11 @@ describe('PetService', () => {
       petOwnerRepository.findOne.mockResolvedValue(null);
 
       await expect(service.registerPet(createPetDto, 999)).rejects.toThrow(
-        NotFoundException,
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.owner',
+          }),
+        }),
       );
     });
   });
@@ -148,7 +152,13 @@ describe('PetService', () => {
     it('should throw NotFoundException when pet not found', async () => {
       petRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.getPetById(999)).rejects.toThrow(NotFoundException);
+      await expect(service.getPetById(999)).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.pet',
+          }),
+        }),
+      );
     });
   });
 
@@ -170,7 +180,13 @@ describe('PetService', () => {
     it('should throw NotFoundException when pet not found', async () => {
       petRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.deletePet(999)).rejects.toThrow(NotFoundException);
+      await expect(service.deletePet(999)).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.pet',
+          }),
+        }),
+      );
     });
   });
 
@@ -196,7 +212,13 @@ describe('PetService', () => {
         generatedMaps: [],
       });
 
-      await expect(service.restore(999)).rejects.toThrow(NotFoundException);
+      await expect(service.restore(999)).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.petOrNotDeleted',
+          }),
+        }),
+      );
     });
   });
 

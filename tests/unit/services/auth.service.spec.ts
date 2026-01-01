@@ -132,7 +132,11 @@ describe('AuthService', () => {
       accountRepository.findOne.mockResolvedValue(null);
 
       await expect(service.login(email, password)).rejects.toThrow(
-        'Invalid credentials',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.unauthorized.invalidCredentials',
+          }),
+        }),
       );
     });
 
@@ -159,7 +163,11 @@ describe('AuthService', () => {
       accountRepository.findOne.mockResolvedValue(mockAccount);
 
       await expect(service.login(email, password)).rejects.toThrow(
-        'Invalid credentials',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.unauthorized.invalidCredentials',
+          }),
+        }),
       );
     });
 
@@ -171,7 +179,11 @@ describe('AuthService', () => {
       accountRepository.findOne.mockResolvedValue(inactiveAccount);
 
       await expect(service.login(email, password)).rejects.toThrow(
-        'Account is inactive',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.unauthorized.accountInactive',
+          }),
+        }),
       );
     });
   });

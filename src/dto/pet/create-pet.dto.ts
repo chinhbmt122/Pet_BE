@@ -8,23 +8,24 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreatePetDto {
   @ApiProperty({ description: 'Pet name', example: 'Buddy' })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
   name: string;
 
   @ApiProperty({
     description: 'Species (Dog, Cat, Bird, etc.)',
     example: 'Dog',
   })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
   species: string;
 
   @ApiPropertyOptional({ description: 'Breed', example: 'Golden Retriever' })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   breed?: string;
 
@@ -32,7 +33,7 @@ export class CreatePetDto {
     description: 'Birth date (ISO 8601)',
     example: '2020-05-15',
   })
-  @IsDateString()
+  @IsDateString({}, { message: i18nValidationMessage('validation.isDate') })
   @IsOptional()
   birthDate?: string;
 
@@ -41,7 +42,7 @@ export class CreatePetDto {
     example: 'Male',
     default: 'Unknown',
   })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   gender?: string;
 
@@ -51,26 +52,26 @@ export class CreatePetDto {
     minimum: 0,
     maximum: 500,
   })
-  @IsNumber()
-  @Min(0)
-  @Max(500)
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
+  @Min(0, { message: i18nValidationMessage('validation.min') })
+  @Max(500, { message: i18nValidationMessage('validation.max') })
   @IsOptional()
   weight?: number;
 
   @ApiPropertyOptional({ description: 'Color/markings', example: 'Golden' })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   color?: string;
 
   @ApiPropertyOptional({ description: 'Initial health status on registration' })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   initialHealthStatus?: string;
 
   @ApiPropertyOptional({
     description: 'Special notes (allergies, conditions, etc.)',
   })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   specialNotes?: string;
 }

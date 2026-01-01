@@ -170,11 +170,13 @@ describe('PetOwnerService', () => {
       };
 
       accountFactory.create.mockRejectedValue(
-        new ConflictException('Email already exists'),
+        new ConflictException({
+          i18nKey: 'errors.conflict.resourceAlreadyExists',
+        }),
       );
 
       await expect(service.register(registerDto)).rejects.toThrow(
-        'Email already exists',
+        ConflictException,
       );
     });
   });
@@ -195,7 +197,11 @@ describe('PetOwnerService', () => {
       petOwnerRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getByAccountId(999)).rejects.toThrow(
-        'PetOwner not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.owner',
+          }),
+        }),
       );
     });
   });
@@ -230,7 +236,11 @@ describe('PetOwnerService', () => {
       petOwnerRepository.findOne.mockResolvedValue(null);
 
       await expect(service.updateProfile(999, updateDto)).rejects.toThrow(
-        'PetOwner not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.owner',
+          }),
+        }),
       );
     });
   });

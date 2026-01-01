@@ -21,7 +21,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     // Extract language from request (set by i18n middleware)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     const lang = 'vi';
 
     console.error('Exception caught by GlobalExceptionFilter:', exception);

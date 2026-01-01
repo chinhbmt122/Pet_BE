@@ -1,32 +1,33 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 /**
  * DTO for updating PetOwner
  */
 export class UpdatePetOwnerDto {
   @ApiPropertyOptional({ description: 'Full name' })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   fullName?: string;
 
   @ApiPropertyOptional({ description: 'Phone number' })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   phoneNumber?: string;
 
   @ApiPropertyOptional({ description: 'Address', nullable: true })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   address?: string | null;
 
   @ApiPropertyOptional({ description: 'Preferred contact method' })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   preferredContactMethod?: string;
 
   @ApiPropertyOptional({ description: 'Emergency contact', nullable: true })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   emergencyContact?: string | null;
 }

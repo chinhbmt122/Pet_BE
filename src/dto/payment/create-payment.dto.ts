@@ -9,6 +9,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaymentMethod } from '../../entities/types/entity.types';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 /**
  * Create Payment DTO
@@ -18,14 +19,21 @@ import { PaymentMethod } from '../../entities/types/entity.types';
  */
 export class CreatePaymentDto {
   @ApiProperty({ description: 'Invoice ID', example: 1 })
-  @IsNotEmpty({ message: 'Invoice ID is required' })
-  @IsNumber({}, { message: 'Invoice ID must be a number' })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   invoiceId: number;
 
   @ApiProperty({ description: 'Payment amount', example: 495000 })
-  @IsNotEmpty({ message: 'Amount is required' })
-  @IsNumber({}, { message: 'Amount must be a number' })
-  @Min(0, { message: 'Amount cannot be negative' })
+  @IsNotEmpty({
+    message: i18nValidationMessage('validation.custom.amountRequired'),
+  })
+  @IsNumber(
+    {},
+    { message: i18nValidationMessage('validation.custom.amountMustBeNumber') },
+  )
+  @Min(0, {
+    message: i18nValidationMessage('validation.custom.amountGreaterThanZero'),
+  })
   amount: number;
 
   @ApiProperty({
@@ -33,8 +41,10 @@ export class CreatePaymentDto {
     enum: PaymentMethod,
     example: PaymentMethod.CASH,
   })
-  @IsNotEmpty({ message: 'Payment method is required' })
-  @IsEnum(PaymentMethod, { message: 'Invalid payment method' })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  @IsEnum(PaymentMethod, {
+    message: i18nValidationMessage('validation.custom.invalidPaymentMethod'),
+  })
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
@@ -43,12 +53,12 @@ export class CreatePaymentDto {
     required: false,
   })
   @IsOptional()
-  @IsNumber({}, { message: 'Received by must be a number' })
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   receivedBy?: number;
 
   @ApiProperty({ description: 'Additional notes', required: false })
   @IsOptional()
-  @IsString({ message: 'Notes must be a string' })
-  @MaxLength(500, { message: 'Notes cannot exceed 500 characters' })
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  @MaxLength(500, { message: i18nValidationMessage('validation.maxLength') })
   notes?: string;
 }

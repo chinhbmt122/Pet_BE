@@ -102,7 +102,11 @@ describe('ServiceCategoryService', () => {
       serviceCategoryRepository.findOne.mockResolvedValue(mockServiceCategory);
 
       await expect(service.createCategory(createDto)).rejects.toThrow(
-        "Category 'Existing Category' already exists",
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.conflict.resourceAlreadyExists',
+          }),
+        }),
       );
     });
   });
@@ -142,7 +146,11 @@ describe('ServiceCategoryService', () => {
       serviceCategoryRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getCategoryById(999)).rejects.toThrow(
-        'Category with ID 999 not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.serviceCategory',
+          }),
+        }),
       );
     });
   });
@@ -177,7 +185,11 @@ describe('ServiceCategoryService', () => {
       serviceCategoryRepository.findOne.mockResolvedValue(null);
 
       await expect(service.updateCategory(999, updateDto)).rejects.toThrow(
-        'Category with ID 999 not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.serviceCategory',
+          }),
+        }),
       );
     });
 
@@ -193,7 +205,11 @@ describe('ServiceCategoryService', () => {
         .mockResolvedValueOnce(existingCategory); // Second call for name uniqueness
 
       await expect(service.updateCategory(1, updateDto)).rejects.toThrow(
-        "Category 'Existing Category' already exists",
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.conflict.resourceAlreadyExists',
+          }),
+        }),
       );
     });
   });
@@ -216,7 +232,11 @@ describe('ServiceCategoryService', () => {
       serviceCategoryRepository.findOne.mockResolvedValue(null);
 
       await expect(service.toggleActive(999)).rejects.toThrow(
-        'Category with ID 999 not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.serviceCategory',
+          }),
+        }),
       );
     });
   });
@@ -245,7 +265,11 @@ describe('ServiceCategoryService', () => {
       serviceCategoryRepository.findOne.mockResolvedValue(categoryWithServices);
 
       await expect(service.deleteCategory(1)).rejects.toThrow(
-        'Cannot delete category with 2 linked services',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.conflict.resourceAlreadyExists',
+          }),
+        }),
       );
     });
 
@@ -253,7 +277,11 @@ describe('ServiceCategoryService', () => {
       serviceCategoryRepository.findOne.mockResolvedValue(null);
 
       await expect(service.deleteCategory(999)).rejects.toThrow(
-        'Category with ID 999 not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.serviceCategory',
+          }),
+        }),
       );
     });
   });

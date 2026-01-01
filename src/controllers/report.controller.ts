@@ -24,18 +24,26 @@ export class ReportController {
   /**
    * Helper to get default date range (last 30 days)
    */
-  private getDefaultDateRange(startDate?: string, endDate?: string): { start: Date; end: Date } {
+  private getDefaultDateRange(
+    startDate?: string,
+    endDate?: string,
+  ): { start: Date; end: Date } {
     const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
+    const start = startDate
+      ? new Date(startDate)
+      : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
     // Validate dates
     if (isNaN(end.getTime())) {
-      return { start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), end: new Date() };
+      return {
+        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        end: new Date(),
+      };
     }
     if (isNaN(start.getTime())) {
       return { start: new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000), end };
     }
-    
+
     return { start, end };
   }
 

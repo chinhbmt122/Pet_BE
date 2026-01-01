@@ -6,6 +6,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 /**
  * Create Invoice DTO
@@ -15,8 +16,8 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class CreateInvoiceDto {
   @ApiProperty({ description: 'Appointment ID', example: 1 })
-  @IsNotEmpty({ message: 'Appointment ID is required' })
-  @IsNumber({}, { message: 'Appointment ID must be a number' })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   appointmentId: number;
 
   @ApiProperty({
@@ -25,12 +26,12 @@ export class CreateInvoiceDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: 'Discount code must be a string' })
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   discountCode?: string;
 
   @ApiProperty({ description: 'Additional notes', required: false })
   @IsOptional()
-  @IsString({ message: 'Notes must be a string' })
-  @MaxLength(500, { message: 'Notes cannot exceed 500 characters' })
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  @MaxLength(500, { message: i18nValidationMessage('validation.maxLength') })
   notes?: string;
 }

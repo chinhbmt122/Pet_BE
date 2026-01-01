@@ -1,77 +1,19 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationError } from 'class-validator';
+import { I18nValidationPipe } from 'nestjs-i18n';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Global validation pipe with i18n support
   app.useGlobalPipes(
-    new ValidationPipe({
+    new I18nValidationPipe({
       whitelist: true, // Strip properties not in DTO
       forbidNonWhitelisted: true, // Throw error for unknown properties
       transform: true, // Auto-transform payloads to DTO instances
       // pass transform options through to class-transformer (supported by types)
       transformOptions: { enableImplicitConversion: true },
-      exceptionFactory: (validationErrors: ValidationError[] = []) => {
-        // Transform validation errors to i18n-compatible format
-        const errors = validationErrors.map((error) => {
-          const constraints = error.constraints || {};
-          const constraintKeys = Object.keys(constraints);
-
-          if (constraintKeys.length > 0) {
-            const firstConstraint = constraintKeys[0];
-
-            // Map class-validator constraint to i18n key
-            const i18nKeyMap: Record<string, string> = {
-              isNotEmpty: 'validation.isNotEmpty',
-              isString: 'validation.isString',
-              isNumber: 'validation.isNumber',
-              isInt: 'validation.isInt',
-              isBoolean: 'validation.isBoolean',
-              isEmail: 'validation.isEmail',
-              isDate: 'validation.isDate',
-              isEnum: 'validation.isEnum',
-              isArray: 'validation.isArray',
-              minLength: 'validation.minLength',
-              maxLength: 'validation.maxLength',
-              min: 'validation.min',
-              max: 'validation.max',
-              matches: 'validation.matches',
-              isPhoneNumber: 'validation.isPhoneNumber',
-              isUrl: 'validation.isUrl',
-              isUUID: 'validation.isUUID',
-              isPositive: 'validation.isPositive',
-              isNegative: 'validation.isNegative',
-              arrayMinSize: 'validation.arrayMinSize',
-              arrayMaxSize: 'validation.arrayMaxSize',
-              isIn: 'validation.isIn',
-              isNotIn: 'validation.isNotIn',
-            };
-
-            const i18nKey = i18nKeyMap[firstConstraint] || 'validation.matches';
-
-            return {
-              i18nKey,
-              args: {
-                property: error.property,
-                value: error.value,
-                ...error.constraints,
-              },
-              // Keep original message as fallback for backward compatibility
-              message: constraints[firstConstraint],
-            };
-          }
-
-          return {
-            message: `Validation failed for ${error.property}`,
-          };
-        });
-
-        return new BadRequestException(errors);
-      },
     }),
   );
   app.enableCors({

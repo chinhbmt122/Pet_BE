@@ -272,7 +272,9 @@ export class ReportService {
             totalValue += Number(apt.actualCost || apt.estimatedCost || 0);
           }
 
-          const aptDate = apt.appointmentDate ? new Date(apt.appointmentDate) : null;
+          const aptDate = apt.appointmentDate
+            ? new Date(apt.appointmentDate)
+            : null;
           if (aptDate && !isNaN(aptDate.getTime())) {
             const dateKey = aptDate.toISOString().split('T')[0];
             if (!dailyMap.has(dateKey)) {

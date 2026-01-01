@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaymentMethod } from '../../entities/types/entity.types';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 /**
  * Initiate Online Payment DTO
@@ -17,8 +18,8 @@ import { PaymentMethod } from '../../entities/types/entity.types';
  */
 export class InitiateOnlinePaymentDto {
   @ApiProperty({ description: 'Invoice ID', example: 1 })
-  @IsNotEmpty({ message: 'Invoice ID is required' })
-  @IsNumber({}, { message: 'Invoice ID must be a number' })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   invoiceId: number;
 
   @ApiProperty({
@@ -26,8 +27,10 @@ export class InitiateOnlinePaymentDto {
     enum: PaymentMethod,
     example: PaymentMethod.VNPAY,
   })
-  @IsNotEmpty({ message: 'Payment method is required' })
-  @IsEnum(PaymentMethod, { message: 'Invalid payment method' })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  @IsEnum(PaymentMethod, {
+    message: i18nValidationMessage('validation.custom.invalidPaymentMethod'),
+  })
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
@@ -36,7 +39,7 @@ export class InitiateOnlinePaymentDto {
     required: false,
   })
   @IsOptional()
-  @IsUrl({}, { message: 'Return URL must be a valid URL' })
+  @IsUrl({}, { message: i18nValidationMessage('validation.isUrl') })
   returnUrl?: string;
 
   @ApiProperty({
@@ -45,7 +48,7 @@ export class InitiateOnlinePaymentDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: 'IP address must be a string' })
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   ipAddress?: string;
 
   @ApiProperty({

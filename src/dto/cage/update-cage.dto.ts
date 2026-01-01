@@ -8,38 +8,39 @@ import {
   Min,
 } from 'class-validator';
 import { CageSize, CageStatus } from '../../entities/types/entity.types';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class UpdateCageDto {
   @ApiPropertyOptional({ description: 'Cage number', example: 'C-101' })
   @IsOptional()
-  @IsString()
-  @MaxLength(20)
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  @MaxLength(20, { message: i18nValidationMessage('validation.maxLength') })
   cageNumber?: string;
 
   @ApiPropertyOptional({ description: 'Cage size', enum: CageSize })
   @IsOptional()
-  @IsEnum(CageSize)
+  @IsEnum(CageSize, { message: i18nValidationMessage('validation.isEnum') })
   size?: CageSize;
 
   @ApiPropertyOptional({ description: 'Physical location' })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  @MaxLength(50, { message: i18nValidationMessage('validation.maxLength') })
   location?: string;
 
   @ApiPropertyOptional({ description: 'Cage status', enum: CageStatus })
   @IsOptional()
-  @IsEnum(CageStatus)
+  @IsEnum(CageStatus, { message: i18nValidationMessage('validation.isEnum') })
   status?: CageStatus;
 
   @ApiPropertyOptional({ description: 'Daily rate' })
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
+  @Min(0, { message: i18nValidationMessage('validation.min') })
   dailyRate?: number;
 
   @ApiPropertyOptional({ description: 'Additional notes' })
   @IsOptional()
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   notes?: string;
 }

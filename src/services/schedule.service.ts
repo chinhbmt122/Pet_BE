@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
@@ -44,7 +39,7 @@ export class ScheduleService {
       where: { employeeId: dto.employeeId },
     });
     if (!employee) {
-      throw I18nException.notFound('errors.notFound.employee', {
+      I18nException.notFound('errors.notFound.employee', {
         id: dto.employeeId,
       });
     }
@@ -57,7 +52,7 @@ export class ScheduleService {
       },
     });
     if (existingSchedule) {
-      throw I18nException.conflict('errors.conflict.scheduleExists', {
+      I18nException.conflict('errors.conflict.scheduleExists', {
         employeeId: dto.employeeId,
         date: dto.workDate,
       });
@@ -93,7 +88,7 @@ export class ScheduleService {
       where: { scheduleId },
     });
     if (!entity) {
-      throw I18nException.notFound('errors.notFound.schedule', {
+      I18nException.notFound('errors.notFound.schedule', {
         id: scheduleId,
       });
     }
@@ -136,7 +131,7 @@ export class ScheduleService {
       where: { scheduleId },
     });
     if (!entity) {
-      throw I18nException.notFound('errors.notFound.schedule', {
+      I18nException.notFound('errors.notFound.schedule', {
         id: scheduleId,
       });
     }
@@ -153,7 +148,7 @@ export class ScheduleService {
       where: { scheduleId },
     });
     if (!entity) {
-      throw I18nException.notFound('errors.notFound.schedule', {
+      I18nException.notFound('errors.notFound.schedule', {
         id: scheduleId,
       });
     }
@@ -219,7 +214,7 @@ export class ScheduleService {
         where: { accountId: user.accountId },
       });
       if (!userEmployee || userEmployee.employeeId !== employeeId) {
-        throw I18nException.forbidden('errors.forbidden.selfAccessOnly');
+        I18nException.forbidden('errors.forbidden.selfAccessOnly');
       }
     }
 
@@ -297,7 +292,7 @@ export class ScheduleService {
       where: { scheduleId },
     });
     if (!entity) {
-      throw I18nException.notFound('errors.notFound.schedule', {
+      I18nException.notFound('errors.notFound.schedule', {
         id: scheduleId,
       });
     }
@@ -323,7 +318,7 @@ export class ScheduleService {
       where: { scheduleId },
     });
     if (!entity) {
-      throw I18nException.notFound('errors.notFound.schedule', {
+      I18nException.notFound('errors.notFound.schedule', {
         id: scheduleId,
       });
     }
@@ -346,7 +341,7 @@ export class ScheduleService {
       where: { scheduleId },
     });
     if (!entity) {
-      throw I18nException.notFound('errors.notFound.schedule', {
+      I18nException.notFound('errors.notFound.schedule', {
         id: scheduleId,
       });
     }

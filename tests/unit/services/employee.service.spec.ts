@@ -257,7 +257,11 @@ describe('EmployeeService', () => {
       accountRepository.findOne.mockResolvedValue(nonManagerAccount);
 
       await expect(service.create(1, createDto)).rejects.toThrow(
-        'Only Managers can perform this action',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.insufficientPermissions',
+          }),
+        }),
       );
     });
 
@@ -269,7 +273,11 @@ describe('EmployeeService', () => {
       accountRepository.findOne.mockResolvedValue(mockAccount);
 
       await expect(service.create(1, petOwnerDto)).rejects.toThrow(
-        'Cannot create PetOwner via EmployeeService',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.accessDenied',
+          }),
+        }),
       );
     });
   });
@@ -308,7 +316,13 @@ describe('EmployeeService', () => {
     it('should throw NotFoundException for non-existent employee', async () => {
       employeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.getById(999)).rejects.toThrow('Employee not found');
+      await expect(service.getById(999)).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.employee',
+          }),
+        }),
+      );
     });
   });
 
@@ -328,7 +342,11 @@ describe('EmployeeService', () => {
       employeeRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getByAccountId(999)).rejects.toThrow(
-        'Employee not found',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.notFound.employee',
+          }),
+        }),
       );
     });
   });
@@ -466,7 +484,11 @@ describe('EmployeeService', () => {
       }); // Self-update
 
       await expect(service.update(1, 1, salaryUpdateDto)).rejects.toThrow(
-        'Only Managers can change salary',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.insufficientPermissions',
+          }),
+        }),
       );
     });
 
@@ -481,7 +503,11 @@ describe('EmployeeService', () => {
       employeeRepository.findOne.mockResolvedValue(mockVeterinarian);
 
       await expect(service.update(2, 2, licenseUpdateDto)).rejects.toThrow(
-        'Only Managers can update license number',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.insufficientPermissions',
+          }),
+        }),
       );
     });
 
@@ -496,7 +522,11 @@ describe('EmployeeService', () => {
       employeeRepository.findOne.mockResolvedValue(mockCareStaff);
 
       await expect(service.update(2, 1, updateDto)).rejects.toThrow(
-        'Not authorized to update this employee',
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.accessDenied',
+          }),
+        }),
       );
     });
   });

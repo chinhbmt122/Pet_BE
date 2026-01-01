@@ -1,17 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class ApiResponseDto<T> {
   @ApiProperty()
-  @IsNumber()
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   statusCode: number;
 
   @ApiProperty()
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   timestamp: string;
 
   @ApiProperty({ required: false })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   message?: string;
 
@@ -19,7 +20,7 @@ export class ApiResponseDto<T> {
   data: T | null;
 
   @ApiProperty({ required: false })
-  @IsString()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
   @IsOptional()
   path?: string;
 
