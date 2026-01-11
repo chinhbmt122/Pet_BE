@@ -291,6 +291,110 @@ export class PaymentService {
   }
 
   /**
+   * Handles VNPay IPN (Instant Payment Notification)
+   * This is a server-to-server callback from VNPay to confirm payment status.
+   * More reliable than return URL callback as it's not dependent on user's browser.
+   *
+   * @param ipnDto VNPay IPN callback data
+   * @returns VNPay-compliant response {RspCode: '00', Message: 'success'}
+   * @throws InvalidCallbackException, InvoiceNotFoundException
+   */
+  async handleVnpayIpn(
+    ipnDto: VNPayCallbackDto,
+  ): Promise<{ RspCode: string; Message: string }> {
+    console.log('=== VNPay IPN Received ===');
+    console.log('Order ID:', ipnDto.vnp_TxnRef);
+    console.log('Response Code:', ipnDto.vnp_ResponseCode);
+
+    try {
+      // 1. Verify IPN signature using vnpayService
+      const ipnData = { ...ipnDto };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const verification = await this.vnpayService.verifyIpn(ipnData);
+
+      // 2. If signature is invalid, return error response to VNPay
+      if (!verification.isValid) {
+        console.error('Invalid IPN signature');
+        return this.vnpayService.generateIpnResponse(
+          false,
+          'Invalid signature',
+        );
+      }
+
+      // 3. Find payment by order ID (payment ID stored in vnp_TxnRef)
+      const paymentId = parseInt(ipnDto.vnp_TxnRef);
+      const payment = await this.paymentRepository.findOne({
+        where: { paymentId },
+        relations: ['invoice'],
+      });
+
+      // 4. If payment not found, return error response
+      if (!payment) {
+        console.error('Payment not found:', paymentId);
+        return this.vnpayService.generateIpnResponse(false, 'Order not found');
+      }
+
+      // 5. Check if already processed (idempotency)
+      if (
+        payment.paymentStatus === PaymentStatus.SUCCESS &&
+        payment.transactionId === verification.transactionId
+      ) {
+        console.log('IPN already processed:', verification.transactionId);
+        return this.vnpayService.generateIpnResponse(
+          true,
+          'Order already confirmed',
+        );
+      }
+
+      // 6. Validate amount matches
+      if (Number(payment.amount) !== verification.amount) {
+        console.error('Amount mismatch:', {
+          expected: payment.amount,
+          received: verification.amount,
+        });
+        return this.vnpayService.generateIpnResponse(false, 'Invalid amount');
+      }
+
+      const invoice = payment.invoice;
+
+      // 7. Update payment and invoice based on IPN result
+      if (verification.status === 'SUCCESS') {
+        payment.markSuccess(verification.transactionId!, verification.rawData);
+        invoice.markPaid();
+        console.log('Payment marked as SUCCESS');
+      } else {
+        payment.markFailed(verification.rawData);
+        invoice.markFailed();
+        console.log('Payment marked as FAILED');
+      }
+
+      // 8. Persist updates
+      await this.paymentRepository.save(payment);
+      await this.invoiceRepository.save(invoice);
+
+      // 9. Archive gateway response
+      await this.archiveGatewayResponse(
+        paymentId,
+        this.vnpayService.getGatewayName(),
+        verification.rawData,
+        new Date(),
+      );
+
+      console.log('IPN processed successfully');
+
+      // 10. Return success response to VNPay
+      return this.vnpayService.generateIpnResponse(
+        true,
+        verification.status === 'SUCCESS' ? 'Order confirmed' : 'Order failed',
+      );
+    } catch (error: any) {
+      // Log error but still return response to VNPay to avoid retries
+      console.error('Error processing IPN:', error);
+      return this.vnpayService.generateIpnResponse(false, 'System error');
+    }
+  }
+
+  /**
    * Processes full or partial refund through payment gateway.
    * @throws PaymentNotFoundException, RefundException
    */

@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { VnpayService } from 'nestjs-vnpay';
-import type { ProductCode, VnpLocale } from 'vnpay';
+import type { ProductCode, ReturnQueryFromVNPay, VnpLocale } from 'vnpay';
 import {
   IPaymentGatewayService,
   PaymentUrlParams,
   PaymentUrlResponse,
   PaymentCallbackData,
   CallbackVerificationResult,
+  IpnCallbackData,
+  IpnVerificationResult,
+  IpnResponse,
   RefundRequest,
   RefundResponse,
   TransactionQueryRequest,
@@ -40,7 +43,7 @@ export class VNPayService implements IPaymentGatewayService {
     const returnUrl =
       params.returnUrl ||
       this.configService.get<string>('VNPAY_RETURN_URL') ||
-      'http://localhost:3000/api/payments/vnpay/callback';
+      'http://localhost:3000/api/payments/vnpay/ipn';
 
     const paymentUrl = this.vnpayService.buildPaymentUrl({
       vnp_Amount: params.amount,
@@ -91,6 +94,70 @@ export class VNPayService implements IPaymentGatewayService {
       status: isSuccess ? 'SUCCESS' : 'FAILED',
       message: this.getResponseMessage(responseCode),
       rawData: callbackData,
+    };
+  }
+
+  /**
+   * Verify VNPay IPN (Instant Payment Notification)
+   * IPN is a server-to-server callback from VNPay to notify payment result
+   */
+  async verifyIpn(ipnData: IpnCallbackData): Promise<IpnVerificationResult> {
+    const verify = await this.vnpayService.verifyIpnCall(
+      ipnData as ReturnQueryFromVNPay,
+    );
+
+    console.log('=== VNPay IPN Verification ===');
+    console.log('Is Valid:', verify.isVerified);
+    console.log('Is Success:', verify.isSuccess);
+    console.log('Order ID:', ipnData['vnp_TxnRef']);
+    console.log('Response Code:', ipnData['vnp_ResponseCode']);
+    console.log('Transaction No:', ipnData['vnp_TransactionNo']);
+
+    // Extract payment result
+    const responseCode = ipnData['vnp_ResponseCode'] as string;
+    const isSuccess = verify.isSuccess && responseCode === '00';
+
+    return {
+      isValid: verify.isVerified,
+      orderId: verify.isVerified ? (ipnData['vnp_TxnRef'] as string) : null,
+      transactionId: verify.isVerified
+        ? (ipnData['vnp_TransactionNo'] as string)
+        : null,
+      amount: verify.isVerified
+        ? parseInt(ipnData['vnp_Amount'] as string) / 100
+        : null,
+      status: isSuccess ? 'SUCCESS' : 'FAILED',
+      message: this.getResponseMessage(responseCode),
+      rawData: ipnData,
+    };
+  }
+
+  /**
+   * Generate IPN response according to VNPay specification
+   * VNPay requires response in format: {RspCode: '00', Message: 'success'}
+   *
+   * Response codes:
+   * - '00': Success
+   * - '01': Order not found
+   * - '02': Order already confirmed
+   * - '04': Invalid amount
+   * - '97': Invalid signature
+   * - '99': Unknown error
+   */
+  generateIpnResponse(
+    isValid: boolean,
+    message: string = 'success',
+  ): IpnResponse {
+    if (!isValid) {
+      return {
+        RspCode: '97',
+        Message: 'Invalid signature',
+      };
+    }
+
+    return {
+      RspCode: '00',
+      Message: message,
     };
   }
 

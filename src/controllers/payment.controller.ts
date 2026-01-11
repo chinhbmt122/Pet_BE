@@ -116,12 +116,12 @@ export class PaymentController {
   }
 
   /**
-   * POST /api/payments/vnpay/callback
+   * GET /api/payments/vnpay/callback
    * Processes VNPay payment callback and updates invoice status (UC-23).
    * Public endpoint for VNPay webhook callback.
    * @throws InvalidCallbackException, InvoiceNotFoundException
    */
-  @Post('vnpay/callback')
+  @Get('vnpay/callback')
   @RouteConfig({
     message: 'VNPay callback (webhook)',
     requiresAuth: false, // Public webhook endpoint
@@ -130,9 +130,44 @@ export class PaymentController {
   @ApiResponse({ status: 200, description: 'Callback processed' })
   @ApiResponse({ status: 400, description: 'Invalid callback' })
   async handlePaymentCallback(
-    @Body() dto: VNPayCallbackDto,
+    @Query() dto: VNPayCallbackDto,
   ): Promise<{ success: boolean; message: string }> {
     return await this.paymentService.handlePaymentCallback(dto);
+  }
+
+  /**
+   * GET /api/payments/vnpay/ipn
+   * Processes VNPay IPN (Instant Payment Notification).
+   * This is a server-to-server callback from VNPay to confirm payment status.
+   * Public endpoint for VNPay IPN callback.
+   * @throws InvalidCallbackException, InvoiceNotFoundException
+   */
+  @Get('vnpay/ipn')
+  @RouteConfig({
+    message: 'VNPay IPN (Instant Payment Notification)',
+    requiresAuth: false, // Public IPN endpoint
+  })
+  @ApiOperation({
+    summary: 'VNPay IPN callback',
+    description:
+      'Server-to-server callback from VNPay. Must respond with {RspCode: "00", Message: "success"}',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'IPN processed',
+    schema: {
+      type: 'object',
+      properties: {
+        RspCode: { type: 'string', example: '00' },
+        Message: { type: 'string', example: 'success' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid IPN signature' })
+  async handleVnpayIpn(
+    @Query() dto: VNPayCallbackDto,
+  ): Promise<{ RspCode: string; Message: string }> {
+    return await this.paymentService.handleVnpayIpn(dto);
   }
 
   /**

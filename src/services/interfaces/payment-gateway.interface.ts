@@ -33,6 +33,25 @@ export interface CallbackVerificationResult {
   rawData: object;
 }
 
+export interface IpnCallbackData {
+  [key: string]: string | number;
+}
+
+export interface IpnVerificationResult {
+  isValid: boolean;
+  transactionId: string | null;
+  amount: number | null;
+  orderId: string | null;
+  status: 'SUCCESS' | 'FAILED';
+  message: string;
+  rawData: object;
+}
+
+export interface IpnResponse {
+  RspCode: string;
+  Message: string;
+}
+
 export interface RefundRequest {
   transactionId: string;
   amount: number;
@@ -72,6 +91,16 @@ export interface IPaymentGatewayService {
   verifyCallback(
     callbackData: PaymentCallbackData,
   ): Promise<CallbackVerificationResult>;
+
+  /**
+   * Verify IPN (Instant Payment Notification) from gateway
+   */
+  verifyIpn?(ipnData: IpnCallbackData): Promise<IpnVerificationResult>;
+
+  /**
+   * Generate IPN response for gateway
+   */
+  generateIpnResponse?(isValid: boolean, message?: string): IpnResponse;
 
   /**
    * Initiate refund transaction
