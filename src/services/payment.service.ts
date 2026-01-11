@@ -232,14 +232,14 @@ export class PaymentService {
    * Processes payment gateway callback and updates invoice status.
    * @throws InvalidCallbackException, InvoiceNotFoundException
    */
-  async handlePaymentCallback(
+  async handleVNPayCallback(
     callbackDto: VNPayCallbackDto,
   ): Promise<{ success: boolean; message: string }> {
     // 1. Verify callback signature
 
     const callbackData: PaymentCallbackData = { ...callbackDto };
     const verification = await this.getGateway(
-      this.DEFAULT_GATEWAY,
+      PaymentMethod.VNPAY,
     ).verifyCallback(callbackData);
 
     if (!verification.isValid) {
@@ -269,7 +269,9 @@ export class PaymentService {
       invoice.markPaid();
     } else {
       payment.markFailed(verification.rawData);
-      invoice.markFailed();
+      // Keep invoice in PENDING status to allow retry
+      // Only managers can mark invoice as FAILED
+      invoice.status = InvoiceStatus.PENDING;
     }
 
     // 4. Persist updates
@@ -309,7 +311,7 @@ export class PaymentService {
     try {
       // 1. Verify IPN signature using vnpayService
       const ipnData = { ...ipnDto };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const verification = await this.vnpayService.verifyIpn(ipnData);
 
       // 2. If signature is invalid, return error response to VNPay
@@ -364,8 +366,10 @@ export class PaymentService {
         console.log('Payment marked as SUCCESS');
       } else {
         payment.markFailed(verification.rawData);
-        invoice.markFailed();
-        console.log('Payment marked as FAILED');
+        // Keep invoice in PENDING status to allow retry
+        // Only managers can mark invoice as FAILED
+        invoice.status = InvoiceStatus.PENDING;
+        console.log('Payment marked as FAILED, invoice returned to PENDING');
       }
 
       // 8. Persist updates

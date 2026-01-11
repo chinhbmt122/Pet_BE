@@ -72,7 +72,9 @@ export class VNPayService implements IPaymentGatewayService {
   async verifyCallback(
     callbackData: PaymentCallbackData,
   ): Promise<CallbackVerificationResult> {
-    const verify = await this.vnpayService.verifyReturnUrl(callbackData as any);
+    const verify = await this.vnpayService.verifyReturnUrl(
+      callbackData as ReturnQueryFromVNPay,
+    );
 
     console.log('=== VNPay Callback Verification ===');
     console.log('Is Valid:', verify.isVerified);

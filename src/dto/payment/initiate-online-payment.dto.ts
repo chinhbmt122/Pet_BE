@@ -34,7 +34,8 @@ export class InitiateOnlinePaymentDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
-    description: 'Return URL after payment',
+    description:
+      'Return URL after payment. Currently it will only return to /dashboard/owner/payments/vnpay-return',
     example: 'https://example.com/payment/return',
     required: false,
   })

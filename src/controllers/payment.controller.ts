@@ -132,7 +132,7 @@ export class PaymentController {
   async handlePaymentCallback(
     @Query() dto: VNPayCallbackDto,
   ): Promise<{ success: boolean; message: string }> {
-    return await this.paymentService.handlePaymentCallback(dto);
+    return await this.paymentService.handleVNPayCallback(dto);
   }
 
   /**

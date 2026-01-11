@@ -233,7 +233,7 @@ export class Invoice {
   }
 
   canStartOnlinePayment(): boolean {
-    return this.status === InvoiceStatus.PENDING;
+    return this.status !== InvoiceStatus.PAID;
   }
 
   canMarkPaid(): boolean {
