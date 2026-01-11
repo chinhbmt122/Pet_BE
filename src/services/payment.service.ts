@@ -2,8 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
-import { Invoice } from '../entities/invoice.entity';
-import { Payment, PaymentMethod } from '../entities/payment.entity';
+import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
+import {
+  Payment,
+  PaymentMethod,
+  PaymentStatus,
+} from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { UserType } from '../entities/account.entity';
@@ -160,17 +164,37 @@ export class PaymentService {
       }
     }
 
-    // 3. Validate invoice status
+    // 3. Check for existing processing payment and cancel it (allow re-initiation)
+    const existingPayment = await this.paymentRepository.findOne({
+      where: {
+        invoiceId: dto.invoiceId,
+        paymentStatus: PaymentStatus.PROCESSING,
+      },
+    });
+
+    if (existingPayment) {
+      // Cancel the previous pending payment
+      existingPayment.markFailed({
+        reason: 'Cancelled - New payment initiated',
+      });
+      await this.paymentRepository.save(existingPayment);
+
+      // Reset invoice to PENDING to allow new payment
+      invoice.status = InvoiceStatus.PENDING;
+      await this.invoiceRepository.save(invoice);
+    }
+
+    // 4. Validate invoice status
     if (!invoice.canStartOnlinePayment()) {
       I18nException.badRequest('errors.badRequest.invalidInvoiceStatus', {
         status: invoice.status,
       });
     }
 
-    // 4. Generate idempotency key
+    // 5. Generate idempotency key
     const idempotencyKey = `${dto.invoiceId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-    // 5. Create payment (online payment)
+    // 6. Create payment (online payment)
     const payment = Payment.createOnlinePayment({
       invoiceId: dto.invoiceId,
       amount: Number(invoice.totalAmount),
@@ -182,11 +206,11 @@ export class PaymentService {
     payment.startOnlinePayment();
     invoice.startOnlinePayment();
 
-    // 6. Persist payment and invoice updates
+    // 7. Persist payment and invoice updates
     const savedPayment = await this.paymentRepository.save(payment);
     await this.invoiceRepository.save(invoice);
 
-    // 7. Generate payment URL via gateway service
+    // 8. Generate payment URL via gateway service
     const paymentUrlResponse = await this.getGateway(
       this.DEFAULT_GATEWAY,
     ).generatePaymentUrl({

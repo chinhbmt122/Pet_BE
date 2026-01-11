@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { VnpayModule } from 'nestjs-vnpay';
+import { HashAlgorithm } from 'vnpay';
 import { PaymentController } from '../controllers/payment.controller';
 import { PaymentService } from '../services/payment.service';
 import { VNPayService } from '../services/vnpay.service';
@@ -28,6 +31,20 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
       Appointment,
       PetOwner,
     ]),
+    VnpayModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        tmnCode: configService.get<string>('VNPAY_TMN_CODE') || '',
+        secureSecret: configService.get<string>('VNPAY_HASH_SECRET') || '',
+        vnpayHost:
+          configService.get<string>('VNPAY_URL') ||
+          'https://sandbox.vnpayment.vn',
+        testMode: configService.get<string>('NODE_ENV') !== 'production',
+        hashAlgorithm: HashAlgorithm.SHA512,
+        enableLog: configService.get<string>('NODE_ENV') !== 'production',
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [PaymentController, InvoiceController],
   providers: [PaymentService, VNPayService, InvoiceService],

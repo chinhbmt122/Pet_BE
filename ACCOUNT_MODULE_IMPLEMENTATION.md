@@ -12,8 +12,6 @@ The Account/User module has been fully implemented with authentication, registra
 
 ### Updated Files
 
-- **`src/services/account.service.ts`** - Full implementation with bcrypt & JWT
-- **`src/controllers/account.controller.ts`** - All endpoints implemented
 - **`src/modules/account.module.ts`** - JWT module configuration added
 - **`.env.example`** - Added JWT_EXPIRATION variable
 

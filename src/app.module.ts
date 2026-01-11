@@ -35,7 +35,7 @@ import * as path from 'path';
     I18nModule.forRoot({
       fallbackLanguage: 'vi',
       loaderOptions: {
-        path: path.join(__dirname, '../i18n/'),
+        path: path.join(process.cwd(), 'src/i18n/'),
         watch: true,
       },
       resolvers: [

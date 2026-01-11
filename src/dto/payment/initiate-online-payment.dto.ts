@@ -39,7 +39,10 @@ export class InitiateOnlinePaymentDto {
     required: false,
   })
   @IsOptional()
-  @IsUrl({}, { message: i18nValidationMessage('validation.isUrl') })
+  @IsUrl(
+    { require_tld: false },
+    { message: i18nValidationMessage('validation.isUrl') },
+  )
   returnUrl?: string;
 
   @ApiProperty({
