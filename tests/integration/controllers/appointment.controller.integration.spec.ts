@@ -291,7 +291,7 @@ describe('AppointmentController (Integration)', () => {
       expect(response.body.appointmentId).toBeDefined();
       expect(response.body.status).toBe('PENDING');
       // Total estimated cost should be 50 + (75 * 2) = 200
-      expect(response.body.estimatedCost).toBe(200);
+      expect(response.body.estimatedCost).toBe('200.00');
     });
 
     it('[I-MS-02] should return 400 when services array is empty', async () => {

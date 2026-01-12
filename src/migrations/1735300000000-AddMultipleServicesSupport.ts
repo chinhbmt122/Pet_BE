@@ -1,4 +1,9 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableForeignKey,
+} from 'typeorm';
 
 export class AddMultipleServicesSupport1735300000000 implements MigrationInterface {
   name = 'AddMultipleServicesSupport1735300000000';
@@ -93,7 +98,7 @@ export class AddMultipleServicesSupport1735300000000 implements MigrationInterfa
     const appointmentsTable = await queryRunner.getTable('appointments');
     if (appointmentsTable) {
       const serviceIdForeignKey = appointmentsTable.foreignKeys.find(
-        fk => fk.columnNames.indexOf('serviceId') !== -1
+        (fk) => fk.columnNames.indexOf('serviceId') !== -1,
       );
       if (serviceIdForeignKey) {
         await queryRunner.dropForeignKey('appointments', serviceIdForeignKey);

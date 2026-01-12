@@ -50,7 +50,7 @@ export class PaymentService {
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly vnpayService: VNPayService,
-  ) { }
+  ) {}
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
     switch (paymentMethod) {
@@ -537,10 +537,11 @@ export class PaymentService {
     }
 
     // Build receipt object
-    const appointmentServices = payment.invoice.appointment?.appointmentServices || [];
+    const appointmentServices =
+      payment.invoice.appointment?.appointmentServices || [];
     const services = appointmentServices
-      .filter(as => as.service)
-      .map(as => ({
+      .filter((as) => as.service)
+      .map((as) => ({
         serviceId: as.service.serviceId,
         serviceName: as.service.serviceName,
         basePrice: Number(as.service.basePrice),
@@ -555,7 +556,7 @@ export class PaymentService {
       amount: payment.amount,
       transactionId: payment.transactionId,
       status: payment.paymentStatus,
-      services,  // ALL services
+      services, // ALL services
       petName: payment.invoice.appointment?.pet?.name,
       notes: payment.notes,
     };

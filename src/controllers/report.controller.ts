@@ -133,7 +133,12 @@ export class ReportController {
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
     const limitNum = Number(limit) || 10;
-    return await this.reportService.getTopServices(limitNum, start, end, sortBy);
+    return await this.reportService.getTopServices(
+      limitNum,
+      start,
+      end,
+      sortBy,
+    );
   }
 
   /**

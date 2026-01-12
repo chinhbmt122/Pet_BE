@@ -18,7 +18,10 @@ export class AppointmentDto {
   @ApiProperty({ description: 'Employee ID' })
   employeeId: number;
 
-  @ApiProperty({ description: 'Service IDs for this appointment', type: [Number] })
+  @ApiProperty({
+    description: 'Service IDs for this appointment',
+    type: [Number],
+  })
   serviceIds: number[];
 
   @ApiProperty({ description: 'Appointment date' })
@@ -155,8 +158,9 @@ export class InvoiceResponseDto {
     // Include related entities if they're loaded
     if (entity.appointment) {
       // Get all service IDs from appointmentServices
-      const serviceIds = (entity.appointment.appointmentServices || [])
-        .map(as => as.serviceId);
+      const serviceIds = (entity.appointment.appointmentServices || []).map(
+        (as) => as.serviceId,
+      );
 
       dto.appointment = {
         appointmentId: entity.appointment.appointmentId,
@@ -208,8 +212,8 @@ export class InvoiceResponseDto {
 
       // Include ALL services from appointmentServices
       dto.services = (entity.appointment.appointmentServices || [])
-        .filter(as => as.service)
-        .map(as => ({
+        .filter((as) => as.service)
+        .map((as) => ({
           serviceId: as.service.serviceId,
           serviceName: as.service.serviceName,
           basePrice: Number(as.service.basePrice),

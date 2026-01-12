@@ -33,7 +33,7 @@ import { GetUser } from '../middleware/decorators/user.decorator';
 @ApiTags('Appointment Management')
 @Controller('api/appointments')
 export class AppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) { }
+  constructor(private readonly appointmentService: AppointmentService) {}
 
   // ============================================
   // APPOINTMENT CRUD

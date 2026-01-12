@@ -71,9 +71,12 @@ export class ScheduleService {
         notes: dto.notes,
       });
     } catch (error) {
-       // Domain validation errors are Bad Requests
-       I18nException.badRequest('validation.custom.invalidTimeRange', { error: error.message });
-       throw error; // Fallback if I18nException doesn't throw (it does)
+      // Domain validation errors are Bad Requests
+      const message = error instanceof Error ? error.message : String(error);
+      I18nException.badRequest('validation.custom.invalidTimeRange', {
+        error: message,
+      });
+      throw error; // Fallback if I18nException doesn't throw (it does)
     }
 
     const entityData = WorkScheduleMapper.toPersistence(domain);

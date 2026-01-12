@@ -37,7 +37,7 @@ export class ReportService {
     private readonly employeeRepository: Repository<Employee>,
     @InjectRepository(CageAssignment)
     private readonly cageAssignmentRepository: Repository<CageAssignment>,
-  ) { }
+  ) {}
 
   /**
    * Generates comprehensive financial report with revenue, expenses, and profit.
@@ -395,7 +395,9 @@ export class ReportService {
         if (apt.status === AppointmentStatus.COMPLETED) {
           stats.completedCount++;
           // Divide revenue by number of services in appointment
-          const revenuePerService = Number(apt.actualCost || apt.estimatedCost || 0) / appointmentServices.length;
+          const revenuePerService =
+            Number(apt.actualCost || apt.estimatedCost || 0) /
+            appointmentServices.length;
           stats.revenue += revenuePerService;
         }
       });
@@ -684,7 +686,12 @@ export class ReportService {
 
     // Recent activity
     const recentAppointments = await this.appointmentRepository.find({
-      relations: ['pet', 'employee', 'appointmentServices', 'appointmentServices.service'],
+      relations: [
+        'pet',
+        'employee',
+        'appointmentServices',
+        'appointmentServices.service',
+      ],
       order: { createdAt: 'DESC' },
       take: 5,
     });
@@ -779,7 +786,9 @@ export class ReportService {
         if (apt.status === AppointmentStatus.COMPLETED) {
           stats.completedBookings++;
           // Divide revenue by number of services in appointment
-          const revenuePerService = Number(apt.actualCost || apt.estimatedCost || 0) / appointmentServices.length;
+          const revenuePerService =
+            Number(apt.actualCost || apt.estimatedCost || 0) /
+            appointmentServices.length;
           stats.revenue += revenuePerService;
         }
       });

@@ -28,7 +28,7 @@ export class InvoiceService {
     private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
-  ) { }
+  ) {}
 
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
     // Validate appointment status before generating invoice
@@ -56,7 +56,7 @@ export class InvoiceService {
   /**
    * Creates a new invoice for an appointment
    * Supports transactional context via optional EntityManager
-   * 
+   *
    * @param dto Invoice creation data
    * @param transactionManager Optional EntityManager for transactional operations
    * @returns Created invoice DTO
@@ -91,9 +91,13 @@ export class InvoiceService {
 
     // Calculate invoice amounts from appointment services
     // Use appointmentServices pricing if available
-    const subtotal = appointment.appointmentServices?.length > 0
-      ? appointment.appointmentServices.reduce((sum, as) => sum + Number(as.unitPrice) * as.quantity, 0)
-      : Number(appointment.actualCost) || 0;
+    const subtotal =
+      appointment.appointmentServices?.length > 0
+        ? appointment.appointmentServices.reduce(
+            (sum, as) => sum + Number(as.unitPrice) * as.quantity,
+            0,
+          )
+        : Number(appointment.actualCost) || 0;
 
     // Apply discount (TODO: implement discount code lookup)
     let discount = 0;
@@ -134,7 +138,7 @@ export class InvoiceService {
   /**
    * Generate unique invoice number in format: INV-YYYYMMDD-00001
    * Thread-safe within transaction context
-   * 
+   *
    * @param manager EntityManager for transaction context
    */
   private async generateInvoiceNumber(
@@ -510,6 +514,7 @@ export class InvoiceService {
       .groupBy('owner.petOwnerId')
       .getRawMany();
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return CustomerStatisticsResponseDto.fromRawList(result);
   }
 

@@ -17,7 +17,7 @@ import { PaymentModule } from './payment.module';
  * Handles appointment booking, cancellation, and status updates.
  * Manages appointment lifecycle: Pending → Confirmed → In-Progress → Completed/Cancelled.
  * Coordinates with ScheduleManager for availability and NotificationService for confirmations.
- * 
+ *
  * Integrates with PaymentModule for automatic invoice generation on appointment completion.
  * Supports multiple services per appointment through AppointmentService junction entity.
  */

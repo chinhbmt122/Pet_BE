@@ -64,6 +64,9 @@ export class Service {
    * One-to-Many relationship with AppointmentService (junction table)
    * A service can be used in multiple appointments through the junction table
    */
-  @OneToMany(() => AppointmentService, (appointmentService) => appointmentService.service)
+  @OneToMany(
+    () => AppointmentService,
+    (appointmentService) => appointmentService.service,
+  )
   appointmentServices?: AppointmentService[];
 }

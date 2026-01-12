@@ -256,19 +256,16 @@ describe('ReportService - Full Unit Tests', () => {
           appointmentId: 1,
           status: AppointmentStatus.COMPLETED,
           appointmentDate: new Date('2026-01-10'),
-          service: { serviceName: 'Grooming' } as Service,
         },
         {
           appointmentId: 2,
           status: AppointmentStatus.PENDING,
           appointmentDate: new Date('2026-01-15'),
-          service: { serviceName: 'Checkup' } as Service,
         },
         {
           appointmentId: 3,
           status: AppointmentStatus.CANCELLED,
           appointmentDate: new Date('2026-01-20'),
-          service: { serviceName: 'Vaccination' } as Service,
         },
       ];
 
@@ -301,27 +298,33 @@ describe('ReportService - Full Unit Tests', () => {
       const mockAppointments: Partial<Appointment>[] = [
         {
           appointmentId: 1,
-          serviceId: 1,
           status: AppointmentStatus.COMPLETED,
           actualCost: 100000,
+          estimatedCost: 100000,
           appointmentDate: new Date('2026-01-10'),
-          service: { serviceName: 'Grooming' } as Service,
+          appointmentServices: [
+            { serviceId: 1, service: { serviceName: 'Grooming' } },
+          ] as any,
         },
         {
           appointmentId: 2,
-          serviceId: 1,
           status: AppointmentStatus.COMPLETED,
           actualCost: 120000,
+          estimatedCost: 120000,
           appointmentDate: new Date('2026-01-15'),
-          service: { serviceName: 'Grooming' } as Service,
+          appointmentServices: [
+            { serviceId: 1, service: { serviceName: 'Grooming' } },
+          ] as any,
         },
         {
           appointmentId: 3,
-          serviceId: 2,
           status: AppointmentStatus.COMPLETED,
           actualCost: 200000,
+          estimatedCost: 200000,
           appointmentDate: new Date('2026-01-20'),
-          service: { serviceName: 'Checkup' } as Service,
+          appointmentServices: [
+            { serviceId: 2, service: { serviceName: 'Checkup' } },
+          ] as any,
         },
       ];
 

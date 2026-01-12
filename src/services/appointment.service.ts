@@ -1,8 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
-  ConflictException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -43,7 +41,7 @@ export class AppointmentService {
     @Inject(forwardRef(() => InvoiceService))
     private readonly invoiceService: InvoiceService,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   // ============================================
   // APPOINTMENT CRUD
@@ -87,7 +85,11 @@ export class AppointmentService {
     }
 
     // Validate all services exist and calculate total cost
-    const serviceDetails: Array<{ service: Service; quantity: number; notes?: string }> = [];
+    const serviceDetails: Array<{
+      service: Service;
+      quantity: number;
+      notes?: string;
+    }> = [];
     let totalEstimatedCost = 0;
 
     for (const serviceDto of dto.services) {
@@ -95,7 +97,9 @@ export class AppointmentService {
         where: { serviceId: serviceDto.serviceId },
       });
       if (!service) {
-        I18nException.notFound('errors.notFound.service', { id: serviceDto.serviceId });
+        I18nException.notFound('errors.notFound.service', {
+          id: serviceDto.serviceId,
+        });
 
         throw new NotFoundException(
           `Service with ID ${serviceDto.serviceId} not found`,
@@ -106,7 +110,7 @@ export class AppointmentService {
       serviceDetails.push({
         service,
         quantity,
-        notes: serviceDto.notes
+        notes: serviceDto.notes,
       });
     }
 
@@ -221,7 +225,11 @@ export class AppointmentService {
     }
 
     // Validate all services exist and calculate total cost
-    const serviceDetails: Array<{ service: Service; quantity: number; notes?: string }> = [];
+    const serviceDetails: Array<{
+      service: Service;
+      quantity: number;
+      notes?: string;
+    }> = [];
     let totalEstimatedCost = 0;
 
     for (const serviceDto of dto.services) {
@@ -229,14 +237,16 @@ export class AppointmentService {
         where: { serviceId: serviceDto.serviceId },
       });
       if (!service) {
-        I18nException.notFound('errors.notFound.service', { id: serviceDto.serviceId });
+        I18nException.notFound('errors.notFound.service', {
+          id: serviceDto.serviceId,
+        });
       }
       const quantity = serviceDto.quantity || 1;
       totalEstimatedCost += service.basePrice * quantity;
       serviceDetails.push({
         service,
         quantity,
-        notes: serviceDto.notes
+        notes: serviceDto.notes,
       });
     }
 
@@ -410,7 +420,10 @@ export class AppointmentService {
         .leftJoinAndSelect('appointment.pet', 'pet')
         .leftJoinAndSelect('pet.owner', 'owner')
         .leftJoinAndSelect('appointment.employee', 'employee')
-        .leftJoinAndSelect('appointment.appointmentServices', 'appointmentServices')
+        .leftJoinAndSelect(
+          'appointment.appointmentServices',
+          'appointmentServices',
+        )
         .where('appointment.petId IN (:...petIds)', { petIds });
 
       // Apply filters
@@ -481,7 +494,10 @@ export class AppointmentService {
       .leftJoinAndSelect('appointment.pet', 'pet')
       .leftJoinAndSelect('pet.owner', 'owner')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.appointmentServices', 'appointmentServices');
+      .leftJoinAndSelect(
+        'appointment.appointmentServices',
+        'appointmentServices',
+      );
 
     // PET_OWNER: Only their pets' appointments
     if (user.userType === UserType.PET_OWNER) {
@@ -673,11 +689,11 @@ export class AppointmentService {
   /**
    * Completes appointment (IN_PROGRESS → COMPLETED)
    * Automatically generates invoice after completion (FR-028)
-   * 
+   *
    * Uses database transaction to ensure atomic operation:
    * - Both appointment completion AND invoice creation succeed, OR
    * - Both operations rollback on failure
-   * 
+   *
    * @throws NotFoundException if appointment doesn't exist
    * @throws BadRequestException if appointment is not IN_PROGRESS
    * @throws ConflictException if invoice already exists
@@ -686,7 +702,6 @@ export class AppointmentService {
     appointmentId: number,
     actualCost?: number,
   ): Promise<Appointment> {
-
     // Use QueryRunner for transactional control
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -795,7 +810,10 @@ export class AppointmentService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.pet', 'pet')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.appointmentServices', 'appointmentServices')
+      .leftJoinAndSelect(
+        'appointment.appointmentServices',
+        'appointmentServices',
+      )
       .where('appointment.appointmentDate >= :startDate', { startDate })
       .andWhere('appointment.appointmentDate <= :endDate', { endDate });
 

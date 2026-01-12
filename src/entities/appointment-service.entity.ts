@@ -28,9 +28,13 @@ export class AppointmentService {
   @Column()
   appointmentId: number;
 
-  @ManyToOne(() => Appointment, (appointment) => appointment.appointmentServices, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(
+    () => Appointment,
+    (appointment) => appointment.appointmentServices,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   @JoinColumn({ name: 'appointmentId' })
   appointment: Appointment;
 

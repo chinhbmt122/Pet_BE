@@ -24,7 +24,11 @@ export class AppointmentServiceDto {
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   serviceId: number;
 
-  @ApiPropertyOptional({ description: 'Quantity of service', default: 1, minimum: 1 })
+  @ApiPropertyOptional({
+    description: 'Quantity of service',
+    default: 1,
+    minimum: 1,
+  })
   @IsOptional()
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   @Min(1, { message: i18nValidationMessage('validation.min') })
@@ -56,7 +60,9 @@ export class CreateAppointmentDto {
     ],
   })
   @IsArray({ message: i18nValidationMessage('validation.isArray') })
-  @ArrayMinSize(1, { message: i18nValidationMessage('validation.arrayMinSize') })
+  @ArrayMinSize(1, {
+    message: i18nValidationMessage('validation.arrayMinSize'),
+  })
   @ValidateNested({ each: true })
   @Type(() => AppointmentServiceDto)
   services: AppointmentServiceDto[];
@@ -91,7 +97,9 @@ export class CreateAppointmentDto {
   @IsString({ message: i18nValidationMessage('validation.isString') })
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Estimated total cost (will be calculated if not provided)' })
+  @ApiPropertyOptional({
+    description: 'Estimated total cost (will be calculated if not provided)',
+  })
   @IsOptional()
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   estimatedCost?: number;

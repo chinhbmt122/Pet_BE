@@ -53,10 +53,14 @@ export class Appointment {
    * An appointment can have multiple services
    * Services are accessed via appointment.appointmentServices[].service
    */
-  @OneToMany(() => AppointmentService, (appointmentService) => appointmentService.appointment, {
-    cascade: true,
-    eager: false,
-  })
+  @OneToMany(
+    () => AppointmentService,
+    (appointmentService) => appointmentService.appointment,
+    {
+      cascade: true,
+      eager: false,
+    },
+  )
   appointmentServices: AppointmentService[];
 
   @Column({ type: 'date' })

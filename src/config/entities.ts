@@ -36,7 +36,7 @@ export const entitiesOrdered = [
   CageAssignment,
   WorkSchedule,
   Appointment,
-  AppointmentService,  // Multi-service junction table
+  AppointmentService, // Multi-service junction table
   MedicalRecord,
   VaccineType,
   VaccinationHistory,
