@@ -14,18 +14,38 @@ import { entitiesOrdered } from './entities';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DATABASE_HOST'),
-        port: configService.get('DATABASE_PORT'),
-        username: configService.get('DATABASE_USER'),
-        password: configService.get('DATABASE_PASSWORD'),
-        database: configService.get('DATABASE_NAME'),
-        entities: entitiesOrdered, // Always use explicit entity list for ts-node/seeder compatibility
-        synchronize: configService.get('NODE_ENV') === 'development', // Disable in production
-        logging: configService.get('NODE_ENV') === 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const isProduction = configService.get('NODE_ENV') === 'production';
+        const databaseUrl = configService.get('DATABASE_URL');
+
+        const config: any = {
+          type: 'postgres',
+          entities: entitiesOrdered,
+          synchronize: !isProduction,
+          logging: !isProduction,
+          migrationsRun: isProduction, // Auto-run migrations in production
+          migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+        };
+
+        if (databaseUrl) {
+          config.url = databaseUrl;
+        } else {
+          config.host = configService.get('DATABASE_HOST');
+          config.port = configService.get('DATABASE_PORT');
+          config.username = configService.get('DATABASE_USER');
+          config.password = configService.get('DATABASE_PASSWORD');
+          config.database = configService.get('DATABASE_NAME');
+        }
+
+        if (isProduction) {
+          config.ssl = {
+            rejectUnauthorized: false, // Required for many PaaS Postgres connections
+          };
+        }
+
+        return config;
+      },
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }
