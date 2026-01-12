@@ -37,7 +37,7 @@ export class ReportService {
     private readonly employeeRepository: Repository<Employee>,
     @InjectRepository(CageAssignment)
     private readonly cageAssignmentRepository: Repository<CageAssignment>,
-  ) {}
+  ) { }
 
   /**
    * Generates comprehensive financial report with revenue, expenses, and profit.
@@ -361,7 +361,7 @@ export class ReportService {
       where: {
         appointmentDate: Between(startDate, endDate),
       },
-      relations: ['service'],
+      relations: ['appointmentServices', 'appointmentServices.service'],
     });
 
     const serviceMap = new Map<
@@ -376,23 +376,29 @@ export class ReportService {
     >();
 
     appointments.forEach((apt) => {
-      const key = apt.serviceId;
-      if (!serviceMap.has(key)) {
-        serviceMap.set(key, {
-          serviceId: apt.serviceId,
-          serviceName: apt.service?.serviceName || 'Unknown',
-          bookingCount: 0,
-          completedCount: 0,
-          revenue: 0,
-        });
-      }
+      // Process each service in the appointment
+      const appointmentServices = apt.appointmentServices || [];
+      appointmentServices.forEach((aptService) => {
+        const key = aptService.serviceId;
+        if (!serviceMap.has(key)) {
+          serviceMap.set(key, {
+            serviceId: aptService.serviceId,
+            serviceName: aptService.service?.serviceName || 'Unknown',
+            bookingCount: 0,
+            completedCount: 0,
+            revenue: 0,
+          });
+        }
 
-      const stats = serviceMap.get(key)!;
-      stats.bookingCount++;
-      if (apt.status === AppointmentStatus.COMPLETED) {
-        stats.completedCount++;
-        stats.revenue += Number(apt.actualCost || apt.estimatedCost || 0);
-      }
+        const stats = serviceMap.get(key)!;
+        stats.bookingCount++;
+        if (apt.status === AppointmentStatus.COMPLETED) {
+          stats.completedCount++;
+          // Divide revenue by number of services in appointment
+          const revenuePerService = Number(apt.actualCost || apt.estimatedCost || 0) / appointmentServices.length;
+          stats.revenue += revenuePerService;
+        }
+      });
     });
 
     const services = Array.from(serviceMap.values()).map((s) => ({
@@ -678,7 +684,7 @@ export class ReportService {
 
     // Recent activity
     const recentAppointments = await this.appointmentRepository.find({
-      relations: ['pet', 'employee', 'service'],
+      relations: ['pet', 'employee', 'appointmentServices', 'appointmentServices.service'],
       order: { createdAt: 'DESC' },
       take: 5,
     });
@@ -737,7 +743,7 @@ export class ReportService {
       where: {
         appointmentDate: Between(startDate, endDate),
       },
-      relations: ['service'],
+      relations: ['appointmentServices', 'appointmentServices.service'],
     });
 
     const serviceMap = new Map<
@@ -753,24 +759,30 @@ export class ReportService {
     >();
 
     appointments.forEach((apt) => {
-      const key = apt.serviceId;
-      if (!serviceMap.has(key)) {
-        serviceMap.set(key, {
-          serviceId: apt.serviceId,
-          serviceName: apt.service?.serviceName || 'Unknown',
-          category: 'Service',
-          totalBookings: 0,
-          completedBookings: 0,
-          revenue: 0,
-        });
-      }
+      // Process each service in the appointment
+      const appointmentServices = apt.appointmentServices || [];
+      appointmentServices.forEach((aptService) => {
+        const key = aptService.serviceId;
+        if (!serviceMap.has(key)) {
+          serviceMap.set(key, {
+            serviceId: aptService.serviceId,
+            serviceName: aptService.service?.serviceName || 'Unknown',
+            category: 'Service',
+            totalBookings: 0,
+            completedBookings: 0,
+            revenue: 0,
+          });
+        }
 
-      const stats = serviceMap.get(key)!;
-      stats.totalBookings++;
-      if (apt.status === AppointmentStatus.COMPLETED) {
-        stats.completedBookings++;
-        stats.revenue += Number(apt.actualCost || apt.estimatedCost || 0);
-      }
+        const stats = serviceMap.get(key)!;
+        stats.totalBookings++;
+        if (apt.status === AppointmentStatus.COMPLETED) {
+          stats.completedBookings++;
+          // Divide revenue by number of services in appointment
+          const revenuePerService = Number(apt.actualCost || apt.estimatedCost || 0) / appointmentServices.length;
+          stats.revenue += revenuePerService;
+        }
+      });
     });
 
     return Array.from(serviceMap.values())

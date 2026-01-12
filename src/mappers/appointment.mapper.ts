@@ -12,12 +12,15 @@ export class AppointmentMapper {
    * Convert persistence entity to domain model
    */
   static toDomain(entity: Appointment): AppointmentDomainModel {
+    // Get primary service ID from appointmentServices (backward compatibility)
+    const primaryServiceId = entity.appointmentServices?.[0]?.serviceId ?? 0;
+
     return AppointmentDomainModel.reconstitute({
       id: entity.appointmentId,
       status: entity.status,
       petId: entity.petId,
       employeeId: entity.employeeId,
-      serviceId: entity.serviceId,
+      serviceId: primaryServiceId,
       appointmentDate: entity.appointmentDate,
       startTime: entity.startTime,
       endTime: entity.endTime,

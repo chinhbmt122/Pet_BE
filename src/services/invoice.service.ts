@@ -28,7 +28,7 @@ export class InvoiceService {
     private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
-  ) {}
+  ) { }
 
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
     // Validate appointment status before generating invoice
@@ -207,6 +207,13 @@ export class InvoiceService {
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
+      relations: [
+        'appointment',
+        'appointment.appointmentServices',
+        'appointment.appointmentServices.service',
+        'appointment.pet',
+        'appointment.pet.owner',
+      ],
     });
     if (!entity) {
       I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
@@ -243,7 +250,13 @@ export class InvoiceService {
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceNumber },
-      relations: ['appointment', 'appointment.pet'],
+      relations: [
+        'appointment',
+        'appointment.appointmentServices',
+        'appointment.appointmentServices.service',
+        'appointment.pet',
+        'appointment.pet.owner',
+      ],
     });
     if (!entity) {
       I18nException.notFound('errors.notFound.invoiceByNumber', {
@@ -277,6 +290,13 @@ export class InvoiceService {
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { appointmentId },
+      relations: [
+        'appointment',
+        'appointment.appointmentServices',
+        'appointment.appointmentServices.service',
+        'appointment.pet',
+        'appointment.pet.owner',
+      ],
     });
     if (!entity) {
       I18nException.notFound('errors.notFound.invoiceByAppointment', {
@@ -331,6 +351,11 @@ export class InvoiceService {
       // Include related entities if requested
       if (filters?.includeAppointment) {
         qb.leftJoinAndSelect('invoice.appointment', 'appointment');
+        qb.leftJoinAndSelect(
+          'appointment.appointmentServices',
+          'appointmentServices',
+        );
+        qb.leftJoinAndSelect('appointmentServices.service', 'service');
 
         if (filters?.includePet) {
           qb.leftJoinAndSelect('appointment.pet', 'pet');
@@ -368,7 +393,11 @@ export class InvoiceService {
     // Include related entities if requested
     if (filters?.includeAppointment) {
       qb.leftJoinAndSelect('invoice.appointment', 'appointment');
-      qb.leftJoinAndSelect('appointment.service', 'service');
+      qb.leftJoinAndSelect(
+        'appointment.appointmentServices',
+        'appointmentServices',
+      );
+      qb.leftJoinAndSelect('appointmentServices.service', 'service');
 
       if (filters?.includePet) {
         qb.leftJoinAndSelect('appointment.pet', 'pet');

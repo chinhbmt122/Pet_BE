@@ -18,8 +18,8 @@ export class AppointmentDto {
   @ApiProperty({ description: 'Employee ID' })
   employeeId: number;
 
-  @ApiProperty({ description: 'Service ID' })
-  serviceId: number;
+  @ApiProperty({ description: 'Service IDs for this appointment', type: [Number] })
+  serviceIds: number[];
 
   @ApiProperty({ description: 'Appointment date' })
   appointmentDate: Date;
@@ -122,15 +122,16 @@ export class InvoiceResponseDto {
   })
   pet?: PetResponseDto;
 
-  @ApiPropertyOptional({
-    description: 'Service details (if included)',
+  @ApiProperty({
+    description: 'All services in this appointment',
+    type: 'array',
   })
-  service?: {
+  services: Array<{
     serviceId: number;
     serviceName: string;
     basePrice: number;
     description?: string;
-  };
+  }>;
 
   /**
    * Factory method to convert entity to DTO
@@ -153,11 +154,15 @@ export class InvoiceResponseDto {
 
     // Include related entities if they're loaded
     if (entity.appointment) {
+      // Get all service IDs from appointmentServices
+      const serviceIds = (entity.appointment.appointmentServices || [])
+        .map(as => as.serviceId);
+
       dto.appointment = {
         appointmentId: entity.appointment.appointmentId,
         petId: entity.appointment.petId,
         employeeId: entity.appointment.employeeId,
-        serviceId: entity.appointment.serviceId,
+        serviceIds,
         appointmentDate: entity.appointment.appointmentDate,
         startTime: entity.appointment.startTime,
         endTime: entity.appointment.endTime,
@@ -201,15 +206,15 @@ export class InvoiceResponseDto {
         }
       }
 
-      // Include service if loaded
-      if (entity.appointment.service) {
-        dto.service = {
-          serviceId: entity.appointment.service.serviceId,
-          serviceName: entity.appointment.service.serviceName,
-          basePrice: Number(entity.appointment.service.basePrice),
-          description: entity.appointment.service.description,
-        };
-      }
+      // Include ALL services from appointmentServices
+      dto.services = (entity.appointment.appointmentServices || [])
+        .filter(as => as.service)
+        .map(as => ({
+          serviceId: as.service.serviceId,
+          serviceName: as.service.serviceName,
+          basePrice: Number(as.service.basePrice),
+          description: as.service.description,
+        }));
     }
 
     return dto;

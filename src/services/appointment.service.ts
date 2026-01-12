@@ -43,7 +43,7 @@ export class AppointmentService {
     @Inject(forwardRef(() => InvoiceService))
     private readonly invoiceService: InvoiceService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   // ============================================
   // APPOINTMENT CRUD
@@ -103,10 +103,10 @@ export class AppointmentService {
       }
       const quantity = serviceDto.quantity || 1;
       totalEstimatedCost += service.basePrice * quantity;
-      serviceDetails.push({ 
-        service, 
+      serviceDetails.push({
+        service,
         quantity,
-        notes: serviceDto.notes 
+        notes: serviceDto.notes
       });
     }
 
@@ -168,10 +168,14 @@ export class AppointmentService {
       }
 
       // Load and return appointment with services
-      return await manager.findOne(Appointment, {
+      const result = await manager.findOne(Appointment, {
         where: { appointmentId: savedAppointment.appointmentId },
         relations: ['appointmentServices', 'appointmentServices.service'],
       });
+      if (!result) {
+        throw new Error('Failed to load created appointment');
+      }
+      return result;
     });
   }
 
@@ -229,10 +233,10 @@ export class AppointmentService {
       }
       const quantity = serviceDto.quantity || 1;
       totalEstimatedCost += service.basePrice * quantity;
-      serviceDetails.push({ 
-        service, 
+      serviceDetails.push({
+        service,
         quantity,
-        notes: serviceDto.notes 
+        notes: serviceDto.notes
       });
     }
 
@@ -294,10 +298,14 @@ export class AppointmentService {
       }
 
       // Load and return appointment with services
-      return await manager.findOne(Appointment, {
+      const result = await manager.findOne(Appointment, {
         where: { appointmentId: savedAppointment.appointmentId },
         relations: ['appointmentServices', 'appointmentServices.service'],
       });
+      if (!result) {
+        throw new Error('Failed to load created appointment');
+      }
+      return result;
     });
   }
 
@@ -691,15 +699,15 @@ export class AppointmentService {
         relations: ['appointmentServices'],
       });
 
-    if (!appointment) {
-      I18nException.notFound('errors.notFound.appointment', {
-        id: appointmentId,
-      });
-    }
+      if (!appointment) {
+        I18nException.notFound('errors.notFound.appointment', {
+          id: appointmentId,
+        });
+      }
 
-    if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
-      I18nException.badRequest('errors.badRequest.canOnlyCompleteInProgress');
-    }
+      if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
+        I18nException.badRequest('errors.badRequest.canOnlyCompleteInProgress');
+      }
 
       // Update appointment status
       appointment.status = AppointmentStatus.COMPLETED;

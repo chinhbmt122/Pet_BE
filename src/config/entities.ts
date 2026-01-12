@@ -12,6 +12,7 @@ import { Cage } from '../entities/cage.entity';
 import { CageAssignment } from '../entities/cage-assignment.entity';
 import { WorkSchedule } from '../entities/work-schedule.entity';
 import { Appointment } from '../entities/appointment.entity';
+import { AppointmentService } from '../entities/appointment-service.entity';
 import { MedicalRecord } from '../entities/medical-record.entity';
 import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
@@ -35,6 +36,7 @@ export const entitiesOrdered = [
   CageAssignment,
   WorkSchedule,
   Appointment,
+  AppointmentService,  // Multi-service junction table
   MedicalRecord,
   VaccineType,
   VaccinationHistory,

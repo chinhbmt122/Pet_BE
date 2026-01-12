@@ -91,11 +91,13 @@ export class AddMultipleServicesSupport1735300000000 implements MigrationInterfa
 
     // Drop the old serviceId foreign key constraint
     const appointmentsTable = await queryRunner.getTable('appointments');
-    const serviceIdForeignKey = appointmentsTable.foreignKeys.find(
-      fk => fk.columnNames.indexOf('serviceId') !== -1
-    );
-    if (serviceIdForeignKey) {
-      await queryRunner.dropForeignKey('appointments', serviceIdForeignKey);
+    if (appointmentsTable) {
+      const serviceIdForeignKey = appointmentsTable.foreignKeys.find(
+        fk => fk.columnNames.indexOf('serviceId') !== -1
+      );
+      if (serviceIdForeignKey) {
+        await queryRunner.dropForeignKey('appointments', serviceIdForeignKey);
+      }
     }
 
     // Drop the old serviceId column (no longer needed with junction table)
@@ -139,9 +141,11 @@ export class AddMultipleServicesSupport1735300000000 implements MigrationInterfa
 
     // Drop foreign keys
     const table = await queryRunner.getTable('appointment_services');
-    const foreignKeys = table.foreignKeys;
-    for (const foreignKey of foreignKeys) {
-      await queryRunner.dropForeignKey('appointment_services', foreignKey);
+    if (table) {
+      const foreignKeys = table.foreignKeys;
+      for (const foreignKey of foreignKeys) {
+        await queryRunner.dropForeignKey('appointment_services', foreignKey);
+      }
     }
 
     // Drop appointment_services table

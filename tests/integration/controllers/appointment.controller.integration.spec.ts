@@ -24,7 +24,7 @@ describe('AppointmentController (Integration)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
-  
+
   // Test data
   let petOwnerAccount: Account;
   let petOwner: PetOwner;
@@ -36,6 +36,7 @@ describe('AppointmentController (Integration)', () => {
   let manager: Manager;
   let pet: Pet;
   let service: Service;
+  let service2: Service;  // Second service for multi-service tests
   let petOwnerToken: string;
   let vetToken: string;
   let receptionistToken: string;
@@ -53,10 +54,10 @@ describe('AppointmentController (Integration)', () => {
 
   beforeEach(async () => {
     await cleanDatabase(app);
-    
+
     // Create test accounts
     const hashedPassword = await bcrypt.hash('password123', 10);
-    
+
     // Pet owner account (UserType.PET_OWNER = 'PET_OWNER')
     petOwnerAccount = await dataSource.getRepository(Account).save({
       email: 'owner@test.com',
@@ -64,7 +65,7 @@ describe('AppointmentController (Integration)', () => {
       userType: 'PET_OWNER',
       isActive: true,
     });
-    
+
     petOwner = await dataSource.getRepository(PetOwner).save({
       accountId: petOwnerAccount.accountId,
       fullName: 'John Doe',
@@ -73,7 +74,7 @@ describe('AppointmentController (Integration)', () => {
       preferredContactMethod: 'Email',
       emergencyContact: '+0987654321',
     });
-    
+
     // Veterinarian account (UserType.VETERINARIAN = 'VETERINARIAN')
     vetAccount = await dataSource.getRepository(Account).save({
       email: 'vet@test.com',
@@ -81,7 +82,7 @@ describe('AppointmentController (Integration)', () => {
       userType: 'VETERINARIAN',
       isActive: true,
     });
-    
+
     // Veterinarian (Single Table Inheritance - only save to Veterinarian, not Employee)
     vet = await dataSource.getRepository(Veterinarian).save({
       accountId: vetAccount.accountId,
@@ -94,7 +95,7 @@ describe('AppointmentController (Integration)', () => {
       licenseNumber: 'VET123456',
       expertise: 'General Practice',
     });
-    
+
     // Receptionist account
     receptionistAccount = await dataSource.getRepository(Account).save({
       email: 'receptionist@test.com',
@@ -102,7 +103,7 @@ describe('AppointmentController (Integration)', () => {
       userType: 'RECEPTIONIST',
       isActive: true,
     });
-    
+
     receptionist = await dataSource.getRepository(Receptionist).save({
       accountId: receptionistAccount.accountId,
       fullName: 'Jane Admin',
@@ -113,7 +114,7 @@ describe('AppointmentController (Integration)', () => {
       isAvailable: true,
       shift: 'Morning',
     });
-    
+
     // Manager account
     managerAccount = await dataSource.getRepository(Account).save({
       email: 'manager@test.com',
@@ -121,7 +122,7 @@ describe('AppointmentController (Integration)', () => {
       userType: 'MANAGER',
       isActive: true,
     });
-    
+
     manager = await dataSource.getRepository(Manager).save({
       accountId: managerAccount.accountId,
       fullName: 'Bob Manager',
@@ -133,7 +134,7 @@ describe('AppointmentController (Integration)', () => {
       department: 'Operations',
       officeLocation: 'Building A',
     });
-    
+
     // Create pet (fields: name, species, breed, birthDate, gender, weight, initialHealthStatus)
     pet = await dataSource.getRepository(Pet).save({
       ownerId: petOwner.petOwnerId,
@@ -145,14 +146,14 @@ describe('AppointmentController (Integration)', () => {
       weight: 25.5,
       initialHealthStatus: 'Healthy',
     });
-    
+
     // Create service category
     const category = await dataSource.getRepository(ServiceCategory).save({
       categoryName: 'Medical',
       description: 'Medical services',
       isActive: true,
     });
-    
+
     // Create service (fields: serviceName, categoryId, description, basePrice, estimatedDuration, requiredStaffType)
     service = await dataSource.getRepository(Service).save({
       serviceName: 'General Checkup',
@@ -163,23 +164,34 @@ describe('AppointmentController (Integration)', () => {
       description: 'General health checkup',
       isAvailable: true,
     });
-    
+
+    // Create second service for multi-service tests
+    service2 = await dataSource.getRepository(Service).save({
+      serviceName: 'Vaccination',
+      categoryId: category.categoryId,
+      basePrice: 75.00,
+      estimatedDuration: 15,
+      requiredStaffType: 'Veterinarian',
+      description: 'Pet vaccination service',
+      isAvailable: true,
+    });
+
     // Generate JWT tokens (payload: { id, email })
     petOwnerToken = jwtService.sign({
       id: petOwnerAccount.accountId,
       email: petOwnerAccount.email,
     });
-    
+
     vetToken = jwtService.sign({
       id: vetAccount.accountId,
       email: vetAccount.email,
     });
-    
+
     receptionistToken = jwtService.sign({
       id: receptionistAccount.accountId,
       email: receptionistAccount.email,
     });
-    
+
     managerToken = jwtService.sign({
       id: managerAccount.accountId,
       email: managerAccount.email,
@@ -200,10 +212,10 @@ describe('AppointmentController (Integration)', () => {
           endTime: '10:30',
         })
         .expect(201);
-      
+
       expect(response.body.appointmentId).toBeDefined();
       expect(response.body.status).toBe('PENDING');
-      
+
       // Verify DB insert
       const appointment = await dataSource.getRepository(Appointment).findOne({
         where: { appointmentId: response.body.appointmentId },
@@ -224,7 +236,7 @@ describe('AppointmentController (Integration)', () => {
           endTime: '10:30',
         })
         .expect(400);
-      
+
       expect(response.body.message).toBeDefined();
     });
 
@@ -256,6 +268,64 @@ describe('AppointmentController (Integration)', () => {
         })
         .expect(401);
     });
+
+    // Multi-service appointment tests
+    it('[I-MS-01] should create appointment with multiple services', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/appointments')
+        .set('Authorization', `Bearer ${petOwnerToken}`)
+        .send({
+          petId: pet.petId,
+          employeeId: vet.employeeId,
+          services: [
+            { serviceId: service.serviceId, quantity: 1 },
+            { serviceId: service2.serviceId, quantity: 2, notes: 'Two doses' },
+          ],
+          appointmentDate: '2026-02-01',
+          startTime: '10:00',
+          endTime: '11:00',
+          notes: 'Multi-service appointment',
+        })
+        .expect(201);
+
+      expect(response.body.appointmentId).toBeDefined();
+      expect(response.body.status).toBe('PENDING');
+      // Total estimated cost should be 50 + (75 * 2) = 200
+      expect(response.body.estimatedCost).toBe(200);
+    });
+
+    it('[I-MS-02] should return 400 when services array is empty', async () => {
+      await request(app.getHttpServer())
+        .post('/api/appointments')
+        .set('Authorization', `Bearer ${petOwnerToken}`)
+        .send({
+          petId: pet.petId,
+          employeeId: vet.employeeId,
+          services: [],
+          appointmentDate: '2026-02-01',
+          startTime: '10:00',
+          endTime: '10:30',
+        })
+        .expect(400);
+    });
+
+    it('[I-MS-03] should return 404 when one of the services does not exist', async () => {
+      await request(app.getHttpServer())
+        .post('/api/appointments')
+        .set('Authorization', `Bearer ${petOwnerToken}`)
+        .send({
+          petId: pet.petId,
+          employeeId: vet.employeeId,
+          services: [
+            { serviceId: service.serviceId, quantity: 1 },
+            { serviceId: 99999, quantity: 1 },  // Non-existent service
+          ],
+          appointmentDate: '2026-02-01',
+          startTime: '10:00',
+          endTime: '10:30',
+        })
+        .expect(404);
+    });
   });
 
   describe('GET /api/appointments/:id', () => {
@@ -280,7 +350,7 @@ describe('AppointmentController (Integration)', () => {
         .get(`/api/appointments/${appointment.appointmentId}`)
         .set('Authorization', `Bearer ${petOwnerToken}`)
         .expect(200);
-      
+
       expect(response.body.appointmentId).toBe(appointment.appointmentId);
       expect(response.body.status).toBe('PENDING');
     });
@@ -314,9 +384,9 @@ describe('AppointmentController (Integration)', () => {
         .put(`/api/appointments/${appointment.appointmentId}/confirm`)
         .set('Authorization', `Bearer ${receptionistToken}`)
         .expect(200);
-      
+
       expect(response.body.status).toBe('CONFIRMED');
-      
+
       // Verify DB update
       const updated = await dataSource.getRepository(Appointment).findOne({
         where: { appointmentId: appointment.appointmentId },
@@ -330,7 +400,7 @@ describe('AppointmentController (Integration)', () => {
         { appointmentId: appointment.appointmentId },
         { status: 'COMPLETED' }
       );
-      
+
       await request(app.getHttpServer())
         .put(`/api/appointments/${appointment.appointmentId}/confirm`)
         .set('Authorization', `Bearer ${receptionistToken}`)
@@ -359,7 +429,7 @@ describe('AppointmentController (Integration)', () => {
         .delete(`/api/appointments/${appointment.appointmentId}`)
         .set('Authorization', `Bearer ${managerToken}`)
         .expect(200);
-      
+
       // Verify deletion
       const deleted = await dataSource.getRepository(Appointment).findOne({
         where: { appointmentId: appointment.appointmentId },
@@ -400,7 +470,7 @@ describe('AppointmentController (Integration)', () => {
         .get('/api/appointments/me')
         .set('Authorization', `Bearer ${petOwnerToken}`)
         .expect(200);
-      
+
       expect(response.body).toBeInstanceOf(Array);
       expect(response.body.length).toBeGreaterThan(0);
       response.body.forEach((apt: any) => {
