@@ -16,36 +16,35 @@ import { entitiesOrdered } from './entities';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const isProduction = configService.get('NODE_ENV') === 'production';
-        const databaseUrl = configService.get('DATABASE_URL');
+        const databaseUrl = configService.get<string>('DATABASE_URL');
 
-        const config: any = {
-          type: 'postgres',
+        const baseConfig = {
+          type: 'postgres' as const,
           entities: entitiesOrdered,
           synchronize: !isProduction,
           logging: !isProduction,
-          migrationsRun: isProduction, // Auto-run migrations in production
+          migrationsRun: isProduction,
           migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+          ssl: isProduction ? { rejectUnauthorized: false } : undefined,
         };
 
         if (databaseUrl) {
-          config.url = databaseUrl;
-        } else {
-          config.host = configService.get('DATABASE_HOST');
-          config.port = configService.get('DATABASE_PORT');
-          config.username = configService.get('DATABASE_USER');
-          config.password = configService.get('DATABASE_PASSWORD');
-          config.database = configService.get('DATABASE_NAME');
-        }
-
-        if (isProduction) {
-          config.ssl = {
-            rejectUnauthorized: false, // Required for many PaaS Postgres connections
+          return {
+            ...baseConfig,
+            url: databaseUrl,
           };
         }
 
-        return config;
+        return {
+          ...baseConfig,
+          host: configService.get<string>('DATABASE_HOST'),
+          port: configService.get<number>('DATABASE_PORT'),
+          username: configService.get<string>('DATABASE_USER'),
+          password: configService.get<string>('DATABASE_PASSWORD'),
+          database: configService.get<string>('DATABASE_NAME'),
+        };
       },
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}
