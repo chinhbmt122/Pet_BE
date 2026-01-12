@@ -1,0 +1,36 @@
+@startuml UC-09-Payment-Billing
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Payment & Billing
+
+' PRIMARY ACTORS (LEFT)
+actor "Manager" as Manager
+actor "Pet Owner" as Customer
+actor "Receptionist" as Receptionist
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-28\nRecord Payment" as UC28
+  usecase "UC-29\nView Invoice" as UC29
+  usecase "UC-30\nPay Invoice Online" as UC30
+  usecase "UC-31\nGenerate Reports" as UC31
+}
+
+' SECONDARY ACTOR (RIGHT)
+actor "VNPay Gateway" as VNPay <<system>>
+
+' ASSOCIATIONS
+Manager -- UC31
+
+Customer -- UC29
+Customer -- UC30
+
+Receptionist -- UC28
+
+' SECONDARY ACTOR RELATIONSHIP
+UC30 -- VNPay
+
+@enduml

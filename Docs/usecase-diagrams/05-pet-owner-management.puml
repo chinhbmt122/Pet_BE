@@ -1,0 +1,39 @@
+@startuml UC-05-Pet-Owner-Management
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Pet & Owner Management
+
+' PRIMARY ACTORS (LEFT) - Using generalization for clarity
+actor "System User" as User
+actor "Manager" as Manager
+actor "Pet Owner" as Customer
+actor "Veterinarian" as Vet
+actor "Care Staff" as Staff
+actor "Receptionist" as Receptionist
+
+' ACTOR GENERALIZATIONS
+Manager --|> User
+Customer --|> User
+Vet --|> User
+Staff --|> User
+Receptionist --|> User
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-11\nSearch Pet &\nOwner Records" as UC11
+  usecase "UC-12\nManage Pet &\nOwner Records" as UC12
+}
+
+' ASSOCIATIONS - All users can search and manage (with role-based permissions)
+User -- UC11
+User -- UC12
+
+note right of UC11
+  Pet Owners see only their own records.
+  Staff see all records.
+end note
+
+@enduml

@@ -1,0 +1,44 @@
+@startuml UC-07-Service-Execution-Task-Management
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Service Execution & Task Management
+
+' PRIMARY ACTORS (LEFT)
+actor "Veterinarian" as Vet
+actor "Care Staff" as Staff
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-20\nView Assigned Tasks" as UC20
+  usecase "UC-21\nUpdate Service\nStatus" as UC21
+  usecase "UC-22\nRecord Examination\nDetails" as UC22
+  usecase "UC-23\nUpdate Pet Status" as UC23
+  
+  ' USE CASE GENERALIZATIONS (UC22 and UC23 are specialized forms of UC21)
+  UC22 --|> UC21
+  UC23 --|> UC21
+}
+
+' ASSOCIATIONS
+Vet -- UC20
+Vet -- UC21
+Vet -- UC22
+
+Staff -- UC20
+Staff -- UC21
+Staff -- UC23
+
+note right of UC22
+  Specific to medical services
+  (Veterinarian only)
+end note
+
+note right of UC23
+  Specific to non-medical services
+  (Care Staff only)
+end note
+
+@enduml

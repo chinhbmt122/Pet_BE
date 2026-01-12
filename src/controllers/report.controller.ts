@@ -65,7 +65,7 @@ export class ReportController {
     @Query('endDate') endDate: string,
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
-    return this.reportService.generateFinancialReport(start, end);
+    return await this.reportService.generateFinancialReport(start, end);
   }
 
   /**
@@ -88,7 +88,7 @@ export class ReportController {
     // Convert year to number, default to current year
     const yearNum = year ? Number(year) : new Date().getFullYear();
     const validYear = isNaN(yearNum) ? new Date().getFullYear() : yearNum;
-    return this.reportService.getRevenueByPeriod(period, validYear);
+    return await this.reportService.getRevenueByPeriod(period, validYear);
   }
 
   /**
@@ -109,7 +109,7 @@ export class ReportController {
     @Query('endDate') endDate: string,
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
-    return this.reportService.getAppointmentStatistics(start, end);
+    return await this.reportService.getAppointmentStatistics(start, end);
   }
 
   /**
@@ -133,7 +133,7 @@ export class ReportController {
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
     const limitNum = Number(limit) || 10;
-    return this.reportService.getTopServices(limitNum, start, end, sortBy);
+    return await this.reportService.getTopServices(limitNum, start, end, sortBy);
   }
 
   /**
@@ -154,7 +154,7 @@ export class ReportController {
     @Query('endDate') endDate: string,
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
-    return this.reportService.getServicePerformanceReport(start, end);
+    return await this.reportService.getServicePerformanceReport(start, end);
   }
 
   /**
@@ -175,7 +175,7 @@ export class ReportController {
     @Query('endDate') endDate: string,
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
-    return this.reportService.getEmployeeWorkloadReport(start, end);
+    return await this.reportService.getEmployeeWorkloadReport(start, end);
   }
 
   /**
@@ -199,7 +199,7 @@ export class ReportController {
     @Query('endDate') endDate: string,
   ) {
     const { start, end } = this.getDefaultDateRange(startDate, endDate);
-    return this.reportService.getCustomerRetentionReport(start, end);
+    return await this.reportService.getCustomerRetentionReport(start, end);
   }
 
   /**
@@ -216,6 +216,6 @@ export class ReportController {
   @ApiOperation({ summary: 'Get dashboard data' })
   @ApiResponse({ status: 200, description: 'Dashboard data retrieved' })
   async getDashboard() {
-    return this.reportService.getDashboard();
+    return await this.reportService.getDashboard();
   }
 }

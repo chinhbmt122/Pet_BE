@@ -6,8 +6,35 @@ import {
   IsOptional,
   IsString,
   Matches,
+  IsArray,
+  ArrayMinSize,
+  ValidateNested,
+  Min,
 } from 'class-validator';
+
+import { Type } from 'class-transformer';
 import { i18nValidationMessage } from 'nestjs-i18n';
+
+/**
+ * DTO for service selection in appointment
+ */
+export class AppointmentServiceDto {
+  @ApiProperty({ description: 'Service ID' })
+  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
+  serviceId: number;
+
+  @ApiPropertyOptional({ description: 'Quantity of service', default: 1, minimum: 1 })
+  @IsOptional()
+  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
+  @Min(1, { message: i18nValidationMessage('validation.min') })
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: 'Service-specific notes' })
+  @IsOptional()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  notes?: string;
+}
 
 export class CreateAppointmentDto {
   @ApiProperty({ description: 'Pet ID' })
@@ -20,10 +47,19 @@ export class CreateAppointmentDto {
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   employeeId: number;
 
-  @ApiProperty({ description: 'Service ID' })
-  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
-  @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
-  serviceId: number;
+  @ApiProperty({
+    description: 'Array of services to be performed in this appointment',
+    type: [AppointmentServiceDto],
+    example: [
+      { serviceId: 1, quantity: 1, notes: 'Regular checkup' },
+      { serviceId: 2, quantity: 1 },
+    ],
+  })
+  @IsArray({ message: i18nValidationMessage('validation.isArray') })
+  @ArrayMinSize(1, { message: i18nValidationMessage('validation.arrayMinSize') })
+  @ValidateNested({ each: true })
+  @Type(() => AppointmentServiceDto)
+  services: AppointmentServiceDto[];
 
   @ApiProperty({
     description: 'Appointment date (YYYY-MM-DD)',
@@ -41,11 +77,6 @@ export class CreateAppointmentDto {
   })
   startTime: string;
 
-  @ApiPropertyOptional({ description: 'Appointment notes' })
-  @IsOptional()
-  @IsString({ message: i18nValidationMessage('validation.isString') })
-  notes?: string;
-
   // TODO: Backend should calculate these
   @ApiProperty({ description: 'End time (HH:MM)', example: '10:00' })
   @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
@@ -55,7 +86,12 @@ export class CreateAppointmentDto {
   })
   endTime: string;
 
-  @ApiPropertyOptional({ description: 'Estimated cost' })
+  @ApiPropertyOptional({ description: 'General appointment notes' })
+  @IsOptional()
+  @IsString({ message: i18nValidationMessage('validation.isString') })
+  notes?: string;
+
+  @ApiPropertyOptional({ description: 'Estimated total cost (will be calculated if not provided)' })
   @IsOptional()
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   estimatedCost?: number;

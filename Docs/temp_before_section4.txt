@@ -1,0 +1,241 @@
+# 
+
+**UNIVERSITY OF INFORMATION TECHNOLOGY**  
+**FACULTY OF SOFTWARE ENGINEERING**
+
+# **Object-Oriented Software Development Project**
+
+# 
+
+# 
+
+# 
+
+# **Usecase Model Pet Care Service Management System** 
+
+Version 2.0
+
+# 
+
+Students:  
+23520406 – Đặng Ngọc Trường Giang  
+23520444 – Đặng Trần Anh Hào  
+23520187 \- Lê Hùng Chính  
+23520421 \- Trần Đức Hải
+
+**Document Change Log**
+
+| Date | Version | Description | Author |
+| ----- | ----- | ----- | ----- |
+| 7/10/2025 | 1.0 | Initial version | Group 9 |
+| 11/16/2025 | 1.5 | Added VNPay payment integration use cases | Group 9 |
+| 12/27/2025 | 2.0 | Updated to reflect actual implementation: Added cage management, vaccination tracking, medical record use cases | Group 9 |
+
+# 
+
+# **Table of Contents**
+
+1. [Use-case Diagrams](#1-use-case-diagram)
+   - 1.1 [Level 0: System Context Diagram](#11-level-0-system-context-diagram)
+   - 1.2 [Level 1: Feature Diagrams](#12-level-1-feature-diagrams)
+     - 1.2.1 [Feature: Pet & Owner Management](#121-feature-pet--owner-management)
+     - 1.2.2 [Feature: Service & Staff Management](#122-feature-service--staff-management)
+     - 1.2.3 [Feature: Schedule & Availability Management](#123-feature-schedule--availability-management)
+     - 1.2.4 [Feature: Appointment & Booking Management](#124-feature-appointment--booking-management)
+     - 1.2.5 [Feature: Service Execution Management](#125-feature-service-execution-management)
+     - 1.2.6 [Feature: Payment & Invoice Management](#126-feature-payment--invoice-management)
+     - 1.2.7 [Feature: Reporting & Analytics](#127-feature-reporting--analytics)
+     - 1.2.8 [Feature: Cage & Boarding Management](#128-feature-cage--boarding-management)
+     - 1.2.9 [Feature: Medical Record & Vaccination Management](#129-feature-medical-record--vaccination-management)
+2. [List of Actors](#2-list-of-actors)
+3. [List of Use-cases](#3-list-of-use-cases)
+4. [Use-case Specification](#4-use-case-specification)
+   - 4.1 [Use-case Specification "Register Account"](#41-use-case-specification-register-account)
+
+# **1\. Use-case Diagram**
+
+This section presents the visual UML Use-Case diagrams for the PAW LOVERS system. The diagrams are organized into two levels of detail: a high-level Level 0 diagram to show the overall system context, and a series of detailed Level 1 diagrams, one for each major feature.  
+**1.1 Level 0: System Context Diagram**  
+**![][image1]**
+
+**Description:** The Level 0 diagram provides the highest-level view of the system. It shows the entire **PAW LOVERS Pet Care Service Management System** as a single entity. The purpose is to define the system's boundary and identify all the external actors who interact with it.
+
+* **System:** PAW LOVERS Pet Care Service Management System.  
+* **Actors:** All five actors are shown outside the system boundary, interacting with the system as a whole:   
+  * Manager  
+  * Pet Owner  
+  * Veterinarian  
+  * Care Staff  
+  * Receptionist
+
+**1.2 Level 1: Feature-Level Diagrams**  
+These diagrams break down the system into its core features, as defined in the SRS. Each diagram models the specific use cases and actor interactions for one feature.  
+**1.2.1 Feature: Account Management and Authorization**  
+![A diagram of a pet care service systemAI-generated content may be incorrect.][image2]  
+**Description:** This diagram models how users gain access to the system.
+
+* **Actors:** Manager, Pet Owner, Veterinarian, Care Staff, Receptionist.  
+* **Use Cases:** Register Account, Manage Staff Account, Log In, Reset Password.  
+* **Interactions:**   
+  * Pet Owner is associated with Register Account.  
+  * Manager is associated with Manage Staff Account.  
+  * All actors are associated with Log In.  
+  * Reset Password has an \<\<extend\>\> relationship with Log In.
+
+**1.2.2 Feature: Pet and Owner Record Management**  
+![A diagram of a petAI-generated content may be incorrect.][image3]  
+**Description:** This diagram illustrates how pet and owner information is managed.
+
+* **Actors:** Pet Owner, Receptionist, Veterinarian, Manager.  
+* **Use Cases:** Manage Pet & Owner Records, Search Pet & Owner Records, Delete Pet & Owner Records.  
+* **Interactions:**   
+  * Pet Owner, Receptionist, and Veterinarian are associated with Manage Pet & Owner Records.  
+  * All actors can Search Pet & Owner Records (Pet Owners see only their own).  
+  * Manager can Delete Pet & Owner Records (soft delete).  
+  * Delete \<\<extend\>\>s Manage Pet & Owner Records (optional administrative action).
+
+**1.2.3 Feature: Staff Schedule Management**  
+![A diagram of a petAI-generated content may be incorrect.][image3]  
+**Description:** This diagram shows how staff schedules are created and viewed.
+
+* **Actors:** Manager, Veterinarian, Care Staff, Pet Owner.  
+* **Use Cases:** Manage Work Schedules, View Own Schedule, View Staff Availability.  
+* **Interactions:**   
+  * Manager is associated with Manage Work Schedules.  
+  * Veterinarian and Care Staff are associated with View Own Schedule.  
+  * Pet Owner is associated with View Staff Availability.
+
+**1.2.4 Feature: Service and Appointment Management**  
+![A diagram of a serviceAI-generated content may be incorrect.][image4]  
+**Description:** This diagram models the entire appointment booking and service definition process.
+
+* **Actors:** Manager, Pet Owner, Receptionist.  
+* **Use Cases:** Manage Services, Manage Service Categories, View Service List, Book Appointment Online, Create Appointment at Counter, Update Appointment Status, Cancel Appointment.  
+* **Interactions:**   
+  * Manager is associated with Manage Services and Manage Service Categories.  
+  * Pet Owner is associated with View Service List, Book Appointment Online, and Cancel Appointment.  
+  * Receptionist is associated with Create Appointment at Counter and Update Appointment Status.  
+  * Book Appointment Online \<\<include\>\>s View Service List and View Staff Availability.  
+  * Update Appointment Status transitions appointments through states (PENDING → CONFIRMED → CANCELLED).
+
+**1.2.5 Feature: Care Activities Management**  
+![A diagram of a pet care serviceAI-generated content may be incorrect.][image5]  
+**Description:** This diagram shows how staff execute and track their daily tasks.
+
+* **Actors:** Veterinarian, Care Staff.  
+* **Use Cases:** View Assigned Tasks, Update Service Status, Record Examination Details, Update Pet Status.  
+* **Interactions:**   
+  * Both actors are associated with View Assigned Tasks.  
+  * Record Examination Details (by Veterinarian) and Update Pet Status (by Care Staff) are specializations of the general Update Service Status use case, shown with a generalization relationship.
+
+**1.2.6 Feature: Payment and Invoicing Management**  
+![A diagram of a paymentAI-generated content may be incorrect.][image6]  
+**Description:** This diagram models the payment and billing process with multiple payment methods.
+
+* **Actors:** Receptionist, Pet Owner, VNPay Payment Gateway (external system).  
+* **Use Cases:** Generate Invoice, Record Payment (Cash/Bank), Pay Invoice Online, View Invoice.  
+* **Interactions:**   
+  * System automatically executes Generate Invoice when appointment is completed (FR-028).  
+  * Receptionist is associated with Record Payment (cash or bank transfer at counter).  
+  * Pet Owner is associated with Pay Invoice Online and View Invoice.  
+  * Pay Invoice Online communicates with VNPay Payment Gateway (external actor).  
+  * Generate Invoice \<\<include\>\>s calculating totals with 10% VAT.
+
+**1.2.7 Feature: Reports and Statistics**  
+![A diagram of a pet care serviceAI-generated content may be incorrect.][image7]  
+**Description:** This diagram shows how business reports are generated.
+
+* **Actors:** Manager.  
+* **Use Cases:** Generate Reports.  
+* **Interactions:**   
+  * Manager is associated with Generate Reports.  
+  * Generate Reports includes multiple report types: Financial, Revenue by Period, Appointment Statistics, Top Services, Service Performance, Employee Workload, Customer Retention, Dashboard.  
+  * Export Report (PDF/CSV/Excel) \<\<extend\>\>s Generate Reports (optional enhancement).
+
+**1.2.8 Feature: Cage & Boarding Management**  
+![A diagram of cage managementAI-generated content may be incorrect.][image8]  
+**Description:** This diagram models cage inventory and pet boarding operations.
+
+* **Actors:** Manager, Receptionist, Care Staff.  
+* **Use Cases:** Manage Cage Inventory, View Cage Availability, Assign Pet to Cage, Checkout Pet from Cage, Update Cage Status.  
+* **Interactions:**   
+  * Manager is associated with Manage Cage Inventory (define cage types: Small, Medium, Large).  
+  * Receptionist, Care Staff are associated with View Cage Availability.  
+  * Receptionist is associated with Assign Pet to Cage (boarding check-in).  
+  * Receptionist, Care Staff are associated with Checkout Pet from Cage.  
+  * Care Staff is associated with Update Cage Status (Available, Occupied, Cleaning, Maintenance).  
+  * Checkout Pet from Cage \<\<include\>\>s calculating boarding fees based on duration and cage type.
+
+**1.2.9 Feature: Medical Record & Vaccination Management**  
+![A diagram of medical recordsAI-generated content may be incorrect.][image9]  
+**Description:** This diagram models comprehensive medical record tracking and vaccination scheduling.
+
+* **Actors:** Veterinarian, Manager.  
+* **Use Cases:** Manage Medical Records, Manage Vaccination Records, View Medical History, Calculate Vaccination Due Date.  
+* **Interactions:**   
+  * Veterinarian is associated with Manage Medical Records (diagnosis, treatment notes).  
+  * Veterinarian is associated with Manage Vaccination Records.  
+  * Veterinarian, Manager can View Medical History.  
+  * Calculate Vaccination Due Date is automatically executed by system when vaccination is recorded (FR-012a).  
+  * Manage Vaccination Records \<\<include\>\>s Calculate Vaccination Due Date (automatic calculation based on vaccine type's booster interval).
+
+# **2\. List of Actors**
+
+| STT | Actor Name | Meaning/Notes |
+| :---: | ----- | ----- |
+| 1 | Manager | Responsible for overall system management, including staff, services, schedules, and reports. |
+| 2 | Pet Owner | A customer of the pet care center who uses the online portal to manage their pets and appointments. |
+| 3 | Veterinarian | A professional staff member responsible for medical examinations and updating pet medical records. |
+| 4 | Care Staff | A staff member responsible for non-medical services like grooming and spa treatments. |
+| 5 | Receptionist | A staff member who manages the front desk, including appointments and payments. |
+| 6 | VNPay Payment Gateway | External system actor for online payment processing via VNPay API (integrated for FR-033: Pay Invoice Online). |
+
+#  
+
+# 
+
+# **3\. List of Use-cases**
+
+| STT | Use-case name | Meaning/Notes |
+| :---- | :---- | :---- |
+| **System Setup & Configuration** |  |  |
+| 1 | Manage Staff Account | (Manager) Creates and manages staff accounts. |
+| 2 | Register Account | (Pet Owner) Creates a customer account. |
+| 3 | Manage Services | (Manager) Defines the services offered by the center. |
+| 4 | Manage Service Categories | (Manager) Creates and manages service categories (Bathing, Spa, Medical, Vaccination, Boarding). |
+| 5 | Manage Work Schedules | (Manager) Creates and updates staff work schedules. |
+| 6 | Manage Cage Inventory | (Manager) Defines cage types (Small, Medium, Large) and manages cage inventory. |
+| **Access & Daily Use** |  |  |
+| 7 | Log In | (All Actors) Authenticate to access the system. |
+| 8 | Log Out | (All Actors) End the current session and exit the system. |
+| 9 | Reset Password | (All Actors) Recover a forgotten password. |
+| 10 | View Own Schedule | (Staff) Staff check their assigned work shifts. |
+| 11 | Search Pet & Owner Records | (Staff) Search for any pet or owner by name, phone, or ID. (Pet Owner) Search their own pets only. |
+| 12 | Manage Pet & Owner Records | (Staff) Create and update any pet/owner records. (Pet Owner) Manage their own profile and pets only. |
+| 13 | Manage Medical Records | (Veterinarian) Create and update comprehensive medical examination records. |
+| 14 | Manage Vaccination Records | (Veterinarian) Record vaccination administrations with vaccine type and due dates. |
+| 15 | View Service List | (Pet Owner) Browse available services and prices. |
+| 16 | View Staff Availability | (Pet Owner) Check available times for booking. |
+| 17 | Book Appointment Online | (Pet Owner) Self-service appointment booking for their own pets. |
+| 18 | Create Appointment at Counter | (Receptionist) Books an appointment for a customer. |
+| 19 | Cancel Appointment | (Pet Owner) Cancels their own previously booked appointment. |
+| **Service Execution** |  |  |
+| 20 | View Assigned Tasks | (Staff) See the list of tasks for the day. |
+| 21 | Update Service Status | (Staff) General action to update a task's progress. |
+| 22 | Record Examination Details | (Veterinarian) A specific status update for medical services. |
+| 23 | Update Pet Status | (Care Staff) A specific status update for non-medical services. |
+| **Cage & Boarding Management** |  |  |
+| 24 | View Cage Availability | (Staff) Check real-time cage availability and status. |
+| 25 | Assign Pet to Cage | (Receptionist) Assign a pet to an available cage during boarding check-in. |
+| 26 | Checkout Pet from Cage | (Staff) Process cage checkout and calculate boarding fees. |
+| 27 | Update Cage Status | (Staff) Update cage status (Available, Occupied, Cleaning, Maintenance). |
+| **Post-Service & Reporting** |  |  |
+| 28 | Record Payment | (Receptionist) Marks an invoice as paid with cash or bank transfer. |
+| 29 | View Invoice | (Pet Owner) Views their own billing history and invoices. |
+| 30 | Pay Invoice Online | (Pet Owner) Pays their own invoice via VNPay payment gateway. |
+| 31 | Generate Reports | (Manager) Generates business performance reports (financial, revenue, appointments, services, employees, customers). |
+| 32 | Update Appointment Status | (Receptionist) Updates appointment status to Confirmed, Pending, or Canceled. |
+
+# 
+
+# **4\. Use-case Specification**

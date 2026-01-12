@@ -1,0 +1,32 @@
+@startuml UC-01-System-Setup-Configuration
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: System Setup & Configuration
+
+' PRIMARY ACTORS (LEFT)
+actor "Manager" as Manager
+actor "Pet Owner" as Customer
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-01\nManage Staff Account" as UC01
+  usecase "UC-02\nRegister Account" as UC02
+  usecase "UC-03\nManage Services" as UC03
+  usecase "UC-04\nManage Service\nCategories" as UC04
+  usecase "UC-05\nManage Work\nSchedules" as UC05
+  usecase "UC-06\nManage Cage\nInventory" as UC06
+}
+
+' ASSOCIATIONS
+Manager -- UC01
+Manager -- UC03
+Manager -- UC04
+Manager -- UC05
+Manager -- UC06
+
+Customer -- UC02
+
+@enduml

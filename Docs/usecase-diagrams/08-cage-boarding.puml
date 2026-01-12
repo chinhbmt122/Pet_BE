@@ -1,0 +1,34 @@
+@startuml UC-08-Cage-Boarding-Management
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Cage & Boarding Management
+
+' PRIMARY ACTORS (LEFT)
+actor "Manager" as Manager
+actor "Care Staff" as Staff
+actor "Receptionist" as Receptionist
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-06\nManage Cage\nInventory" as UC06
+  usecase "UC-24\nView Cage\nAvailability" as UC24
+  usecase "UC-25\nAssign Pet to Cage" as UC25
+  usecase "UC-26\nCheckout Pet\nfrom Cage" as UC26
+  usecase "UC-27\nUpdate Cage Status" as UC27
+}
+
+' ASSOCIATIONS
+Manager -- UC06
+
+Staff -- UC24
+Staff -- UC26
+Staff -- UC27
+
+Receptionist -- UC24
+Receptionist -- UC25
+Receptionist -- UC27
+
+@enduml

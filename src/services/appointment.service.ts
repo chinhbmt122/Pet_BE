@@ -1,14 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, FindOptionsWhere } from 'typeorm';
+import { Repository, Not, FindOptionsWhere, DataSource } from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
+import { AppointmentService as AppointmentServiceEntity } from '../entities/appointment-service.entity';
 import { Pet } from '../entities/pet.entity';
 import { Employee } from '../entities/employee.entity';
 import { Service } from '../entities/service.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { UserType } from '../entities/account.entity';
+import { InvoiceService } from './invoice.service';
 
 /**
  * AppointmentService (Pure Anemic Pattern)
@@ -21,6 +30,8 @@ export class AppointmentService {
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(AppointmentServiceEntity)
+    private readonly appointmentServiceRepository: Repository<AppointmentServiceEntity>,
     @InjectRepository(Pet)
     private readonly petRepository: Repository<Pet>,
     @InjectRepository(Employee)
@@ -29,6 +40,9 @@ export class AppointmentService {
     private readonly serviceRepository: Repository<Service>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    @Inject(forwardRef(() => InvoiceService))
+    private readonly invoiceService: InvoiceService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ============================================
@@ -38,6 +52,7 @@ export class AppointmentService {
   /**
    * Creates new appointment with validation.
    * If PET_OWNER, validates they own the pet.
+   * Supports multiple services per appointment.
    */
   async createAppointment(
     dto: CreateAppointmentDto,
@@ -71,12 +86,28 @@ export class AppointmentService {
       });
     }
 
-    // Validate service exists
-    const service = await this.serviceRepository.findOne({
-      where: { serviceId: dto.serviceId },
-    });
-    if (!service) {
-      I18nException.notFound('errors.notFound.service', { id: dto.serviceId });
+    // Validate all services exist and calculate total cost
+    const serviceDetails: Array<{ service: Service; quantity: number; notes?: string }> = [];
+    let totalEstimatedCost = 0;
+
+    for (const serviceDto of dto.services) {
+      const service = await this.serviceRepository.findOne({
+        where: { serviceId: serviceDto.serviceId },
+      });
+      if (!service) {
+        I18nException.notFound('errors.notFound.service', { id: serviceDto.serviceId });
+
+        throw new NotFoundException(
+          `Service with ID ${serviceDto.serviceId} not found`,
+        );
+      }
+      const quantity = serviceDto.quantity || 1;
+      totalEstimatedCost += service.basePrice * quantity;
+      serviceDetails.push({ 
+        service, 
+        quantity,
+        notes: serviceDto.notes 
+      });
     }
 
     // Validate time (end must be after start)
@@ -108,20 +139,40 @@ export class AppointmentService {
       }
     }
 
-    // Create appointment
-    const appointment = this.appointmentRepository.create({
-      petId: dto.petId,
-      employeeId: dto.employeeId,
-      serviceId: dto.serviceId,
-      appointmentDate,
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      notes: dto.notes ?? undefined,
-      estimatedCost: dto.estimatedCost ?? service.basePrice,
-      status: AppointmentStatus.PENDING,
-    });
+    // Use transaction to ensure atomicity
+    return await this.dataSource.transaction(async (manager) => {
+      // Create appointment
+      const appointment = manager.create(Appointment, {
+        petId: dto.petId,
+        employeeId: dto.employeeId,
+        appointmentDate,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        notes: dto.notes ?? undefined,
+        estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
+        status: AppointmentStatus.PENDING,
+      });
 
-    return this.appointmentRepository.save(appointment);
+      const savedAppointment = await manager.save(Appointment, appointment);
+
+      // Create appointment-service junction records
+      for (const { service, quantity, notes } of serviceDetails) {
+        const appointmentService = manager.create(AppointmentServiceEntity, {
+          appointmentId: savedAppointment.appointmentId,
+          serviceId: service.serviceId,
+          quantity,
+          unitPrice: service.basePrice,
+          notes: notes ?? null,
+        });
+        await manager.save(AppointmentServiceEntity, appointmentService);
+      }
+
+      // Load and return appointment with services
+      return await manager.findOne(Appointment, {
+        where: { appointmentId: savedAppointment.appointmentId },
+        relations: ['appointmentServices', 'appointmentServices.service'],
+      });
+    });
   }
 
   /**
@@ -165,12 +216,24 @@ export class AppointmentService {
       });
     }
 
-    // Validate service exists
-    const service = await this.serviceRepository.findOne({
-      where: { serviceId: dto.serviceId },
-    });
-    if (!service) {
-      I18nException.notFound('errors.notFound.service', { id: dto.serviceId });
+    // Validate all services exist and calculate total cost
+    const serviceDetails: Array<{ service: Service; quantity: number; notes?: string }> = [];
+    let totalEstimatedCost = 0;
+
+    for (const serviceDto of dto.services) {
+      const service = await this.serviceRepository.findOne({
+        where: { serviceId: serviceDto.serviceId },
+      });
+      if (!service) {
+        I18nException.notFound('errors.notFound.service', { id: serviceDto.serviceId });
+      }
+      const quantity = serviceDto.quantity || 1;
+      totalEstimatedCost += service.basePrice * quantity;
+      serviceDetails.push({ 
+        service, 
+        quantity,
+        notes: serviceDto.notes 
+      });
     }
 
     // Validate time (end must be after start)
@@ -202,20 +265,40 @@ export class AppointmentService {
       }
     }
 
-    // Create appointment
-    const appointment = this.appointmentRepository.create({
-      petId: dto.petId,
-      employeeId: dto.employeeId,
-      serviceId: dto.serviceId,
-      appointmentDate,
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      notes: dto.notes ?? undefined,
-      estimatedCost: dto.estimatedCost ?? service.basePrice,
-      status: AppointmentStatus.PENDING,
-    });
+    // Use transaction to ensure atomicity
+    return await this.dataSource.transaction(async (manager) => {
+      // Create appointment
+      const appointment = manager.create(Appointment, {
+        petId: dto.petId,
+        employeeId: dto.employeeId,
+        appointmentDate,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        notes: dto.notes ?? undefined,
+        estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
+        status: AppointmentStatus.PENDING,
+      });
 
-    return this.appointmentRepository.save(appointment);
+      const savedAppointment = await manager.save(Appointment, appointment);
+
+      // Create appointment-service junction records
+      for (const { service, quantity, notes } of serviceDetails) {
+        const appointmentService = manager.create(AppointmentServiceEntity, {
+          appointmentId: savedAppointment.appointmentId,
+          serviceId: service.serviceId,
+          quantity,
+          unitPrice: service.basePrice,
+          notes: notes ?? null,
+        });
+        await manager.save(AppointmentServiceEntity, appointmentService);
+      }
+
+      // Load and return appointment with services
+      return await manager.findOne(Appointment, {
+        where: { appointmentId: savedAppointment.appointmentId },
+        relations: ['appointmentServices', 'appointmentServices.service'],
+      });
+    });
   }
 
   /**
@@ -267,7 +350,7 @@ export class AppointmentService {
   ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: ['pet', 'employee', 'service', 'pet.owner'],
+      relations: ['pet', 'employee', 'appointmentServices', 'pet.owner'],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -319,7 +402,7 @@ export class AppointmentService {
         .leftJoinAndSelect('appointment.pet', 'pet')
         .leftJoinAndSelect('pet.owner', 'owner')
         .leftJoinAndSelect('appointment.employee', 'employee')
-        .leftJoinAndSelect('appointment.service', 'service')
+        .leftJoinAndSelect('appointment.appointmentServices', 'appointmentServices')
         .where('appointment.petId IN (:...petIds)', { petIds });
 
       // Apply filters
@@ -367,7 +450,7 @@ export class AppointmentService {
       relations: [
         'pet',
         'employee',
-        'service',
+        'appointmentServices',
         'pet.owner',
         'pet.owner.account',
       ],
@@ -390,7 +473,7 @@ export class AppointmentService {
       .leftJoinAndSelect('appointment.pet', 'pet')
       .leftJoinAndSelect('pet.owner', 'owner')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.service', 'service');
+      .leftJoinAndSelect('appointment.appointmentServices', 'appointmentServices');
 
     // PET_OWNER: Only their pets' appointments
     if (user.userType === UserType.PET_OWNER) {
@@ -442,7 +525,7 @@ export class AppointmentService {
       relations: [
         'pet',
         'employee',
-        'service',
+        'appointmentServices',
         'pet.owner',
         'pet.owner.account',
       ],
@@ -456,7 +539,7 @@ export class AppointmentService {
   async getAppointmentsByPet(petId: number): Promise<Appointment[]> {
     return this.appointmentRepository.find({
       where: { petId },
-      relations: ['employee', 'service'],
+      relations: ['employee', 'appointmentServices'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
@@ -489,7 +572,7 @@ export class AppointmentService {
         'pet',
         'pet.owner',
         'pet.owner.account',
-        'service',
+        'appointmentServices',
         'employee',
       ],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
@@ -507,7 +590,7 @@ export class AppointmentService {
         'pet.owner',
         'pet.owner.account',
         'employee',
-        'service',
+        'appointmentServices',
       ],
       order: { startTime: 'ASC' },
     });
@@ -581,14 +664,33 @@ export class AppointmentService {
 
   /**
    * Completes appointment (IN_PROGRESS → COMPLETED)
+   * Automatically generates invoice after completion (FR-028)
+   * 
+   * Uses database transaction to ensure atomic operation:
+   * - Both appointment completion AND invoice creation succeed, OR
+   * - Both operations rollback on failure
+   * 
+   * @throws NotFoundException if appointment doesn't exist
+   * @throws BadRequestException if appointment is not IN_PROGRESS
+   * @throws ConflictException if invoice already exists
    */
   async completeAppointment(
     appointmentId: number,
     actualCost?: number,
   ): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findOne({
-      where: { appointmentId },
-    });
+
+    // Use QueryRunner for transactional control
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Load appointment with service relation for pricing
+      const appointment = await queryRunner.manager.findOne(Appointment, {
+        where: { appointmentId },
+        relations: ['appointmentServices'],
+      });
+
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
         id: appointmentId,
@@ -599,11 +701,33 @@ export class AppointmentService {
       I18nException.badRequest('errors.badRequest.canOnlyCompleteInProgress');
     }
 
-    appointment.status = AppointmentStatus.COMPLETED;
-    if (actualCost !== undefined) {
-      appointment.actualCost = actualCost;
+      // Update appointment status
+      appointment.status = AppointmentStatus.COMPLETED;
+      if (actualCost !== undefined) {
+        appointment.actualCost = actualCost;
+      }
+      const completedAppointment = await queryRunner.manager.save(appointment);
+
+      // Delegate to InvoiceService (Single Responsibility Principle)
+      await this.invoiceService.createInvoice(
+        {
+          appointmentId,
+          notes: `Auto-generated for completed appointment ${appointmentId}`,
+        },
+        queryRunner.manager, // Pass transaction manager for atomic operation
+      );
+
+      // Commit transaction - both operations succeeded
+      await queryRunner.commitTransaction();
+      return completedAppointment;
+    } catch (error) {
+      // Rollback transaction on any failure
+      await queryRunner.rollbackTransaction();
+      throw error; // Re-throw to maintain error contract
+    } finally {
+      // Release database connection
+      await queryRunner.release();
     }
-    return this.appointmentRepository.save(appointment);
   }
 
   /**
@@ -663,7 +787,7 @@ export class AppointmentService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.pet', 'pet')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.service', 'service')
+      .leftJoinAndSelect('appointment.appointmentServices', 'appointmentServices')
       .where('appointment.appointmentDate >= :startDate', { startDate })
       .andWhere('appointment.appointmentDate <= :endDate', { endDate });
 

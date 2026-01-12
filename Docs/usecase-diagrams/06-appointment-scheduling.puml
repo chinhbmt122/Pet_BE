@@ -1,0 +1,43 @@
+@startuml UC-06-Appointment-Scheduling
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Appointment & Scheduling
+
+' PRIMARY ACTORS (LEFT)
+actor "Pet Owner" as Customer
+actor "Receptionist" as Receptionist
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-15\nView Service List" as UC15
+  usecase "UC-16\nView Staff\nAvailability" as UC16
+  usecase "UC-17\nBook Appointment\nOnline" as UC17
+  usecase "UC-18\nCreate Appointment\nat Counter" as UC18
+  usecase "UC-19\nCancel Appointment" as UC19
+  usecase "UC-32\nUpdate Appointment\nStatus" as UC32
+  usecase "UC-12\nManage Pet &\nOwner Records" as UC12
+  
+  ' USE CASE RELATIONSHIPS
+  UC17 ..> UC15 : <<include>>
+  UC17 ..> UC16 : <<include>>
+  UC18 ..> UC12 : <<include>>
+}
+
+' ASSOCIATIONS
+Customer -- UC15
+Customer -- UC16
+Customer -- UC17
+Customer -- UC19
+
+Receptionist -- UC18
+Receptionist -- UC32
+
+note right of UC18
+  Counter booking alternative
+  to online self-service
+end note
+
+@enduml

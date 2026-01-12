@@ -611,19 +611,19 @@ export class ReportService {
 
     // Today's statistics
     const todayAppointments = await this.appointmentRepository.count({
-      where: { appointmentDate: today },
+      where: { appointmentDate: Between(today, tomorrow) },
     });
 
     const todayCompleted = await this.appointmentRepository.count({
       where: {
-        appointmentDate: today,
+        appointmentDate: Between(today, tomorrow),
         status: AppointmentStatus.COMPLETED,
       },
     });
 
     const todayInvoices = await this.invoiceRepository.find({
       where: {
-        issueDate: today,
+        issueDate: Between(today, tomorrow),
         status: InvoiceStatus.PAID,
       },
     });

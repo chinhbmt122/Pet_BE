@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
@@ -55,14 +55,23 @@ export class InvoiceService {
 
   /**
    * Creates a new invoice for an appointment
-   * NOTE: In production, this would calculate amounts from appointment service.
-   * For now, we expect the caller to provide calculated amounts.
+   * Supports transactional context via optional EntityManager
+   * 
+   * @param dto Invoice creation data
+   * @param transactionManager Optional EntityManager for transactional operations
+   * @returns Created invoice DTO
    */
-  async createInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
+  async createInvoice(
+    dto: CreateInvoiceDto,
+    transactionManager?: EntityManager,
+  ): Promise<InvoiceResponseDto> {
+    // Use transaction manager if provided, otherwise use default repository
+    const manager = transactionManager || this.appointmentRepository.manager;
+
     // Verify appointment exists
-    const appointment = await this.appointmentRepository.findOne({
+    const appointment = await manager.findOne(Appointment, {
       where: { appointmentId: dto.appointmentId },
-      relations: ['service'],
+      relations: ['appointmentServices', 'appointmentServices.service'],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -71,7 +80,7 @@ export class InvoiceService {
     }
 
     // Check if invoice already exists for this appointment
-    const existingInvoice = await this.invoiceRepository.findOne({
+    const existingInvoice = await manager.findOne(Invoice, {
       where: { appointmentId: dto.appointmentId },
     });
     if (existingInvoice) {
@@ -80,9 +89,11 @@ export class InvoiceService {
       });
     }
 
-    // Calculate invoice amounts from service
-    const servicePrice = Number(appointment.service.basePrice);
-    const subtotal = servicePrice;
+    // Calculate invoice amounts from appointment services
+    // Use appointmentServices pricing if available
+    const subtotal = appointment.appointmentServices?.length > 0
+      ? appointment.appointmentServices.reduce((sum, as) => sum + Number(as.unitPrice) * as.quantity, 0)
+      : Number(appointment.actualCost) || 0;
 
     // Apply discount (TODO: implement discount code lookup)
     let discount = 0;
@@ -99,11 +110,11 @@ export class InvoiceService {
     // Calculate total
     const totalAmount = subtotal - discount + tax;
 
-    // Generate invoice number
-    const invoiceNumber = await this.generateInvoiceNumber();
+    // Generate invoice number (thread-safe within transaction)
+    const invoiceNumber = await this.generateInvoiceNumber(manager);
 
     // Create invoice entity
-    const entity = this.invoiceRepository.create({
+    const entity = manager.create(Invoice, {
       appointmentId: dto.appointmentId,
       invoiceNumber,
       issueDate: new Date(),
@@ -116,19 +127,28 @@ export class InvoiceService {
     });
 
     // Save and return
-    const saved = await this.invoiceRepository.save(entity);
+    const saved = await manager.save(Invoice, entity);
     return InvoiceResponseDto.fromEntity(saved);
   }
 
   /**
    * Generate unique invoice number in format: INV-YYYYMMDD-00001
+   * Thread-safe within transaction context
+   * 
+   * @param manager EntityManager for transaction context
    */
-  private async generateInvoiceNumber(): Promise<string> {
+  private async generateInvoiceNumber(
+    manager?: EntityManager,
+  ): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
 
+    const repo = manager
+      ? manager.getRepository(Invoice)
+      : this.invoiceRepository;
+
     // Find the latest invoice number for today
-    const latestInvoice = await this.invoiceRepository
+    const latestInvoice = await repo
       .createQueryBuilder('invoice')
       .where('invoice.invoiceNumber LIKE :pattern', {
         pattern: `INV-${dateStr}-%`,

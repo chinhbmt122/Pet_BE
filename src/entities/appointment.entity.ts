@@ -13,10 +13,10 @@ import {
 } from 'typeorm';
 import type { Pet } from './pet.entity';
 import { Employee } from './employee.entity';
-import { Service } from './service.entity';
 import { Invoice } from './invoice.entity';
 import { MedicalRecord } from './medical-record.entity';
 import { CageAssignment } from './cage-assignment.entity';
+import { AppointmentService } from './appointment-service.entity';
 import { AppointmentStatus } from './types/entity.types';
 
 export { AppointmentStatus };
@@ -48,12 +48,16 @@ export class Appointment {
   @JoinColumn({ name: 'employeeId' })
   employee: Employee;
 
-  @Column()
-  serviceId: number;
-
-  @ManyToOne(() => Service, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'serviceId' })
-  service: Service;
+  /**
+   * Many-to-Many relationship with Service through AppointmentService junction table
+   * An appointment can have multiple services
+   * Services are accessed via appointment.appointmentServices[].service
+   */
+  @OneToMany(() => AppointmentService, (appointmentService) => appointmentService.appointment, {
+    cascade: true,
+    eager: false,
+  })
+  appointmentServices: AppointmentService[];
 
   @Column({ type: 'date' })
   appointmentDate: Date;

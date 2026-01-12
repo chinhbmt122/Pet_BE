@@ -1,0 +1,67 @@
+@startuml UC-00-System-Context
+' Best Practice: Level 0 = System Context (highest abstraction)
+' Convention: Primary actors LEFT, Secondary actors RIGHT
+' Standard: UML 2.5.1 compliant
+
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title System Context Diagram (Level 0)
+
+' ============================================
+' PRIMARY ACTORS (LEFT SIDE)
+' ============================================
+actor "Pet Owner" as Customer
+actor "Manager" as Manager
+actor "Veterinarian" as Vet
+actor "Care Staff" as CareStaff
+actor "Receptionist" as Receptionist
+
+' Keep primary actors aligned (layout hint)
+Customer -[hidden]- Manager
+Manager -[hidden]- Vet
+Vet -[hidden]- CareStaff
+CareStaff -[hidden]- Receptionist
+
+' ============================================
+' SYSTEM BOUNDARY
+' ============================================
+package "PAW LOVERS\nPet Care Management System" {
+  usecase "Manage Pet Care\nOperations" as UC_Main
+}
+
+' ============================================
+' SECONDARY ACTOR (RIGHT SIDE)
+' ============================================
+actor "VNPay Gateway" as VNPay <<system>>
+
+' ============================================
+' ASSOCIATIONS
+' ============================================
+' Primary actors to system
+Customer -- UC_Main
+Manager -- UC_Main
+Vet -- UC_Main
+CareStaff -- UC_Main
+Receptionist -- UC_Main
+
+' Secondary actor to system
+UC_Main -- VNPay
+
+' ============================================
+' CONTEXTUAL NOTE
+' ============================================
+note bottom of UC_Main
+  **Scope (summary):**
+  • Setup & configuration
+  • Authentication & access control
+  • Pet/owner records
+  • Medical & vaccination
+  • Appointments & services
+  • Tasks & cage management
+  • Payments & reporting
+end note
+
+@enduml

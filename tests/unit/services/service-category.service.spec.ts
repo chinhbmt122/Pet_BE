@@ -1,15 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ServiceCategoryService } from '../../../src/services/service-category.service';
 import { ServiceCategory } from '../../../src/entities/service-category.entity';
 import { Service } from '../../../src/entities/service.entity';
 
+// ===== Use new test helpers =====
+import { createMockRepository } from '../../helpers';
+
 describe('ServiceCategoryService', () => {
   let service: ServiceCategoryService;
-  let serviceCategoryRepository: jest.Mocked<Repository<ServiceCategory>>;
-  let serviceRepository: jest.Mocked<Repository<Service>>;
+
+  // ===== Use helper types for cleaner declarations =====
+  let serviceCategoryRepository: ReturnType<typeof createMockRepository<ServiceCategory>>;
+  let serviceRepository: ReturnType<typeof createMockRepository<Service>>;
 
   const mockServiceCategory: ServiceCategory = {
     categoryId: 1,
@@ -35,41 +39,34 @@ describe('ServiceCategoryService', () => {
   } as Service;
 
   beforeEach(async () => {
+    // ===== Use shared helpers =====
+    serviceCategoryRepository = createMockRepository<ServiceCategory>();
+    serviceRepository = createMockRepository<Service>();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServiceCategoryService,
         {
           provide: getRepositoryToken(ServiceCategory),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-            update: jest.fn(),
-            remove: jest.fn(),
-          },
+          useValue: serviceCategoryRepository,
         },
         {
           provide: getRepositoryToken(Service),
-          useValue: {
-            find: jest.fn(),
-            count: jest.fn(),
-          },
+          useValue: serviceRepository,
         },
       ],
     }).compile();
 
     service = module.get<ServiceCategoryService>(ServiceCategoryService);
-    serviceCategoryRepository = module.get(getRepositoryToken(ServiceCategory));
-    serviceRepository = module.get(getRepositoryToken(Service));
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('createCategory', () => {
-    it('should create new service category successfully', async () => {
+
+  describe('P0: createCategory (2 tests)', () => {
+    it('[P0-115] should create new service category successfully', async () => {
       const createDto = {
         categoryName: 'New Category',
         description: 'New category description',
@@ -93,7 +90,7 @@ describe('ServiceCategoryService', () => {
       expect(result.categoryName).toBe('Grooming');
     });
 
-    it('should throw ConflictException for existing category name', async () => {
+    it('[P0-116] should throw ConflictException for existing category name', async () => {
       const createDto = {
         categoryName: 'Existing Category',
         description: 'Category description',
@@ -111,8 +108,8 @@ describe('ServiceCategoryService', () => {
     });
   });
 
-  describe('getAllCategories', () => {
-    it('should return all active categories', async () => {
+  describe('P1: getAllCategories (1 test)', () => {
+    it('[P1-80] should return all active categories', async () => {
       const categories = [mockServiceCategory];
       serviceCategoryRepository.find.mockResolvedValue(categories);
 
@@ -128,8 +125,8 @@ describe('ServiceCategoryService', () => {
     });
   });
 
-  describe('getCategoryById', () => {
-    it('should return category by ID', async () => {
+  describe('P1: getCategoryById (2 tests)', () => {
+    it('[P1-81] should return category by ID', async () => {
       serviceCategoryRepository.findOne.mockResolvedValue(mockServiceCategory);
 
       const result = await service.getCategoryById(1);
@@ -142,7 +139,7 @@ describe('ServiceCategoryService', () => {
       expect(result.categoryName).toBe('Grooming');
     });
 
-    it('should throw NotFoundException for non-existent category', async () => {
+    it('[P1-82] should throw NotFoundException for non-existent category', async () => {
       serviceCategoryRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getCategoryById(999)).rejects.toThrow(
@@ -155,8 +152,8 @@ describe('ServiceCategoryService', () => {
     });
   });
 
-  describe('updateCategory', () => {
-    it('should update category successfully', async () => {
+  describe('P0: updateCategory (3 tests)', () => {
+    it('[P0-117] should update category successfully', async () => {
       const updateDto = {
         categoryName: 'Updated Category',
         description: 'Updated description',
@@ -193,7 +190,7 @@ describe('ServiceCategoryService', () => {
       );
     });
 
-    it('should throw ConflictException for duplicate name', async () => {
+    it('[P0-119] should throw ConflictException for duplicate name', async () => {
       const updateDto = {
         categoryName: 'Existing Category',
         description: 'Updated description',
@@ -214,8 +211,8 @@ describe('ServiceCategoryService', () => {
     });
   });
 
-  describe('toggleActive', () => {
-    it('should toggle category status successfully', async () => {
+  describe('P2: toggleActive (2 tests)', () => {
+    it('[P2-24] should toggle category status successfully', async () => {
       serviceCategoryRepository.findOne.mockResolvedValue(mockServiceCategory);
       serviceCategoryRepository.save.mockResolvedValue(mockServiceCategory);
 
@@ -241,8 +238,8 @@ describe('ServiceCategoryService', () => {
     });
   });
 
-  describe('deleteCategory', () => {
-    it('should delete category successfully when no linked services', async () => {
+  describe('P1: deleteCategory (3 tests)', () => {
+    it('[P1-83] should delete category successfully when no linked services', async () => {
       const categoryWithNoServices = { ...mockServiceCategory, services: [] };
       serviceCategoryRepository.findOne.mockResolvedValue(
         categoryWithNoServices,
@@ -257,7 +254,7 @@ describe('ServiceCategoryService', () => {
       expect(result).toBe(true);
     });
 
-    it('should throw ConflictException when category has linked services', async () => {
+    it('[P1-84] should throw ConflictException when category has linked services', async () => {
       const categoryWithServices = {
         ...mockServiceCategory,
         services: [mockService, mockService], // 2 linked services
@@ -273,7 +270,7 @@ describe('ServiceCategoryService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent category', async () => {
+    it('[P1-85] should throw NotFoundException for non-existent category', async () => {
       serviceCategoryRepository.findOne.mockResolvedValue(null);
 
       await expect(service.deleteCategory(999)).rejects.toThrow(

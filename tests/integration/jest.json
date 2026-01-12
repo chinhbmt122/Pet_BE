@@ -3,11 +3,13 @@
   "rootDir": "../../",
   "testEnvironment": "node",
   "setupFilesAfterEnv": ["<rootDir>/tests/test-db.setup.ts"],
-  "testRegex": ".integration-spec.ts$",
+  "testRegex": ".(integration-spec|integration\\.spec).ts$",
   "maxWorkers": 1,
   "testTimeout": 30000,
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": ["ts-jest", {
+      "tsconfig": "<rootDir>/tsconfig.test.json"
+    }]
   },
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1",

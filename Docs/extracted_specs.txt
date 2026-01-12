@@ -1,0 +1,14 @@
+Found 12 specifications:
+
+- Assign Pet to Cage
+- Checkout Pet from Cage
+- Generate Reports
+- Log Out
+- Manage Medical Records
+- Manage Pet & Owner Records
+- Pay Invoice Online
+- Record Payment
+- Update Appointment Status
+- Update Cage Status
+- View Invoice
+- View Own Schedule

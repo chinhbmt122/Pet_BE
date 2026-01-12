@@ -1,0 +1,26 @@
+@startuml UC-03-Service-Management
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Service Management
+
+' PRIMARY ACTORS (LEFT)
+actor "Manager" as Manager
+actor "Pet Owner" as Customer
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-03\nManage Services" as UC03
+  usecase "UC-04\nManage Service\nCategories" as UC04
+  usecase "UC-15\nView Service List" as UC15
+}
+
+' ASSOCIATIONS
+Manager -- UC03
+Manager -- UC04
+
+Customer -- UC15
+
+@enduml
