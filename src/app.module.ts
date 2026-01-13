@@ -15,6 +15,7 @@ import { MedicalRecordModule } from './modules/medical-record.module';
 import { ReportModule } from './modules/report.module';
 import { ServiceCategoryModule } from './modules/service-category.module';
 import { CageModule } from './modules/cage.module';
+import { SharedHelpersModule } from './modules/shared-helpers.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './middleware/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from './middleware/filters/global.filter';
@@ -46,6 +47,8 @@ import * as path from 'path';
     }),
     // Database configuration
     DatabaseModule,
+    // Shared Helpers (global)
+    SharedHelpersModule,
     // Feature modules
     AccountModule,
     PetOwnerModule,

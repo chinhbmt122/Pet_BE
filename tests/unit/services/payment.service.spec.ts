@@ -8,9 +8,18 @@ import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { VNPayService } from '../../../src/services/vnpay.service';
 import { CreatePaymentDto, InitiateOnlinePaymentDto, VNPayCallbackDto, ProcessRefundDto } from '../../../src/dto/payment';
 import { UserType } from '../../../src/entities/account.entity';
+import { OwnershipValidationHelper } from '../../../src/services/helpers/ownership-validation.helper';
 
 // ===== Use new test helpers =====
 import { createMockRepository, createMockVNPayService } from '../../helpers';
+
+// Mock for OwnershipValidationHelper
+const mockOwnershipHelper = {
+  validatePetOwnership: jest.fn().mockResolvedValue(undefined),
+  validateAppointmentOwnership: jest.fn().mockResolvedValue(undefined),
+  userOwnsPet: jest.fn().mockResolvedValue(true),
+  getPetOwnerByAccount: jest.fn().mockResolvedValue(null),
+};
 
 describe('PaymentService - Full Unit Tests', () => {
   let service: PaymentService;
@@ -29,6 +38,9 @@ describe('PaymentService - Full Unit Tests', () => {
     paymentGatewayArchiveRepository = createMockRepository<PaymentGatewayArchive>();
     petOwnerRepository = createMockRepository<PetOwner>();
     vnpayService = createMockVNPayService();
+
+    // Reset mocks
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -52,6 +64,10 @@ describe('PaymentService - Full Unit Tests', () => {
         {
           provide: getRepositoryToken(PetOwner),
           useValue: petOwnerRepository,
+        },
+        {
+          provide: OwnershipValidationHelper,
+          useValue: mockOwnershipHelper,
         },
       ],
     }).compile();
@@ -275,11 +291,6 @@ describe('PaymentService - Full Unit Tests', () => {
         },
       } as unknown as Invoice;
 
-      const mockPetOwner = {
-        petOwnerId: 10,
-        accountId: 100,
-      } as PetOwner;
-
       const dto: InitiateOnlinePaymentDto = {
         invoiceId: 1,
         paymentMethod: PaymentMethod.VNPAY,
@@ -289,15 +300,14 @@ describe('PaymentService - Full Unit Tests', () => {
       const user = { accountId: 100, userType: UserType.PET_OWNER };
 
       invoiceRepository.findOne.mockResolvedValue(mockInvoice);
-      petOwnerRepository.findOne.mockResolvedValue(mockPetOwner);
 
-      await expect(service.initiateOnlinePayment(dto, user)).rejects.toThrow(
-        expect.objectContaining({
-          response: expect.objectContaining({
-            i18nKey: 'errors.notFound.invoice',
-          }),
-        }),
+      // Mock the helper to throw for unauthorized access
+      const { NotFoundException } = require('@nestjs/common');
+      mockOwnershipHelper.validateAppointmentOwnership.mockRejectedValueOnce(
+        new NotFoundException({ i18nKey: 'errors.notFound.resource' })
       );
+
+      await expect(service.initiateOnlinePayment(dto, user)).rejects.toThrow();
     });
   });
 

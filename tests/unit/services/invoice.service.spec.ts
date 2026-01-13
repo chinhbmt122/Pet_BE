@@ -8,9 +8,18 @@ import { Service } from '../../../src/entities/service.entity';
 import { EntityManager } from 'typeorm';
 import { CreateInvoiceDto } from '../../../src/dto/invoice';
 import { UserType } from '../../../src/entities/account.entity';
+import { OwnershipValidationHelper } from '../../../src/services/helpers/ownership-validation.helper';
 
 // ===== Use new test helpers =====
 import { createMockRepository } from '../../helpers';
+
+// Mock for OwnershipValidationHelper
+const mockOwnershipHelper = {
+  validatePetOwnership: jest.fn().mockResolvedValue(undefined),
+  validateAppointmentOwnership: jest.fn().mockResolvedValue(undefined),
+  userOwnsPet: jest.fn().mockResolvedValue(true),
+  getPetOwnerByAccount: jest.fn().mockResolvedValue(null),
+};
 
 describe('InvoiceService - Full Unit Tests', () => {
   let service: InvoiceService;
@@ -55,6 +64,10 @@ describe('InvoiceService - Full Unit Tests', () => {
         {
           provide: getRepositoryToken(PetOwner),
           useValue: petOwnerRepository,
+        },
+        {
+          provide: OwnershipValidationHelper,
+          useValue: mockOwnershipHelper,
         },
       ],
     }).compile();

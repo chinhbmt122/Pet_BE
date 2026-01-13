@@ -33,16 +33,26 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
     ]),
     VnpayModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        tmnCode: configService.get<string>('VNPAY_TMN_CODE') || '',
-        secureSecret: configService.get<string>('VNPAY_HASH_SECRET') || '',
-        vnpayHost:
-          configService.get<string>('VNPAY_URL') ||
-          'https://sandbox.vnpayment.vn',
-        testMode: configService.get<string>('NODE_ENV') !== 'production',
-        hashAlgorithm: HashAlgorithm.SHA512,
-        enableLog: configService.get<string>('NODE_ENV') !== 'production',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const tmnCode = configService.get<string>('VNPAY_TMN_CODE');
+        const secureSecret = configService.get<string>('VNPAY_HASH_SECRET');
+
+        // Warn but don't fail if VNPay is not configured
+        if (!tmnCode || !secureSecret) {
+          console.warn('[VNPay] TMN_CODE or HASH_SECRET not configured. VNPay payments will be disabled.');
+        }
+
+        return {
+          tmnCode: tmnCode || 'PLACEHOLDER',
+          secureSecret: secureSecret || 'PLACEHOLDER_SECRET',
+          vnpayHost:
+            configService.get<string>('VNPAY_URL') ||
+            'https://sandbox.vnpayment.vn',
+          testMode: configService.get<string>('NODE_ENV') !== 'production',
+          hashAlgorithm: HashAlgorithm.SHA512,
+          enableLog: configService.get<string>('NODE_ENV') !== 'production',
+        };
+      },
       inject: [ConfigService],
     }),
   ],
@@ -50,4 +60,4 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
   providers: [PaymentService, VNPayService, InvoiceService],
   exports: [PaymentService, InvoiceService],
 })
-export class PaymentModule {}
+export class PaymentModule { }

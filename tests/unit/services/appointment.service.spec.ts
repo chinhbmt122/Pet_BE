@@ -11,9 +11,18 @@ import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { InvoiceService } from '../../../src/services/invoice.service';
 import { CreateAppointmentDto } from '../../../src/dto/appointment/create-appointment.dto';
 import { UserType } from '../../../src/entities/account.entity';
+import { OwnershipValidationHelper } from '../../../src/services/helpers/ownership-validation.helper';
 
 // ===== Use new test helpers =====
 import { createMockRepository, createMockDataSource, createMockInvoiceService } from '../../helpers';
+
+// Mock for OwnershipValidationHelper
+const mockOwnershipHelper = {
+  validatePetOwnership: jest.fn().mockResolvedValue(undefined),
+  validateAppointmentOwnership: jest.fn().mockResolvedValue(undefined),
+  userOwnsPet: jest.fn().mockResolvedValue(true),
+  getPetOwnerByAccount: jest.fn().mockResolvedValue(null),
+};
 
 describe('AppointmentService - Phase 1 Unit Tests', () => {
   let service: AppointmentService;
@@ -45,6 +54,9 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
     petOwnerRepository = createMockRepository<PetOwner>();
     invoiceService = createMockInvoiceService();
     dataSource = createMockDataSource();
+
+    // Reset mocks
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -80,6 +92,10 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
         {
           provide: DataSource,
           useValue: dataSource,
+        },
+        {
+          provide: OwnershipValidationHelper,
+          useValue: mockOwnershipHelper,
         },
       ],
     }).compile();

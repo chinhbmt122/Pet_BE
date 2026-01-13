@@ -11,9 +11,18 @@ import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { CreateMedicalRecordDto } from '../../../src/dto/medical-record/create-medical-record.dto';
 import { CreateVaccinationDto } from '../../../src/dto/vaccination/create-vaccination.dto';
 import { Appointment } from '../../../src/entities/appointment.entity';
+import { OwnershipValidationHelper } from '../../../src/services/helpers/ownership-validation.helper';
 
 // ===== Use new test helpers =====
 import { createMockRepository } from '../../helpers';
+
+// Mock for OwnershipValidationHelper
+const mockOwnershipHelper = {
+  validatePetOwnership: jest.fn().mockResolvedValue(undefined),
+  validateAppointmentOwnership: jest.fn().mockResolvedValue(undefined),
+  userOwnsPet: jest.fn().mockResolvedValue(true),
+  getPetOwnerByAccount: jest.fn().mockResolvedValue(null),
+};
 
 describe('MedicalRecordService', () => {
   let service: MedicalRecordService;
@@ -80,6 +89,9 @@ describe('MedicalRecordService', () => {
     petRepository = createMockRepository<Pet>();
     veterinarianRepository = createMockRepository<Veterinarian>();
 
+    // Reset mocks
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MedicalRecordService,
@@ -110,6 +122,10 @@ describe('MedicalRecordService', () => {
         {
           provide: getRepositoryToken(PetOwner),
           useValue: createMockRepository<PetOwner>(),
+        },
+        {
+          provide: OwnershipValidationHelper,
+          useValue: mockOwnershipHelper,
         },
       ],
     }).compile();

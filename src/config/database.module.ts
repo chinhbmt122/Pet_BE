@@ -21,10 +21,12 @@ import { entitiesOrdered } from './entities';
         const baseConfig = {
           type: 'postgres' as const,
           entities: entitiesOrdered,
-          synchronize: !isProduction,
+          // For initial deployment, use synchronize to create schema
+          // TODO: Switch to migrations once stable
+          synchronize: true,
           logging: !isProduction,
-          migrationsRun: isProduction,
-          migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+          // Disable migrationsRun - migrations aren't compiled by nest build
+          migrationsRun: false,
           ssl: isProduction ? { rejectUnauthorized: false } : undefined,
         };
 
@@ -47,4 +49,4 @@ import { entitiesOrdered } from './entities';
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

@@ -23,12 +23,18 @@ import {
   VaccinationResponseDto,
 } from '../dto/vaccination';
 import { UserType } from '../entities/account.entity';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
  * MedicalRecordService (MedicalRecordManager)
  *
  * Manages veterinary examination records using DDD pattern.
  * Uses domain models for business logic and mappers for entity conversion.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class MedicalRecordService {
@@ -47,6 +53,7 @@ export class MedicalRecordService {
     private readonly veterinarianRepository: Repository<Veterinarian>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   /**
@@ -203,7 +210,7 @@ export class MedicalRecordService {
    */
   async getMedicalRecordById(
     recordId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<MedicalRecordResponseDto> {
     const entity = await this.medicalRecordRepository.findOne({
       where: { recordId },
@@ -213,21 +220,9 @@ export class MedicalRecordService {
       I18nException.notFound('errors.notFound.medicalRecord', { id: recordId });
     }
 
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner || entity.petId !== undefined) {
-        const pet = await this.petRepository.findOne({
-          where: { petId: entity.petId },
-        });
-        if (!pet || pet.ownerId !== petOwner?.petOwnerId) {
-          I18nException.notFound('errors.notFound.medicalRecord', {
-            id: recordId,
-          });
-        }
-      }
+    // Validate ownership via helper (handles PET_OWNER check internally)
+    if (entity.petId) {
+      await this.ownershipHelper.validatePetOwnership(entity.petId, user);
     }
 
     const domain = MedicalRecordMapper.toDomain(entity);
@@ -240,18 +235,10 @@ export class MedicalRecordService {
    */
   async getMedicalHistoryByPet(
     petId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<MedicalRecordResponseDto[]> {
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        return [];
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const entities = await this.medicalRecordRepository.find({
       where: { petId },
@@ -332,18 +319,10 @@ export class MedicalRecordService {
    */
   async getVaccinationHistory(
     petId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<VaccinationResponseDto[]> {
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet');
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
@@ -371,18 +350,10 @@ export class MedicalRecordService {
   async getUpcomingVaccinations(
     petId: number,
     daysAhead: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<VaccinationResponseDto[]> {
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet');
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const today = new Date();
     const futureDate = new Date();
@@ -413,18 +384,10 @@ export class MedicalRecordService {
    */
   async getOverdueVaccinations(
     petId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<VaccinationResponseDto[]> {
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet');
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },

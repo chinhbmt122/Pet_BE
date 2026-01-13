@@ -16,12 +16,34 @@ import { PetOwner } from '../entities/pet-owner.entity';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { UserType } from '../entities/account.entity';
 import { InvoiceService } from './invoice.service';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
- * AppointmentService (Pure Anemic Pattern)
+ * Validated appointment creation data.
+ * Result of pre-creation validation to avoid code duplication.
+ */
+interface ValidatedAppointmentData {
+  pet: Pet;
+  employee: Employee;
+  serviceDetails: Array<{
+    service: Service;
+    quantity: number;
+    notes?: string;
+  }>;
+  totalEstimatedCost: number;
+  appointmentDate: Date;
+}
+
+/**
+ * AppointmentService
  *
  * Manages appointments with business logic in service layer.
  * Handles appointment lifecycle: PENDING → CONFIRMED → IN_PROGRESS → COMPLETED/CANCELLED.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class AppointmentService {
@@ -41,58 +63,65 @@ export class AppointmentService {
     @Inject(forwardRef(() => InvoiceService))
     private readonly invoiceService: InvoiceService,
     private readonly dataSource: DataSource,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   // ============================================
-  // APPOINTMENT CRUD
+  // PRIVATE VALIDATION HELPERS (DRY - Phase 1 Refactoring)
   // ============================================
 
   /**
-   * Creates new appointment with validation.
-   * If PET_OWNER, validates they own the pet.
-   * Supports multiple services per appointment.
+   * Validates pet exists and optionally validates ownership for PET_OWNER users.
+   * Delegates to shared OwnershipValidationHelper.
+   * @throws NotFoundException if pet not found or ownership validation fails
    */
-  async createAppointment(
-    dto: CreateAppointmentDto,
-    user?: { accountId: number; userType: UserType },
-  ): Promise<Appointment> {
-    // Validate pet exists
+  private async validatePetAndOwnership(
+    petId: number,
+    user?: UserContext,
+  ): Promise<Pet> {
     const pet = await this.petRepository.findOne({
-      where: { petId: dto.petId },
+      where: { petId },
     });
     if (!pet) {
-      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
+      I18nException.notFound('errors.notFound.pet', { id: petId });
+      throw new NotFoundException(`Pet not found`); // Unreachable but for type safety
     }
 
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-      }
-    }
+    // Delegate ownership validation to shared helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
-    // Validate employee exists
+    return pet;
+  }
+
+  /**
+   * Validates employee exists.
+   * @throws NotFoundException if employee not found
+   */
+  private async validateEmployee(employeeId: number): Promise<Employee> {
     const employee = await this.employeeRepository.findOne({
-      where: { employeeId: dto.employeeId },
+      where: { employeeId },
     });
     if (!employee) {
-      I18nException.notFound('errors.notFound.employee', {
-        id: dto.employeeId,
-      });
+      I18nException.notFound('errors.notFound.employee', { id: employeeId });
+      throw new NotFoundException(`Employee not found`); // Unreachable but for type safety
     }
+    return employee;
+  }
 
-    // Validate all services exist and calculate total cost
-    const serviceDetails: Array<{
-      service: Service;
-      quantity: number;
-      notes?: string;
-    }> = [];
+  /**
+   * Validates all services exist and calculates total estimated cost.
+   * @throws NotFoundException if any service not found
+   */
+  private async validateServicesAndCalculateCost(
+    services: CreateAppointmentDto['services'],
+  ): Promise<{
+    serviceDetails: ValidatedAppointmentData['serviceDetails'];
+    totalEstimatedCost: number;
+  }> {
+    const serviceDetails: ValidatedAppointmentData['serviceDetails'] = [];
     let totalEstimatedCost = 0;
 
-    for (const serviceDto of dto.services) {
+    for (const serviceDto of services) {
       const service = await this.serviceRepository.findOne({
         where: { serviceId: serviceDto.serviceId },
       });
@@ -100,10 +129,7 @@ export class AppointmentService {
         I18nException.notFound('errors.notFound.service', {
           id: serviceDto.serviceId,
         });
-
-        throw new NotFoundException(
-          `Service with ID ${serviceDto.serviceId} not found`,
-        );
+        throw new NotFoundException(`Service not found`);
       }
       const quantity = serviceDto.quantity || 1;
       totalEstimatedCost += service.basePrice * quantity;
@@ -114,6 +140,17 @@ export class AppointmentService {
       });
     }
 
+    return { serviceDetails, totalEstimatedCost };
+  }
+
+  /**
+   * Validates time constraints and checks for schedule conflicts.
+   * @throws BadRequestException if end time is before start time
+   * @throws ConflictException if there's a schedule conflict
+   */
+  private async validateTimeAndCheckConflicts(
+    dto: CreateAppointmentDto,
+  ): Promise<Date> {
     // Validate time (end must be after start)
     if (dto.endTime <= dto.startTime) {
       I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
@@ -143,24 +180,57 @@ export class AppointmentService {
       }
     }
 
-    // Use transaction to ensure atomicity
+    return appointmentDate;
+  }
+
+  /**
+   * Orchestrates all appointment creation validations.
+   * Single entry point for validation logic - eliminates duplication.
+   */
+  private async validateAppointmentCreation(
+    dto: CreateAppointmentDto,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<ValidatedAppointmentData> {
+    const pet = await this.validatePetAndOwnership(dto.petId, user);
+    const employee = await this.validateEmployee(dto.employeeId);
+    const { serviceDetails, totalEstimatedCost } =
+      await this.validateServicesAndCalculateCost(dto.services);
+    const appointmentDate = await this.validateTimeAndCheckConflicts(dto);
+
+    return {
+      pet,
+      employee,
+      serviceDetails,
+      totalEstimatedCost,
+      appointmentDate,
+    };
+  }
+
+  /**
+   * Saves appointment and related services within a transaction.
+   * Single entry point for persistence logic - eliminates duplication.
+   */
+  private async saveAppointmentWithServices(
+    dto: CreateAppointmentDto,
+    validatedData: ValidatedAppointmentData,
+  ): Promise<Appointment> {
     return await this.dataSource.transaction(async (manager) => {
       // Create appointment
       const appointment = manager.create(Appointment, {
         petId: dto.petId,
         employeeId: dto.employeeId,
-        appointmentDate,
+        appointmentDate: validatedData.appointmentDate,
         startTime: dto.startTime,
         endTime: dto.endTime,
         notes: dto.notes ?? undefined,
-        estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
+        estimatedCost: dto.estimatedCost ?? validatedData.totalEstimatedCost,
         status: AppointmentStatus.PENDING,
       });
 
       const savedAppointment = await manager.save(Appointment, appointment);
 
       // Create appointment-service junction records
-      for (const { service, quantity, notes } of serviceDetails) {
+      for (const { service, quantity, notes } of validatedData.serviceDetails) {
         const appointmentService = manager.create(AppointmentServiceEntity, {
           appointmentId: savedAppointment.appointmentId,
           serviceId: service.serviceId,
@@ -183,140 +253,38 @@ export class AppointmentService {
     });
   }
 
+  // ============================================
+  // APPOINTMENT CRUD
+  // ============================================
+
+  /**
+   * Creates new appointment with validation.
+   * If PET_OWNER, validates they own the pet.
+   * Supports multiple services per appointment.
+   *
+   * @refactored Uses validateAppointmentCreation() and saveAppointmentWithServices() helpers
+   */
+  async createAppointment(
+    dto: CreateAppointmentDto,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<Appointment> {
+    const validatedData = await this.validateAppointmentCreation(dto, user);
+    return this.saveAppointmentWithServices(dto, validatedData);
+  }
+
   /**
    * Creates appointment for current user.
    * - PET_OWNER: Validates pet ownership
    * - VET/RECEPTIONIST: Can create appointment for any pet
+   *
+   * @refactored Uses validateAppointmentCreation() and saveAppointmentWithServices() helpers
    */
   async createMyAppointment(
     dto: CreateAppointmentDto,
     user: { accountId: number; userType: UserType },
   ): Promise<Appointment> {
-    // Validate pet exists
-    const pet = await this.petRepository.findOne({
-      where: { petId: dto.petId },
-    });
-    if (!pet) {
-      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-    }
-
-    // If PET_OWNER, validate they own the pet
-    if (user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner) {
-        I18nException.notFound('errors.notFound.owner');
-      }
-      if (pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-      }
-    }
-    // VET, RECEPTIONIST, and other staff can create appointments for any pet
-
-    // Validate employee exists
-    const employee = await this.employeeRepository.findOne({
-      where: { employeeId: dto.employeeId },
-    });
-    if (!employee) {
-      I18nException.notFound('errors.notFound.employee', {
-        id: dto.employeeId,
-      });
-    }
-
-    // Validate all services exist and calculate total cost
-    const serviceDetails: Array<{
-      service: Service;
-      quantity: number;
-      notes?: string;
-    }> = [];
-    let totalEstimatedCost = 0;
-
-    for (const serviceDto of dto.services) {
-      const service = await this.serviceRepository.findOne({
-        where: { serviceId: serviceDto.serviceId },
-      });
-      if (!service) {
-        I18nException.notFound('errors.notFound.service', {
-          id: serviceDto.serviceId,
-        });
-      }
-      const quantity = serviceDto.quantity || 1;
-      totalEstimatedCost += service.basePrice * quantity;
-      serviceDetails.push({
-        service,
-        quantity,
-        notes: serviceDto.notes,
-      });
-    }
-
-    // Validate time (end must be after start)
-    if (dto.endTime <= dto.startTime) {
-      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
-    }
-
-    // Check for schedule conflicts
-    const appointmentDate = new Date(dto.appointmentDate);
-    const conflict = await this.appointmentRepository.findOne({
-      where: {
-        employeeId: dto.employeeId,
-        appointmentDate,
-        status: Not(AppointmentStatus.CANCELLED),
-      },
-    });
-
-    if (conflict) {
-      // Check time overlap
-      if (
-        (dto.startTime >= conflict.startTime &&
-          dto.startTime < conflict.endTime) ||
-        (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
-        (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
-      ) {
-        I18nException.conflict('errors.badRequest.conflictingAppointment', {
-          time: `${conflict.startTime} - ${conflict.endTime}`,
-        });
-      }
-    }
-
-    // Use transaction to ensure atomicity
-    return await this.dataSource.transaction(async (manager) => {
-      // Create appointment
-      const appointment = manager.create(Appointment, {
-        petId: dto.petId,
-        employeeId: dto.employeeId,
-        appointmentDate,
-        startTime: dto.startTime,
-        endTime: dto.endTime,
-        notes: dto.notes ?? undefined,
-        estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
-        status: AppointmentStatus.PENDING,
-      });
-
-      const savedAppointment = await manager.save(Appointment, appointment);
-
-      // Create appointment-service junction records
-      for (const { service, quantity, notes } of serviceDetails) {
-        const appointmentService = manager.create(AppointmentServiceEntity, {
-          appointmentId: savedAppointment.appointmentId,
-          serviceId: service.serviceId,
-          quantity,
-          unitPrice: service.basePrice,
-          notes: notes ?? null,
-        });
-        await manager.save(AppointmentServiceEntity, appointmentService);
-      }
-
-      // Load and return appointment with services
-      const result = await manager.findOne(Appointment, {
-        where: { appointmentId: savedAppointment.appointmentId },
-        relations: ['appointmentServices', 'appointmentServices.service'],
-      });
-      if (!result) {
-        throw new Error('Failed to load created appointment');
-      }
-      return result;
-    });
+    const validatedData = await this.validateAppointmentCreation(dto, user);
+    return this.saveAppointmentWithServices(dto, validatedData);
   }
 
   /**
@@ -754,13 +722,13 @@ export class AppointmentService {
   }
 
   /**
-   * Cancels appointment (any status → CANCELLED)
-   * If PET_OWNER, validates they own the pet.
+   * Cancels appointment (PENDING/CONFIRMED → CANCELLED)
+   * Uses shared helper for ownership validation (Phase 1).
    */
   async cancelAppointment(
     appointmentId: number,
     reason?: string,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
@@ -772,17 +740,8 @@ export class AppointmentService {
       });
     }
 
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner || appointment.pet?.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.appointment', {
-          id: appointmentId,
-        });
-      }
-    }
+    // Use shared helper for ownership validation (Phase 1)
+    await this.ownershipHelper.validateAppointmentOwnership(appointment, user);
 
     if (appointment.status === AppointmentStatus.COMPLETED) {
       I18nException.badRequest('errors.badRequest.cannotCancelCompleted');

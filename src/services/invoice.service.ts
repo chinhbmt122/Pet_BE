@@ -12,12 +12,18 @@ import {
   CustomerStatisticsResponseDto,
 } from '../dto/invoice';
 import { UserType } from '../entities/account.entity';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
  * InvoiceService (Active Record Pattern)
  *
  * Manages invoices with business logic in Invoice entity.
  * Handles invoice creation, payment status transitions, and calculations.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class InvoiceService {
@@ -28,6 +34,7 @@ export class InvoiceService {
     private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
@@ -207,7 +214,7 @@ export class InvoiceService {
    */
   async getInvoiceById(
     invoiceId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
@@ -223,23 +230,11 @@ export class InvoiceService {
       I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
-    // If PET_OWNER, validate ownership via appointment → pet → owner
-    if (user && user.userType === UserType.PET_OWNER) {
-      const appointment = await this.appointmentRepository.findOne({
-        where: { appointmentId: entity.appointmentId },
-        relations: ['pet'],
-      });
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        !appointment ||
-        appointment.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
-      }
-    }
+    // Validate ownership via helper (handles PET_OWNER check internally)
+    await this.ownershipHelper.validateAppointmentOwnership(
+      entity.appointment,
+      user,
+    );
 
     return InvoiceResponseDto.fromEntity(entity);
   }
@@ -250,7 +245,7 @@ export class InvoiceService {
    */
   async getInvoiceByNumber(
     invoiceNumber: string,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceNumber },
@@ -268,20 +263,11 @@ export class InvoiceService {
       });
     }
 
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoiceByNumber', {
-          number: invoiceNumber,
-        });
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      entity.appointment,
+      user,
+    );
 
     return InvoiceResponseDto.fromEntity(entity);
   }
@@ -563,7 +549,7 @@ export class InvoiceService {
    */
   async markAsProcessing(
     invoiceId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
@@ -573,18 +559,11 @@ export class InvoiceService {
       I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      entity.appointment,
+      user,
+    );
 
     // Use entity business method
     entity.markAsProcessing();

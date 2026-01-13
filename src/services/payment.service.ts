@@ -10,7 +10,6 @@ import {
 } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
-import { UserType } from '../entities/account.entity';
 import type {
   IPaymentGatewayService,
   PaymentCallbackData,
@@ -24,6 +23,10 @@ import {
   GetPaymentHistoryQueryDto,
 } from '../dto/payment';
 import { VNPayService } from './vnpay.service';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
  * PaymentService (PaymentManager)
@@ -33,6 +36,8 @@ import { VNPayService } from './vnpay.service';
  * Integrates with payment gateways via IPaymentGatewayService interface.
  * Manages payment callbacks and transaction records.
  * Uses Active Record pattern with business logic in entities.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class PaymentService {
@@ -50,6 +55,7 @@ export class PaymentService {
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly vnpayService: VNPayService,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
@@ -135,7 +141,7 @@ export class PaymentService {
    */
   async initiateOnlinePayment(
     dto: InitiateOnlinePaymentDto,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<{ paymentUrl: string; paymentId: number }> {
     // 1. Find invoice with appointment and pet relations
     const invoice = await this.invoiceRepository.findOne({
@@ -149,20 +155,11 @@ export class PaymentService {
       });
     }
 
-    // 2. If PET_OWNER, validate they own this invoice
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        invoice.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoice', {
-          id: dto.invoiceId,
-        });
-      }
-    }
+    // 2. Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      invoice.appointment,
+      user,
+    );
 
     // 3. Check for existing processing payment and cancel it (allow re-initiation)
     const existingPayment = await this.paymentRepository.findOne({
@@ -501,10 +498,7 @@ export class PaymentService {
    * Generates payment receipt with transaction details.
    * If PET_OWNER, validates they own the invoice.
    */
-  async generateReceipt(
-    paymentId: number,
-    user?: { accountId: number; userType: UserType },
-  ): Promise<any> {
+  async generateReceipt(paymentId: number, user?: UserContext): Promise<any> {
     const payment = await this.paymentRepository.findOne({
       where: { paymentId },
       relations: [
@@ -521,20 +515,11 @@ export class PaymentService {
       });
     }
 
-    // If PET_OWNER, validate they own the invoice
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        payment.invoice?.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.payment', {
-          id: paymentId,
-        });
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      payment.invoice?.appointment,
+      user,
+    );
 
     // Build receipt object
     const appointmentServices =
