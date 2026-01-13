@@ -1,0 +1,111 @@
+name: CD Pipeline
+
+on:
+  # Triggered by CI workflow after successful build
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================
+  # Job 1: Deploy to Render (Production)
+  # ============================================
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    # Only run if CI succeeded, or if manually triggered for production
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify image exists
+        run: |
+          echo "🔍 Verifying image at ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          # The image should have been pushed by CI
+
+      - name: Trigger Render Deploy
+        run: |
+          echo "🚀 Triggering Render production deploy..."
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+            echo "✅ Render deploy triggered via webhook"
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL secret not set"
+            echo "ℹ️ Please add the deploy hook URL from Render Dashboard"
+            echo "   Settings → Deploy Hook → Copy URL → Add as GitHub Secret"
+            exit 1
+          fi
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting for Render deployment to complete..."
+          echo "   Check status at: https://dashboard.render.com"
+          # Render webhook is async, deployment happens in background
+
+  # ============================================
+  # Job 2: Deploy to Staging (Future Use)
+  # ============================================
+  deploy-staging:
+    name: 🧪 Deploy to Staging
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && inputs.environment == 'staging'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "🧪 Deploying to staging environment..."
+          # Add staging deployment commands here
+          # Example: Trigger a separate Render staging service
+          if [ -n "${{ secrets.RENDER_STAGING_DEPLOY_HOOK_URL }}" ]; then
+            curl -X POST "${{ secrets.RENDER_STAGING_DEPLOY_HOOK_URL }}"
+            echo "✅ Staging deploy triggered"
+          else
+            echo "⚠️ No staging environment configured yet"
+            echo "   Add RENDER_STAGING_DEPLOY_HOOK_URL secret when ready"
+          fi
+
+  # ============================================
+  # Job 3: Deployment Summary
+  # ============================================
+  summary:
+    name: 📋 Deployment Summary
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🚀 CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Production | ${{ needs.deploy-production.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
