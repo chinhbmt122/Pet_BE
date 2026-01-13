@@ -6,8 +6,13 @@ import {
   IsOptional,
   IsString,
   Matches,
+  IsArray,
+  ValidateNested,
+  ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { i18nValidationMessage } from 'nestjs-i18n';
+import { AppointmentServiceItemDto } from './appointment-service-item.dto';
 
 export class CreateAppointmentDto {
   @ApiProperty({ description: 'Pet ID' })
@@ -20,10 +25,30 @@ export class CreateAppointmentDto {
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   employeeId: number;
 
-  @ApiProperty({ description: 'Service ID' })
-  @IsNotEmpty({ message: i18nValidationMessage('validation.isNotEmpty') })
+  // Legacy single service (backward compatible)
+  @ApiPropertyOptional({ 
+    description: 'Service ID (deprecated - use services array instead)',
+    deprecated: true 
+  })
+  @ValidateIf(o => !o.services || o.services.length === 0)
+  @IsNotEmpty({ message: 'Either serviceId or services array must be provided' })
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
-  serviceId: number;
+  serviceId?: number;
+
+  // New multi-service support
+  @ApiPropertyOptional({ 
+    description: 'Array of services with quantity and notes',
+    type: [AppointmentServiceItemDto],
+    example: [
+      { serviceId: 1, quantity: 1, notes: 'Regular checkup' },
+      { serviceId: 2, quantity: 2, notes: 'Vaccine doses' }
+    ]
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AppointmentServiceItemDto)
+  services?: AppointmentServiceItemDto[];
 
   @ApiProperty({
     description: 'Appointment date (YYYY-MM-DD)',
@@ -60,3 +85,4 @@ export class CreateAppointmentDto {
   @IsNumber({}, { message: i18nValidationMessage('validation.isNumber') })
   estimatedCost?: number;
 }
+

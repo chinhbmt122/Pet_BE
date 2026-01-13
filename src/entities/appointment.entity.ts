@@ -17,6 +17,7 @@ import { Service } from './service.entity';
 import { Invoice } from './invoice.entity';
 import { MedicalRecord } from './medical-record.entity';
 import { CageAssignment } from './cage-assignment.entity';
+import { AppointmentService } from './appointment-service.entity';
 import { AppointmentStatus } from './types/entity.types';
 
 export { AppointmentStatus };
@@ -107,6 +108,16 @@ export class Appointment {
    */
   @OneToMany(() => MedicalRecord, (record) => record.appointment)
   medicalRecords?: MedicalRecord[];
+
+  /**
+   * One-to-Many relationship with AppointmentService
+   * An appointment can have multiple services (multi-service support)
+   */
+  @OneToMany(() => AppointmentService, (as) => as.appointment, {
+    cascade: true,
+    eager: false,
+  })
+  appointmentServices?: AppointmentService[];
 
   // ===== Boarding Integration (Story 7.3) =====
 

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #667eea;
+            font-size: 22px;
+            margin-top: 0;
+        }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th {
+            background-color: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .total-row {
+            font-weight: 600;
+            font-size: 18px;
+            background-color: #f8f9fa;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐾 {{appName}}</h1>
+        </div>
+        <div class="content">
+            <h2>📄 Hóa đơn dịch vụ</h2>
+            <p>Xin chào <strong>{{ownerName}}</strong>,</p>
+            <p>Đây là hóa đơn chi tiết cho dịch vụ bạn đã sử dụng tại PAW LOVERS.</p>
+
+            <div class="invoice-header">
+                <div>
+                    <strong>Số hóa đơn:</strong> {{invoiceNumber}}<br>
+                    <strong>Ngày phát hành:</strong> {{issueDate}}
+                </div>
+                <div style="text-align: right;">
+                    <strong style="font-size: 20px; color: #667eea;">{{totalAmount}}</strong><br>
+                    <span style="font-size: 14px; color: #666;">Tổng cộng</span>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dịch vụ</th>
+                        <th style="text-align: center;">Số lượng</th>
+                        <th style="text-align: right;">Đơn giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each items}}
+                    <tr>
+                        <td>{{this.name}}</td>
+                        <td style="text-align: center;">{{this.quantity}}</td>
+                        <td style="text-align: right;">{{this.price}}</td>
+                    </tr>
+                    {{/each}}
+                    <tr class="total-row">
+                        <td colspan="2" style="text-align: right;">TỔNG CỘNG:</td>
+                        <td style="text-align: right; color: #667eea;">{{totalAmount}}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            {{#if invoiceUrl}}
+            <div style="text-align: center;">
+                <a href="{{invoiceUrl}}" class="button">Xem chi tiết hóa đơn</a>
+            </div>
+            {{/if}}
+
+            <p style="margin-top: 30px;">Cảm ơn bạn đã tin tưởng PAW LOVERS!</p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{currentYear}} {{appName}}. Mọi quyền được bảo lưu.</p>
+            <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+        </div>
+    </div>
+</body>
+</html>

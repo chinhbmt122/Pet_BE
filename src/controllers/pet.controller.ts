@@ -293,6 +293,27 @@ export class PetController {
   }
 
   /**
+   * GET /api/pets/deleted
+   * Gets all soft-deleted pets.
+   */
+  @Get('deleted')
+  @RouteConfig({
+    message: 'Get all deleted pets',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all deleted pets' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deleted pets retrieved',
+    type: [PetResponseDto],
+  })
+  async getAllDeletedPets(): Promise<PetResponseDto[]> {
+    return this.petService.getAllDeletedPets();
+  }
+
+  /**
    * GET /api/pets/owner/:ownerId/deleted
    * Gets soft-deleted pets for an owner.
    */

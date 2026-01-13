@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, FindOptionsWhere } from 'typeorm';
+import { Repository, Not, FindOptionsWhere, Between } from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
+import { AppointmentService as AppointmentServiceEntity } from '../entities/appointment-service.entity';
 import { Pet } from '../entities/pet.entity';
 import { Employee } from '../entities/employee.entity';
 import { Service } from '../entities/service.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { UserType } from '../entities/account.entity';
+import { EmailService } from './email.service';
 
 /**
  * AppointmentService (Pure Anemic Pattern)
@@ -18,9 +21,13 @@ import { UserType } from '../entities/account.entity';
  */
 @Injectable()
 export class AppointmentService {
+  private readonly logger = new Logger(AppointmentService.name);
+
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
+    @InjectRepository(AppointmentServiceEntity)
+    private readonly appointmentServiceRepository: Repository<AppointmentServiceEntity>,
     @InjectRepository(Pet)
     private readonly petRepository: Repository<Pet>,
     @InjectRepository(Employee)
@@ -29,6 +36,7 @@ export class AppointmentService {
     private readonly serviceRepository: Repository<Service>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    private readonly emailService: EmailService,
   ) {}
 
   // ============================================
@@ -38,6 +46,7 @@ export class AppointmentService {
   /**
    * Creates new appointment with validation.
    * If PET_OWNER, validates they own the pet.
+   * Supports both legacy serviceId and new services array.
    */
   async createAppointment(
     dto: CreateAppointmentDto,
@@ -71,13 +80,36 @@ export class AppointmentService {
       });
     }
 
-    // Validate service exists
-    const service = await this.serviceRepository.findOne({
-      where: { serviceId: dto.serviceId },
-    });
-    if (!service) {
-      I18nException.notFound('errors.notFound.service', { id: dto.serviceId });
+    // Prepare services array - support both legacy and new format
+    let servicesToCreate = dto.services || [];
+    
+    // Backward compatibility: if serviceId provided but no services array, use legacy format
+    if (dto.serviceId && (!dto.services || dto.services.length === 0)) {
+      servicesToCreate = [{ serviceId: dto.serviceId, quantity: 1, notes: undefined }];
     }
+
+    // Validate we have at least one service
+    if (servicesToCreate.length === 0) {
+      I18nException.badRequest('errors.badRequest.noServices');
+    }
+
+    // Validate all services exist and calculate total cost
+    let totalEstimatedCost = 0;
+    const validatedServices: Array<{ serviceId: number; quantity: number; notes?: string; service: Service }> = [];
+    
+    for (const serviceItem of servicesToCreate) {
+      const service = await this.serviceRepository.findOne({
+        where: { serviceId: serviceItem.serviceId },
+      });
+      if (!service) {
+        I18nException.notFound('errors.notFound.service', { id: serviceItem.serviceId });
+      }
+      totalEstimatedCost += service.basePrice * serviceItem.quantity;
+      validatedServices.push({ ...serviceItem, service });
+    }
+
+    // Legacy: For backward compatibility, set first service as main service
+    const firstService = validatedServices[0].service;
 
     // Validate time (end must be after start)
     if (dto.endTime <= dto.startTime) {
@@ -108,20 +140,35 @@ export class AppointmentService {
       }
     }
 
-    // Create appointment
+    // Create appointment (keep serviceId for backward compatibility)
     const appointment = this.appointmentRepository.create({
       petId: dto.petId,
       employeeId: dto.employeeId,
-      serviceId: dto.serviceId,
+      serviceId: firstService.serviceId, // Legacy field
       appointmentDate,
       startTime: dto.startTime,
       endTime: dto.endTime,
       notes: dto.notes ?? undefined,
-      estimatedCost: dto.estimatedCost ?? service.basePrice,
+      estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
       status: AppointmentStatus.PENDING,
     });
 
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+
+    // Create appointment services (multi-service support)
+    const appointmentServices = validatedServices.map(item =>
+      this.appointmentServiceRepository.create({
+        appointmentId: savedAppointment.appointmentId,
+        serviceId: item.serviceId,
+        quantity: item.quantity,
+        unitPrice: item.service.basePrice,
+        notes: item.notes || null,
+      }),
+    );
+
+    await this.appointmentServiceRepository.save(appointmentServices);
+
+    return savedAppointment;
   }
 
   /**
@@ -165,13 +212,36 @@ export class AppointmentService {
       });
     }
 
-    // Validate service exists
-    const service = await this.serviceRepository.findOne({
-      where: { serviceId: dto.serviceId },
-    });
-    if (!service) {
-      I18nException.notFound('errors.notFound.service', { id: dto.serviceId });
+    // Prepare services array - support both legacy and new format
+    let servicesToCreate = dto.services || [];
+    
+    // Backward compatibility: if serviceId provided but no services array, use legacy format
+    if (dto.serviceId && (!dto.services || dto.services.length === 0)) {
+      servicesToCreate = [{ serviceId: dto.serviceId, quantity: 1, notes: undefined }];
     }
+
+    // Validate we have at least one service
+    if (servicesToCreate.length === 0) {
+      I18nException.badRequest('errors.badRequest.noServices');
+    }
+
+    // Validate all services exist and calculate total cost
+    let totalEstimatedCost = 0;
+    const validatedServices: Array<{ serviceId: number; quantity: number; notes?: string; service: Service }> = [];
+    
+    for (const serviceItem of servicesToCreate) {
+      const service = await this.serviceRepository.findOne({
+        where: { serviceId: serviceItem.serviceId },
+      });
+      if (!service) {
+        I18nException.notFound('errors.notFound.service', { id: serviceItem.serviceId });
+      }
+      totalEstimatedCost += service.basePrice * serviceItem.quantity;
+      validatedServices.push({ ...serviceItem, service });
+    }
+
+    // Legacy: For backward compatibility, set first service as main service
+    const firstService = validatedServices[0].service;
 
     // Validate time (end must be after start)
     if (dto.endTime <= dto.startTime) {
@@ -202,20 +272,35 @@ export class AppointmentService {
       }
     }
 
-    // Create appointment
+    // Create appointment (keep serviceId for backward compatibility)
     const appointment = this.appointmentRepository.create({
       petId: dto.petId,
       employeeId: dto.employeeId,
-      serviceId: dto.serviceId,
+      serviceId: firstService.serviceId, // Legacy field
       appointmentDate,
       startTime: dto.startTime,
       endTime: dto.endTime,
       notes: dto.notes ?? undefined,
-      estimatedCost: dto.estimatedCost ?? service.basePrice,
+      estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
       status: AppointmentStatus.PENDING,
     });
 
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+
+    // Create appointment services (multi-service support)
+    const appointmentServices = validatedServices.map(item =>
+      this.appointmentServiceRepository.create({
+        appointmentId: savedAppointment.appointmentId,
+        serviceId: item.serviceId,
+        quantity: item.quantity,
+        unitPrice: item.service.basePrice,
+        notes: item.notes || null,
+      }),
+    );
+
+    await this.appointmentServiceRepository.save(appointmentServices);
+
+    return savedAppointment;
   }
 
   /**
@@ -541,21 +626,95 @@ export class AppointmentService {
    * Confirms appointment (PENDING → CONFIRMED)
    */
   async confirmAppointment(appointmentId: number): Promise<Appointment> {
+    console.log('============================================');
+    console.log(`CONFIRM APPOINTMENT #${appointmentId} - START`);
+    console.log('============================================');
+    
+    this.logger.log(`[CONFIRM] ===== METHOD CALLED for appointment ${appointmentId} =====`);
+    
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'employee',
+        'service',
+      ],
     });
+    
+    this.logger.log(`[CONFIRM] Appointment loaded: ${appointment ? 'EXISTS' : 'NULL'}`);
+    
+    this.logger.log(`[CONFIRM] Appointment loaded: ${appointment ? 'EXISTS' : 'NULL'}`);
     if (!appointment) {
+      this.logger.error(`[CONFIRM] Appointment ${appointmentId} not found!`);
       I18nException.notFound('errors.notFound.appointment', {
         id: appointmentId,
       });
     }
 
+    this.logger.log(`[CONFIRM] Current status: ${appointment.status}`);
     if (appointment.status !== AppointmentStatus.PENDING) {
+      this.logger.warn(`[CONFIRM] Cannot confirm - status is ${appointment.status}, not PENDING`);
       I18nException.badRequest('errors.badRequest.canOnlyConfirmPending');
     }
 
+    this.logger.log(`[CONFIRM] Changing status from ${appointment.status} to CONFIRMED`);
+    const oldStatus = appointment.status;
     appointment.status = AppointmentStatus.CONFIRMED;
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+    this.logger.log(`[CONFIRM] Status saved successfully`);
+
+    // Send confirmation email
+    this.logger.log(`[CONFIRM] Starting email sending for appointment ${appointmentId}`);
+    this.logger.log(`[CONFIRM] Pet: ${appointment.pet ? 'EXISTS' : 'NULL'}`);
+    this.logger.log(`[CONFIRM] Owner: ${appointment.pet?.owner ? 'EXISTS' : 'NULL'}`);
+    this.logger.log(`[CONFIRM] Account: ${appointment.pet?.owner?.account ? 'EXISTS' : 'NULL'}`);
+    
+    try {
+      if (appointment.pet?.owner?.account) {
+        const ownerEmail = appointment.pet.owner.account.email;
+        this.logger.log(`[CONFIRM] Sending email to: ${ownerEmail}`);
+        
+        // Format date properly
+        const appointmentDate = new Date(appointment.appointmentDate);
+        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        
+        this.logger.log(`[CONFIRM] Formatted date: ${formattedDate}`);
+        
+        await this.emailService.sendAppointmentStatusUpdateEmail(
+          ownerEmail,
+          {
+            ownerName: appointment.pet.owner.fullName,
+            petName: appointment.pet.name,
+            serviceName: appointment.service.serviceName,
+            appointmentDate: formattedDate,
+            appointmentTime: appointment.startTime,
+            status: AppointmentStatus.CONFIRMED,
+            statusMessage: 'Lịch hẹn của bạn đã được xác nhận',
+          },
+        );
+        this.logger.log(`[CONFIRM] Email sent successfully to ${ownerEmail}`);
+      } else {
+        this.logger.warn(`[CONFIRM] Cannot send email - missing pet/owner/account data`);
+      }
+    } catch (emailError) {
+      console.error('============ EMAIL ERROR ============');
+      console.error('Error message:', emailError.message);
+      console.error('Error stack:', emailError.stack);
+      console.error('=====================================');
+      this.logger.error(
+        `[CONFIRM] Failed to send confirmation email for appointment ${appointmentId}: ${emailError.message}`,
+        emailError.stack,
+      );
+      // Don't fail the operation if email fails
+    }
+
+    return savedAppointment;
   }
 
   /**
@@ -588,6 +747,13 @@ export class AppointmentService {
   ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'employee',
+        'service',
+      ],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -603,7 +769,45 @@ export class AppointmentService {
     if (actualCost !== undefined) {
       appointment.actualCost = actualCost;
     }
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+
+    // Send completion email
+    try {
+      if (appointment.pet?.owner?.account) {
+        const appointmentDate = new Date(appointment.appointmentDate);
+        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        
+        await this.emailService.sendAppointmentStatusUpdateEmail(
+          appointment.pet.owner.account.email,
+          {
+            ownerName: appointment.pet.owner.fullName,
+            petName: appointment.pet.name,
+            serviceName: appointment.service.serviceName,
+            appointmentDate: formattedDate,
+            appointmentTime: appointment.startTime,
+            status: AppointmentStatus.COMPLETED,
+            statusMessage: actualCost 
+              ? `Lịch hẹn đã hoàn thành. Chi phí thực tế: ${actualCost.toLocaleString('vi-VN')}đ`
+              : 'Lịch hẹn đã hoàn thành',
+          },
+        );
+        this.logger.log(`[COMPLETE] Completion email sent to ${appointment.pet.owner.account.email}`);
+      }
+    } catch (emailError) {
+      console.error('============ COMPLETE EMAIL ERROR ============');
+      console.error('Error:', emailError.message);
+      console.error('==============================================');
+      this.logger.error(
+        `[COMPLETE] Failed to send completion email: ${emailError.message}`,
+        emailError.stack,
+      );
+    }
+
+    return savedAppointment;
   }
 
   /**
@@ -617,7 +821,13 @@ export class AppointmentService {
   ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: ['pet'],
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'employee',
+        'service',
+      ],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -645,10 +855,50 @@ export class AppointmentService {
       I18nException.badRequest('errors.badRequest.alreadyCancelled');
     }
 
+    const oldStatus = appointment.status;
     appointment.status = AppointmentStatus.CANCELLED;
     appointment.cancellationReason = reason ?? null;
     appointment.cancelledAt = new Date();
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+
+    // Send cancellation email
+    try {
+      if (appointment.pet?.owner?.account) {
+        const appointmentDate = new Date(appointment.appointmentDate);
+        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        
+        await this.emailService.sendAppointmentStatusUpdateEmail(
+          appointment.pet.owner.account.email,
+          {
+            ownerName: appointment.pet.owner.fullName,
+            petName: appointment.pet.name,
+            serviceName: appointment.service.serviceName,
+            appointmentDate: formattedDate,
+            appointmentTime: appointment.startTime,
+            status: AppointmentStatus.CANCELLED,
+            statusMessage: reason
+              ? `Lịch hẹn đã bị hủy. Lý do: ${reason}`
+              : 'Lịch hẹn đã bị hủy',
+          },
+        );
+        this.logger.log(`[CANCEL] Cancellation email sent to ${appointment.pet.owner.account.email}`);
+      }
+    } catch (emailError) {
+      console.error('============ CANCEL EMAIL ERROR ============');
+      console.error('Error:', emailError.message);
+      console.error('============================================');
+      this.logger.error(
+        `Failed to send cancellation email for appointment ${appointmentId}: ${emailError.message}`,
+        emailError.stack,
+      );
+      // Don't fail the operation if email fails
+    }
+
+    return savedAppointment;
   }
 
   /**
@@ -677,5 +927,104 @@ export class AppointmentService {
       .orderBy('appointment.appointmentDate', 'ASC')
       .addOrderBy('appointment.startTime', 'ASC')
       .getMany();
+  }
+
+  // ============================================
+  // SCHEDULED TASKS (CRON JOBS)
+  // ============================================
+
+  /**
+   * Sends appointment reminders for appointments in the next 18-30 hours.
+   * Runs daily at 9:00 AM (Vietnam timezone).
+   * This ensures reminders are sent once per day, roughly 24 hours before appointment.
+   */
+  @Cron('0 9 * * *') // Every day at 9:00 AM
+  async sendAppointmentReminders(): Promise<void> {
+    try {
+      this.logger.log('============================================');
+      this.logger.log('Starting appointment reminder cron job');
+
+      // Calculate time range: 18-30 hours from now
+      // This gives a window for appointments tomorrow
+      const now = new Date();
+      const startTime = new Date(now);
+      startTime.setHours(now.getHours() + 18); // 18 hours from now
+
+      const endTime = new Date(now);
+      endTime.setHours(now.getHours() + 30); // 30 hours from now
+
+      this.logger.log(
+        `Searching for CONFIRMED appointments between ${startTime.toISOString()} and ${endTime.toISOString()}`,
+      );
+
+      // Find CONFIRMED appointments in the time range
+      const appointments = await this.appointmentRepository.find({
+        where: {
+          appointmentDate: Between(startTime, endTime),
+          status: AppointmentStatus.CONFIRMED,
+        },
+        relations: [
+          'pet',
+          'pet.owner',
+          'pet.owner.account',
+          'employee',
+          'service',
+        ],
+      });
+
+      this.logger.log(`Found ${appointments.length} appointments to remind`);
+
+      let successCount = 0;
+      let failureCount = 0;
+
+      // Send reminder emails
+      for (const appointment of appointments) {
+        try {
+          if (appointment.pet?.owner?.account) {
+            // Format date consistently
+            const appointmentDate = new Date(appointment.appointmentDate);
+            const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            });
+
+            await this.emailService.sendAppointmentReminderEmail(
+              appointment.pet.owner.account.email,
+              {
+                ownerName: appointment.pet.owner.fullName,
+                petName: appointment.pet.name,
+                serviceName: appointment.service.serviceName,
+                appointmentDate: formattedDate,
+                appointmentTime: `${appointment.startTime} - ${appointment.endTime}`,
+                veterinarianName: appointment.employee.fullName,
+              },
+            );
+
+            successCount++;
+            this.logger.log(
+              `✓ Sent reminder for appointment #${appointment.appointmentId} to ${appointment.pet.owner.account.email}`,
+            );
+          }
+        } catch (emailError) {
+          failureCount++;
+          this.logger.error(
+            `✗ Failed to send reminder for appointment #${appointment.appointmentId}: ${emailError.message}`,
+            emailError.stack,
+          );
+          // Continue with other appointments even if one fails
+        }
+      }
+
+      this.logger.log('============================================');
+      this.logger.log(
+        `Appointment reminder cron job completed: ${successCount} sent, ${failureCount} failed`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error in appointment reminder cron job: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 }

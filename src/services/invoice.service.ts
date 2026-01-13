@@ -3,6 +3,7 @@ import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
+import { InvoiceItem } from '../entities/invoice-item.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import {
@@ -24,6 +25,8 @@ export class InvoiceService {
   constructor(
     @InjectRepository(Invoice)
     private readonly invoiceRepository: Repository<Invoice>,
+    @InjectRepository(InvoiceItem)
+    private readonly invoiceItemRepository: Repository<InvoiceItem>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(PetOwner)
@@ -115,9 +118,66 @@ export class InvoiceService {
       status: InvoiceStatus.PENDING,
     });
 
-    // Save and return
+    // Save invoice first to get the invoiceId
     const saved = await this.invoiceRepository.save(entity);
+
+    // Create invoice items
+    const items: InvoiceItem[] = [];
+    
+    // Add main service as first item
+    const serviceItem = this.invoiceItemRepository.create({
+      invoiceId: saved.invoiceId,
+      description: appointment.service.serviceName,
+      quantity: 1,
+      unitPrice: servicePrice,
+      amount: servicePrice,
+      itemType: 'SERVICE',
+      serviceId: appointment.service.serviceId,
+    });
+    items.push(serviceItem);
+
+    // Add additional items from notes if any (parse notes for additional services)
+    // Example: "Thêm dịch vụ massage +30k" -> create item for massage
+    if (dto.notes) {
+      const additionalItems = this.parseAdditionalServicesFromNotes(dto.notes, saved.invoiceId);
+      items.push(...additionalItems);
+    }
+
+    // Save all items
+    if (items.length > 0) {
+      await this.invoiceItemRepository.save(items);
+    }
+
     return InvoiceResponseDto.fromEntity(saved);
+  }
+
+  /**
+   * Parse additional services from notes string
+   * Example: "Thêm dịch vụ massage +30k" -> { description: "Massage", unitPrice: 30000 }
+   */
+  private parseAdditionalServicesFromNotes(notes: string, invoiceId: number): InvoiceItem[] {
+    const items: InvoiceItem[] = [];
+    
+    // Pattern: "Thêm dịch vụ [name] +[price]k"
+    const pattern = /Thêm dịch vụ\s+([^+]+)\s*\+(\d+)k/gi;
+    let match;
+    
+    while ((match = pattern.exec(notes)) !== null) {
+      const description = match[1].trim();
+      const price = parseInt(match[2]) * 1000; // Convert k to full amount
+      
+      const item = this.invoiceItemRepository.create({
+        invoiceId,
+        description,
+        quantity: 1,
+        unitPrice: price,
+        amount: price,
+        itemType: 'ADDITIONAL',
+      });
+      items.push(item);
+    }
+    
+    return items;
   }
 
   /**
@@ -349,6 +409,7 @@ export class InvoiceService {
     if (filters?.includeAppointment) {
       qb.leftJoinAndSelect('invoice.appointment', 'appointment');
       qb.leftJoinAndSelect('appointment.service', 'service');
+      qb.leftJoinAndSelect('invoice.items', 'items');
 
       if (filters?.includePet) {
         qb.leftJoinAndSelect('appointment.pet', 'pet');

@@ -11,6 +11,7 @@ import { AccountFactory } from '../factories/account.factory';
 import { PetOwnerFactory } from '../factories/pet-owner.factory';
 import { PetOwnerMapper } from '../mappers/pet-owner.mapper';
 import { RegisterPetOwnerDto } from '../dto/pet-owner';
+import { EmailService } from './email.service';
 
 /**
  * PetOwnerService
@@ -36,6 +37,7 @@ export class PetOwnerService {
     private readonly accountFactory: AccountFactory,
     private readonly petOwnerFactory: PetOwnerFactory,
     private readonly dataSource: DataSource,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -75,6 +77,13 @@ export class PetOwnerService {
 
       // 4. Save PetOwner
       const savedPetOwner = await manager.save(PetOwner, petOwner);
+
+      // 5. Send registration confirmation email
+      await this.emailService.sendRegistrationSuccessEmail(
+        savedAccount.email,
+        savedPetOwner.fullName,
+        'Pet Owner',
+      );
 
       return savedPetOwner;
     });

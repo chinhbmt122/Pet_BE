@@ -1248,13 +1248,85 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         subtotal: services[7].basePrice,
         discount: 0,
         tax: 0,
-        totalAmount: 380000, // Có phụ phí thêm
+        totalAmount: 350000, // Có phụ phí thêm: 120k service + 230k additional
         status: InvoiceStatus.PENDING,
         notes: 'Thêm dịch vụ massage +30k',
         paidAt: getDateOffset(-10),
       },
     ]);
     console.log(`✅ Created ${invoices.length} invoices`);
+
+    // ====== 10.5. INVOICE ITEMS ======
+    console.log('📦 Seeding invoice items...');
+    const invoiceItemRepo = queryRunner.manager.getRepository('invoice_items');
+
+    const invoiceItems = await invoiceItemRepo.save([
+      // Items for invoice 1 (Rex - Khám tổng quát)
+      {
+        invoiceId: invoices[0].invoiceId,
+        description: services[0].serviceName, // 'Khám tổng quát'
+        quantity: 1,
+        unitPrice: services[0].basePrice,
+        amount: services[0].basePrice,
+        itemType: 'SERVICE',
+        serviceId: services[0].serviceId,
+      },
+      // Items for invoice 2 (Lucky - Tắm + Sấy)
+      {
+        invoiceId: invoices[1].invoiceId,
+        description: services[5].serviceName, // 'Tắm + Sấy khô'
+        quantity: 1,
+        unitPrice: services[5].basePrice,
+        amount: services[5].basePrice,
+        itemType: 'SERVICE',
+        serviceId: services[5].serviceId,
+      },
+      // Items for invoice 3 (Mèo Mun - Vaccine)
+      {
+        invoiceId: invoices[2].invoiceId,
+        description: services[2].serviceName, // 'Vaccine cơ bản'
+        quantity: 1,
+        unitPrice: services[2].basePrice,
+        amount: services[2].basePrice,
+        itemType: 'SERVICE',
+        serviceId: services[2].serviceId,
+      },
+      // Items for invoice 4 (Bông - Spa Full) with additional services
+      {
+        invoiceId: invoices[3].invoiceId,
+        description: services[7].serviceName, // 'Spa toàn diện'
+        quantity: 1,
+        unitPrice: services[7].basePrice,
+        amount: services[7].basePrice,
+        itemType: 'SERVICE',
+        serviceId: services[7].serviceId,
+      },
+      {
+        invoiceId: invoices[3].invoiceId,
+        description: 'Massage',
+        quantity: 1,
+        unitPrice: 30000,
+        amount: 30000,
+        itemType: 'ADDITIONAL',
+      },
+      {
+        invoiceId: invoices[3].invoiceId,
+        description: 'Dưỡng lông cao cấp',
+        quantity: 1,
+        unitPrice: 100000,
+        amount: 100000,
+        itemType: 'ADDITIONAL',
+      },
+      {
+        invoiceId: invoices[3].invoiceId,
+        description: 'Cắt tỉa tạo kiểu',
+        quantity: 1,
+        unitPrice: 100000,
+        amount: 100000,
+        itemType: 'ADDITIONAL',
+      },
+    ]);
+    console.log(`✅ Created ${invoiceItems.length} invoice items`);
 
     // ====== 11. VACCINE TYPES ======
     console.log('📦 Seeding vaccine types...');

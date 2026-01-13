@@ -429,4 +429,26 @@ export class AppointmentController {
   ): Promise<Appointment> {
     return this.appointmentService.cancelAppointment(id, reason, user);
   }
+
+  @Post('send-reminders')
+  @RouteConfig({
+    message: 'Manually trigger appointment reminder emails',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Send appointment reminder emails (manual trigger for demo/testing)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reminder emails sent successfully',
+  })
+  async sendRemindersManually(): Promise<{ message: string }> {
+    await this.appointmentService.sendAppointmentReminders();
+    return {
+      message:
+        'Đã kích hoạt gửi email nhắc nhở. Kiểm tra logs để xem chi tiết.',
+    };
+  }
 }

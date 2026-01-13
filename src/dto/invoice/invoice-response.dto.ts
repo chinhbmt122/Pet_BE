@@ -4,6 +4,7 @@ import { Invoice } from '../../entities/invoice.entity';
 import { PetResponseDto } from '../pet/pet-response.dto';
 import { PetOwnerResponseDto } from '../pet-owner/pet-owner-response.dto';
 import { AppointmentStatus } from '../../entities/types/entity.types';
+import { InvoiceItemDto } from '../invoice-item.dto';
 
 /**
  * Appointment DTO for invoice response
@@ -132,6 +133,12 @@ export class InvoiceResponseDto {
     description?: string;
   };
 
+  @ApiPropertyOptional({
+    description: 'Invoice line items (if included)',
+    type: [InvoiceItemDto],
+  })
+  items?: InvoiceItemDto[];
+
   /**
    * Factory method to convert entity to DTO
    */
@@ -210,6 +217,11 @@ export class InvoiceResponseDto {
           description: entity.appointment.service.description,
         };
       }
+    }
+
+    // Include invoice items if loaded
+    if (entity.items && entity.items.length > 0) {
+      dto.items = InvoiceItemDto.fromEntityList(entity.items);
     }
 
     return dto;

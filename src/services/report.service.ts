@@ -1,6 +1,3 @@
-// PLEASE REMOVE THIS
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
@@ -40,12 +37,27 @@ export class ReportService {
   ) {}
 
   /**
+   * Helper method to normalize date to start of day (00:00:00)
+   */
+  private normalizeDate(date: Date): Date {
+    const normalized = new Date(date);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  }
+
+  /**
+   * Helper method to normalize date to end of day (23:59:59.999)
+   */
+  private normalizeEndDate(date: Date): Date {
+    const normalized = new Date(date);
+    normalized.setHours(23, 59, 59, 999);
+    return normalized;
+  }
+
+  /**
    * Generates comprehensive financial report with revenue, expenses, and profit.
    */
-  async generateFinancialReport(
-    startDate: Date,
-    endDate: Date,
-  ): Promise<{
+  async generateFinancialReport(startDate: Date, endDate: Date): Promise<{
     period: { startDate: Date; endDate: Date };
     revenue: {
       total: number;
@@ -65,95 +77,121 @@ export class ReportService {
       completionRate: number;
     };
   }> {
-    // Get all invoices in period
-    const invoices = await this.invoiceRepository.find({
-      where: {
-        issueDate: Between(startDate, endDate),
-      },
-    });
+    try {
+      // Normalize dates
+      const start = this.normalizeDate(startDate);
+      const end = this.normalizeEndDate(endDate);
 
-    // Revenue by status
-    const revenueByStatus = {
-      [InvoiceStatus.PENDING]: 0,
-      [InvoiceStatus.PROCESSING_ONLINE]: 0,
-      [InvoiceStatus.PAID]: 0,
-      [InvoiceStatus.FAILED]: 0,
-    };
-
-    invoices.forEach((inv) => {
-      revenueByStatus[inv.status] += Number(inv.totalAmount);
-    });
-
-    // Revenue by month
-    const monthlyRevenue = new Map<string, number>();
-    invoices
-      .filter((inv) => inv.status === InvoiceStatus.PAID)
-      .forEach((inv) => {
-        const monthKey = `${inv.issueDate.getFullYear()}-${String(inv.issueDate.getMonth() + 1).padStart(2, '0')}`;
-        monthlyRevenue.set(
-          monthKey,
-          (monthlyRevenue.get(monthKey) || 0) + Number(inv.totalAmount),
-        );
+      // Get all invoices in period
+      const invoices = await this.invoiceRepository.find({
+        where: {
+          issueDate: Between(start, end),
+        },
       });
 
-    const revenueByMonth = Array.from(monthlyRevenue.entries())
-      .map(([month, amount]) => ({ month, amount }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+      // Revenue by status
+      const revenueByStatus = {
+        [InvoiceStatus.PENDING]: 0,
+        [InvoiceStatus.PROCESSING_ONLINE]: 0,
+        [InvoiceStatus.PAID]: 0,
+        [InvoiceStatus.FAILED]: 0,
+      };
 
-    // Appointment statistics
-    const appointments = await this.appointmentRepository.find({
-      where: {
-        appointmentDate: Between(startDate, endDate),
-      },
-    });
+      invoices.forEach((inv) => {
+        if (revenueByStatus.hasOwnProperty(inv.status)) {
+          revenueByStatus[inv.status] += Number(inv.totalAmount);
+        }
+      });
 
-    const completedAppointments = appointments.filter(
-      (apt) => apt.status === AppointmentStatus.COMPLETED,
-    );
-    const cancelledAppointments = appointments.filter(
-      (apt) => apt.status === AppointmentStatus.CANCELLED,
-    );
+      // Revenue by month
+      const monthlyRevenue = new Map<string, number>();
+      invoices
+        .filter((inv) => inv.status === InvoiceStatus.PAID)
+        .forEach((inv) => {
+          const date = new Date(inv.issueDate);
+          if (!isNaN(date.getTime())) {
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            monthlyRevenue.set(monthKey, (monthlyRevenue.get(monthKey) || 0) + Number(inv.totalAmount));
+          }
+        });
 
-    const totalRevenue = completedAppointments.reduce(
-      (sum, apt) => sum + Number(apt.actualCost || apt.estimatedCost || 0),
-      0,
-    );
-    const averageValue =
-      completedAppointments.length > 0
-        ? totalRevenue / completedAppointments.length
-        : 0;
+      const revenueByMonth = Array.from(monthlyRevenue.entries())
+        .map(([month, amount]) => ({ month, amount }))
+        .sort((a, b) => a.month.localeCompare(b.month));
 
-    const paidInvoices = invoices.filter(
-      (inv) => inv.status === InvoiceStatus.PAID,
-    ).length;
-    const pendingInvoices = invoices.filter(
-      (inv) => inv.status === InvoiceStatus.PENDING,
-    ).length;
-    const completionRate =
-      appointments.length > 0
-        ? completedAppointments.length / appointments.length
-        : 0;
+      // Appointment statistics
+      const appointments = await this.appointmentRepository.find({
+        where: {
+          appointmentDate: Between(start, end),
+        },
+      });
 
-    return {
-      period: { startDate, endDate },
-      revenue: {
-        total: revenueByStatus[InvoiceStatus.PAID],
-        byStatus: revenueByStatus,
-        byMonth: revenueByMonth,
-      },
-      appointments: {
-        total: appointments.length,
-        completed: completedAppointments.length,
-        cancelled: cancelledAppointments.length,
-        averageValue,
-      },
-      summary: {
-        totalRevenue: revenueByStatus[InvoiceStatus.PAID],
-        paidInvoices,
-        pendingInvoices,
-        completionRate,
-      },
-    };
+      const completedAppointments = appointments.filter(
+        (apt) => apt.status === AppointmentStatus.COMPLETED,
+      );
+      const cancelledAppointments = appointments.filter(
+        (apt) => apt.status === AppointmentStatus.CANCELLED,
+      );
+
+      const totalRevenue = completedAppointments.reduce(
+        (sum, apt) => sum + Number(apt.actualCost || apt.estimatedCost || 0),
+        0,
+      );
+      const averageValue = completedAppointments.length > 0 ? totalRevenue / completedAppointments.length : 0;
+
+      const paidInvoices = invoices.filter((inv) => inv.status === InvoiceStatus.PAID).length;
+      const pendingInvoices = invoices.filter((inv) => inv.status === InvoiceStatus.PENDING).length;
+      const completionRate =
+        appointments.length > 0 ? completedAppointments.length / appointments.length : 0;
+
+      return {
+        period: { startDate, endDate },
+        revenue: {
+          total: revenueByStatus[InvoiceStatus.PAID],
+          byStatus: revenueByStatus,
+          byMonth: revenueByMonth,
+        },
+        appointments: {
+          total: appointments.length,
+          completed: completedAppointments.length,
+          cancelled: cancelledAppointments.length,
+          averageValue,
+        },
+        summary: {
+          totalRevenue: revenueByStatus[InvoiceStatus.PAID],
+          paidInvoices,
+          pendingInvoices,
+          completionRate,
+        },
+      };
+    } catch (error) {
+      console.error('Error generating financial report:', error);
+      return {
+        period: { startDate, endDate },
+        revenue: {
+          total: 0,
+          byStatus: {
+            [InvoiceStatus.PENDING]: 0,
+            [InvoiceStatus.PROCESSING_ONLINE]: 0,
+            [InvoiceStatus.PAID]: 0,
+            [InvoiceStatus.FAILED]: 0,
+          },
+          byMonth: [],
+        },
+        appointments: {
+          total: 0,
+          completed: 0,
+          cancelled: 0,
+          averageValue: 0,
+        },
+        summary: {
+          totalRevenue: 0,
+          paidInvoices: 0,
+          pendingInvoices: 0,
+          completionRate: 0,
+        },
+      };
+    }
   }
 
   /**
@@ -171,8 +209,8 @@ export class ReportService {
     }>
   > {
     try {
-      const startDate = new Date(year, 0, 1);
-      const endDate = new Date(year, 11, 31, 23, 59, 59);
+      const startDate = this.normalizeDate(new Date(year, 0, 1));
+      const endDate = this.normalizeEndDate(new Date(year, 11, 31));
 
       const invoices = await this.invoiceRepository.find({
         where: {
@@ -188,34 +226,28 @@ export class ReportService {
       >();
 
       invoices.forEach((inv) => {
-        try {
-          let periodKey: string;
-          const date = inv.issueDate ? new Date(inv.issueDate) : new Date();
+        let periodKey: string;
+        const date = new Date(inv.issueDate);
 
-          if (period === 'month') {
-            periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          } else if (period === 'quarter') {
-            const quarter = Math.floor(date.getMonth() / 3) + 1;
-            periodKey = `${date.getFullYear()}-Q${quarter}`;
-          } else {
-            periodKey = `${date.getFullYear()}`;
-          }
+        if (isNaN(date.getTime())) return;
 
-          if (!periodMap.has(periodKey)) {
-            periodMap.set(periodKey, {
-              revenue: 0,
-              invoiceCount: 0,
-              appointmentCount: 0,
-            });
-          }
-
-          const stats = periodMap.get(periodKey)!;
-          stats.revenue += Number(inv.totalAmount) || 0;
-          stats.invoiceCount++;
-          stats.appointmentCount++;
-        } catch (e) {
-          // Skip invalid invoice
+        if (period === 'month') {
+          periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        } else if (period === 'quarter') {
+          const quarter = Math.floor(date.getMonth() / 3) + 1;
+          periodKey = `${date.getFullYear()}-Q${quarter}`;
+        } else {
+          periodKey = `${date.getFullYear()}`;
         }
+
+        if (!periodMap.has(periodKey)) {
+          periodMap.set(periodKey, { revenue: 0, invoiceCount: 0, appointmentCount: 0 });
+        }
+
+        const stats = periodMap.get(periodKey)!;
+        stats.revenue += Number(inv.totalAmount);
+        stats.invoiceCount++;
+        stats.appointmentCount++;
       });
 
       return Array.from(periodMap.entries())
@@ -225,7 +257,7 @@ export class ReportService {
         }))
         .sort((a, b) => a.period.localeCompare(b.period));
     } catch (error) {
-      console.error('Error in getRevenueByPeriod:', error);
+      console.error('Error getting revenue by period:', error);
       return [];
     }
   }
@@ -233,10 +265,7 @@ export class ReportService {
   /**
    * Gets appointment statistics and trends.
    */
-  async getAppointmentStatistics(
-    startDate: Date,
-    endDate: Date,
-  ): Promise<{
+  async getAppointmentStatistics(startDate: Date, endDate: Date): Promise<{
     total: number;
     byStatus: Record<AppointmentStatus, number>;
     completionRate: number;
@@ -244,99 +273,83 @@ export class ReportService {
     averageValue: number;
     dailyTrend: Array<{ date: string; count: number; completed: number }>;
   }> {
-    try {
-      const appointments = await this.appointmentRepository.find({
-        where: {
-          appointmentDate: Between(startDate, endDate),
-        },
-      });
+    const start = this.normalizeDate(startDate);
+    const end = this.normalizeEndDate(endDate);
 
-      const byStatus = {
-        [AppointmentStatus.PENDING]: 0,
-        [AppointmentStatus.CONFIRMED]: 0,
-        [AppointmentStatus.IN_PROGRESS]: 0,
-        [AppointmentStatus.COMPLETED]: 0,
-        [AppointmentStatus.CANCELLED]: 0,
-      };
+    const appointments = await this.appointmentRepository.find({
+      where: {
+        appointmentDate: Between(start, end),
+      },
+    });
 
-      let totalValue = 0;
-      const dailyMap = new Map<string, { count: number; completed: number }>();
+    const byStatus = {
+      [AppointmentStatus.PENDING]: 0,
+      [AppointmentStatus.CONFIRMED]: 0,
+      [AppointmentStatus.IN_PROGRESS]: 0,
+      [AppointmentStatus.COMPLETED]: 0,
+      [AppointmentStatus.CANCELLED]: 0,
+    };
 
-      appointments.forEach((apt) => {
-        try {
-          if (apt.status && byStatus[apt.status] !== undefined) {
-            byStatus[apt.status]++;
+    const dailyTrend: { date: string; count: number; completed: number }[] = [];
+    let totalValue = 0;
+    const dailyMap = new Map<string, { count: number; completed: number }>();
+    
+    // Safely process appointments
+    appointments.forEach((apt) => {
+      // 1. Safe Status counting
+      if (byStatus.hasOwnProperty(apt.status)) {
+        byStatus[apt.status]++;
+      }
+
+      // 2. Safe Revenue calculation
+      if (apt.status === AppointmentStatus.COMPLETED) {
+        totalValue += Number(apt.actualCost || apt.estimatedCost || 0);
+      }
+
+      // 3. Safe Date handling (Fix for potential String vs Date issue)
+      if (apt.appointmentDate) {
+        // Ensure we have a Date object
+        const dateObj = new Date(apt.appointmentDate);
+        if (!isNaN(dateObj.getTime())) {
+          const dateKey = dateObj.toISOString().split('T')[0];
+          
+          if (!dailyMap.has(dateKey)) {
+            dailyMap.set(dateKey, { count: 0, completed: 0 });
           }
-
+          const dayStats = dailyMap.get(dateKey)!;
+          dayStats.count++;
           if (apt.status === AppointmentStatus.COMPLETED) {
-            totalValue += Number(apt.actualCost || apt.estimatedCost || 0);
+            dayStats.completed++;
           }
-
-          const aptDate = apt.appointmentDate
-            ? new Date(apt.appointmentDate)
-            : null;
-          if (aptDate && !isNaN(aptDate.getTime())) {
-            const dateKey = aptDate.toISOString().split('T')[0];
-            if (!dailyMap.has(dateKey)) {
-              dailyMap.set(dateKey, { count: 0, completed: 0 });
-            }
-            const dayStats = dailyMap.get(dateKey)!;
-            dayStats.count++;
-            if (apt.status === AppointmentStatus.COMPLETED) {
-              dayStats.completed++;
-            }
-          }
-        } catch (e) {
-          // Skip invalid appointment
         }
-      });
+      }
+    });
 
-      const completionRate =
-        appointments.length > 0
-          ? byStatus[AppointmentStatus.COMPLETED] / appointments.length
-          : 0;
-      const cancellationRate =
-        appointments.length > 0
-          ? byStatus[AppointmentStatus.CANCELLED] / appointments.length
-          : 0;
-      const averageValue =
-        byStatus[AppointmentStatus.COMPLETED] > 0
-          ? totalValue / byStatus[AppointmentStatus.COMPLETED]
-          : 0;
+    const completionRate =
+      appointments.length > 0 ? byStatus[AppointmentStatus.COMPLETED] / appointments.length : 0;
+    const cancellationRate =
+      appointments.length > 0 ? byStatus[AppointmentStatus.CANCELLED] / appointments.length : 0;
+    const averageValue =
+      byStatus[AppointmentStatus.COMPLETED] > 0
+        ? totalValue / byStatus[AppointmentStatus.COMPLETED]
+        : 0;
 
-      const dailyTrend = Array.from(dailyMap.entries())
-        .map(([date, stats]) => ({
-          date,
-          count: stats.count,
-          completed: stats.completed,
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date));
+    dailyTrend.push(...Array.from(dailyMap.entries())
+      .map(([date, stats]) => ({
+        date,
+        count: stats.count,
+        completed: stats.completed,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date)));
 
-      return {
-        total: appointments.length,
-        byStatus,
-        completionRate,
-        cancellationRate,
-        averageValue,
-        dailyTrend,
-      };
-    } catch (error) {
-      console.error('Error in getAppointmentStatistics:', error);
-      return {
-        total: 0,
-        byStatus: {
-          [AppointmentStatus.PENDING]: 0,
-          [AppointmentStatus.CONFIRMED]: 0,
-          [AppointmentStatus.IN_PROGRESS]: 0,
-          [AppointmentStatus.COMPLETED]: 0,
-          [AppointmentStatus.CANCELLED]: 0,
-        },
-        completionRate: 0,
-        cancellationRate: 0,
-        averageValue: 0,
-        dailyTrend: [],
-      };
-    }
+    return {
+      total: appointments.length,
+      byStatus,
+      completionRate,
+      cancellationRate,
+      averageValue,
+      dailyTrend,
+    };
   }
 
   /**
@@ -357,9 +370,12 @@ export class ReportService {
       averagePrice: number;
     }>
   > {
+    const start = this.normalizeDate(startDate);
+    const end = this.normalizeEndDate(endDate);
+
     const appointments = await this.appointmentRepository.find({
       where: {
-        appointmentDate: Between(startDate, endDate),
+        appointmentDate: Between(start, end),
       },
       relations: ['service'],
     });
@@ -428,9 +444,12 @@ export class ReportService {
       completionRate: number;
     }>
   > {
+    const start = this.normalizeDate(startDate);
+    const end = this.normalizeEndDate(endDate);
+
     const appointments = await this.appointmentRepository.find({
       where: {
-        appointmentDate: Between(startDate, endDate),
+        appointmentDate: Between(start, end),
       },
       relations: ['employee'],
     });
@@ -477,9 +496,7 @@ export class ReportService {
       .map((emp) => ({
         ...emp,
         completionRate:
-          emp.totalAppointments > 0
-            ? emp.completedAppointments / emp.totalAppointments
-            : 0,
+          emp.totalAppointments > 0 ? emp.completedAppointments / emp.totalAppointments : 0,
       }))
       .sort((a, b) => b.totalAppointments - a.totalAppointments);
   }
@@ -502,9 +519,12 @@ export class ReportService {
       totalSpent: number;
     }>;
   }> {
+    const start = this.normalizeDate(startDate);
+    const end = this.normalizeEndDate(endDate);
+
     const appointments = await this.appointmentRepository.find({
       where: {
-        appointmentDate: Between(startDate, endDate),
+        appointmentDate: Between(start, end),
         status: AppointmentStatus.COMPLETED,
       },
       relations: ['pet', 'pet.owner'],
@@ -545,13 +565,10 @@ export class ReportService {
 
     const customers = Array.from(customerMap.values());
     const newCustomers = customers.filter(
-      (c) => c.firstVisit >= startDate && c.firstVisit <= endDate,
+      (c) => c.firstVisit >= start && c.firstVisit <= end,
     ).length;
-    const returningCustomers = customers.filter(
-      (c) => c.appointmentCount > 1,
-    ).length;
-    const retentionRate =
-      customers.length > 0 ? returningCustomers / customers.length : 0;
+    const returningCustomers = customers.filter((c) => c.appointmentCount > 1).length;
+    const retentionRate = customers.length > 0 ? returningCustomers / customers.length : 0;
 
     const topCustomers = customers
       .sort((a, b) => b.totalSpent - a.totalSpent)
@@ -609,55 +626,54 @@ export class ReportService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Today's statistics
+    // Today's statistics - only today's data, not future
     const todayAppointments = await this.appointmentRepository.count({
-      where: { appointmentDate: today },
+      where: { 
+        appointmentDate: Between(today, tomorrow),
+      },
     });
 
     const todayCompleted = await this.appointmentRepository.count({
       where: {
-        appointmentDate: today,
+        appointmentDate: Between(today, tomorrow),
         status: AppointmentStatus.COMPLETED,
       },
     });
 
     const todayInvoices = await this.invoiceRepository.find({
       where: {
-        issueDate: today,
+        issueDate: Between(today, tomorrow),
         status: InvoiceStatus.PAID,
       },
     });
-    const todayRevenue = todayInvoices.reduce(
-      (sum, inv) => sum + Number(inv.totalAmount),
-      0,
-    );
+    const todayRevenue = todayInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
 
     // Week statistics
     const weekStart = new Date(today);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(today);
+    weekEnd.setHours(23, 59, 59, 999);
     const weekInvoices = await this.invoiceRepository.find({
       where: {
-        issueDate: Between(weekStart, tomorrow),
+        issueDate: Between(weekStart, weekEnd),
         status: InvoiceStatus.PAID,
       },
     });
-    const weekRevenue = weekInvoices.reduce(
-      (sum, inv) => sum + Number(inv.totalAmount),
-      0,
-    );
+    const weekRevenue = weekInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
 
     // Month statistics
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthEnd = new Date(today);
+    monthEnd.setHours(23, 59, 59, 999);
     const monthInvoices = await this.invoiceRepository.find({
       where: {
-        issueDate: Between(monthStart, tomorrow),
+        issueDate: Between(monthStart, monthEnd),
         status: InvoiceStatus.PAID,
       },
     });
-    const monthRevenue = monthInvoices.reduce(
-      (sum, inv) => sum + Number(inv.totalAmount),
-      0,
-    );
+    const monthRevenue = monthInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
 
     // Overview counts
     const totalPets = await this.petRepository.count();
@@ -733,9 +749,12 @@ export class ReportService {
       completionRate: number;
     }>
   > {
+    const start = this.normalizeDate(startDate);
+    const end = this.normalizeEndDate(endDate);
+
     const appointments = await this.appointmentRepository.find({
       where: {
-        appointmentDate: Between(startDate, endDate),
+        appointmentDate: Between(start, end),
       },
       relations: ['service'],
     });
@@ -776,10 +795,8 @@ export class ReportService {
     return Array.from(serviceMap.values())
       .map((s) => ({
         ...s,
-        averagePrice:
-          s.completedBookings > 0 ? s.revenue / s.completedBookings : 0,
-        completionRate:
-          s.totalBookings > 0 ? s.completedBookings / s.totalBookings : 0,
+        averagePrice: s.completedBookings > 0 ? s.revenue / s.completedBookings : 0,
+        completionRate: s.totalBookings > 0 ? s.completedBookings / s.totalBookings : 0,
       }))
       .sort((a, b) => b.revenue - a.revenue);
   }
