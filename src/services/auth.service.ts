@@ -174,7 +174,10 @@ export class AuthService {
     }
 
     // Get user profile for name
-    const profile = await this.fetchProfile(account.accountId, account.userType);
+    const profile = await this.fetchProfile(
+      account.accountId,
+      account.userType,
+    );
     const userName = profile?.fullName || 'Người dùng';
 
     // Generate reset token
@@ -191,11 +194,7 @@ export class AuthService {
     });
 
     // Send email
-    await this.emailService.sendPasswordResetEmail(
-      email,
-      resetToken,
-      userName,
-    );
+    await this.emailService.sendPasswordResetEmail(email, resetToken, userName);
   }
 
   /**

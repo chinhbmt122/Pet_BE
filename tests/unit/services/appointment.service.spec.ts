@@ -2,19 +2,27 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AppointmentService } from '../../../src/services/appointment.service';
-import { Appointment, AppointmentStatus } from '../../../src/entities/appointment.entity';
+import {
+  Appointment,
+  AppointmentStatus,
+} from '../../../src/entities/appointment.entity';
 import { AppointmentService as AppointmentServiceEntity } from '../../../src/entities/appointment-service.entity';
 import { Pet } from '../../../src/entities/pet.entity';
 import { Employee } from '../../../src/entities/employee.entity';
 import { Service } from '../../../src/entities/service.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { InvoiceService } from '../../../src/services/invoice.service';
+import { EmailService } from '../../../src/services/email.service';
 import { CreateAppointmentDto } from '../../../src/dto/appointment/create-appointment.dto';
 import { UserType } from '../../../src/entities/account.entity';
 import { OwnershipValidationHelper } from '../../../src/services/helpers/ownership-validation.helper';
 
 // ===== Use new test helpers =====
-import { createMockRepository, createMockDataSource, createMockInvoiceService } from '../../helpers';
+import {
+  createMockRepository,
+  createMockDataSource,
+  createMockInvoiceService,
+} from '../../helpers';
 
 // Mock for OwnershipValidationHelper
 const mockOwnershipHelper = {
@@ -24,12 +32,24 @@ const mockOwnershipHelper = {
   getPetOwnerByAccount: jest.fn().mockResolvedValue(null),
 };
 
+// Mock for EmailService
+const mockEmailService = {
+  sendAppointmentConfirmationEmail: jest.fn().mockResolvedValue(undefined),
+  sendAppointmentReminderEmail: jest.fn().mockResolvedValue(undefined),
+  sendAppointmentCancellationEmail: jest.fn().mockResolvedValue(undefined),
+  sendAppointmentStatusUpdateEmail: jest.fn().mockResolvedValue(undefined),
+};
+
 describe('AppointmentService - Phase 1 Unit Tests', () => {
   let service: AppointmentService;
 
   // ===== Use helper types for cleaner declarations =====
-  let appointmentRepository: ReturnType<typeof createMockRepository<Appointment>>;
-  let appointmentServiceRepository: ReturnType<typeof createMockRepository<AppointmentServiceEntity>>;
+  let appointmentRepository: ReturnType<
+    typeof createMockRepository<Appointment>
+  >;
+  let appointmentServiceRepository: ReturnType<
+    typeof createMockRepository<AppointmentServiceEntity>
+  >;
   let petRepository: ReturnType<typeof createMockRepository<Pet>>;
   let employeeRepository: ReturnType<typeof createMockRepository<Employee>>;
   let serviceRepository: ReturnType<typeof createMockRepository<Service>>;
@@ -47,7 +67,8 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
 
     // ===== AFTER: Use shared helpers - consistent mock behavior =====
     appointmentRepository = createMockRepository<Appointment>();
-    appointmentServiceRepository = createMockRepository<AppointmentServiceEntity>();
+    appointmentServiceRepository =
+      createMockRepository<AppointmentServiceEntity>();
     petRepository = createMockRepository<Pet>();
     employeeRepository = createMockRepository<Employee>();
     serviceRepository = createMockRepository<Service>();
@@ -90,6 +111,10 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
           useValue: invoiceService,
         },
         {
+          provide: EmailService,
+          useValue: mockEmailService,
+        },
+        {
           provide: DataSource,
           useValue: dataSource,
         },
@@ -107,11 +132,14 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
     jest.clearAllMocks();
   });
 
-
   describe('P0: createAppointment (8 tests)', () => {
     const mockPet = { petId: 1, name: 'Max', ownerId: 1 } as Pet;
     const mockEmployee = { employeeId: 1, fullName: 'Dr. Smith' } as Employee;
-    const mockService = { serviceId: 1, serviceName: 'Checkup', basePrice: 100 } as Service;
+    const mockService = {
+      serviceId: 1,
+      serviceName: 'Checkup',
+      basePrice: 100,
+    } as Service;
     const mockPetOwner = { petOwnerId: 1, accountId: 1 } as PetOwner;
 
     const validDto: CreateAppointmentDto = {
@@ -149,28 +177,46 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
       } as Appointment;
 
       // Mock transaction to execute callback and return result
-      dataSource.transaction = jest.fn().mockImplementation(async (callback) => {
-        const mockManager = {
-          create: jest.fn((entity, data) => data),
-          save: jest.fn().mockResolvedValue({ ...mockAppointment, appointmentId: 1 }),
-          findOne: jest.fn().mockResolvedValue(mockAppointment),
-        };
-        return await callback(mockManager);
-      });
+      dataSource.transaction = jest
+        .fn()
+        .mockImplementation(async (callback) => {
+          const mockManager = {
+            create: jest.fn((entity, data) => data),
+            save: jest
+              .fn()
+              .mockResolvedValue({ ...mockAppointment, appointmentId: 1 }),
+            findOne: jest.fn().mockResolvedValue(mockAppointment),
+          };
+          return await callback(mockManager);
+        });
 
       const result = await service.createAppointment(validDto);
 
       expect(result).toBeDefined();
       expect(result.status).toBe(AppointmentStatus.PENDING);
-      expect(petRepository.findOne).toHaveBeenCalledWith({ where: { petId: 1 } });
-      expect(employeeRepository.findOne).toHaveBeenCalledWith({ where: { employeeId: 1 } });
-      expect(serviceRepository.findOne).toHaveBeenCalledWith({ where: { serviceId: 1 } });
+      expect(petRepository.findOne).toHaveBeenCalledWith({
+        where: { petId: 1 },
+      });
+      expect(employeeRepository.findOne).toHaveBeenCalledWith({
+        where: { employeeId: 1 },
+      });
+      expect(serviceRepository.findOne).toHaveBeenCalledWith({
+        where: { serviceId: 1 },
+      });
       expect(dataSource.transaction).toHaveBeenCalled();
     });
 
     it('[P0-2] should calculate total cost correctly for multi-service appointment', async () => {
-      const mockBath = { serviceId: 1, serviceName: 'Bath', basePrice: 100 } as Service;
-      const mockCheckup = { serviceId: 2, serviceName: 'Checkup', basePrice: 150 } as Service;
+      const mockBath = {
+        serviceId: 1,
+        serviceName: 'Bath',
+        basePrice: 100,
+      } as Service;
+      const mockCheckup = {
+        serviceId: 2,
+        serviceName: 'Checkup',
+        basePrice: 150,
+      } as Service;
 
       const multiServiceDto: CreateAppointmentDto = {
         petId: 1,
@@ -207,19 +253,23 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
       } as Appointment;
 
       // Mock transaction to capture what's created
-      dataSource.transaction = jest.fn().mockImplementation(async (callback) => {
-        const mockManager = {
-          create: jest.fn((entity, data) => {
-            if (entity === Appointment) {
-              capturedAppointment = data;
-            }
-            return data;
-          }),
-          save: jest.fn().mockResolvedValue({ ...mockAppointment, appointmentId: 1 }),
-          findOne: jest.fn().mockResolvedValue(mockAppointment),
-        };
-        return await callback(mockManager);
-      });
+      dataSource.transaction = jest
+        .fn()
+        .mockImplementation(async (callback) => {
+          const mockManager = {
+            create: jest.fn((entity, data) => {
+              if (entity === Appointment) {
+                capturedAppointment = data;
+              }
+              return data;
+            }),
+            save: jest
+              .fn()
+              .mockResolvedValue({ ...mockAppointment, appointmentId: 1 }),
+            findOne: jest.fn().mockResolvedValue(mockAppointment),
+          };
+          return await callback(mockManager);
+        });
 
       const result = await service.createAppointment(multiServiceDto);
 
@@ -241,7 +291,10 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
       const user = { accountId: 999, userType: UserType.PET_OWNER };
 
       petRepository.findOne.mockResolvedValue(mockPet); // Pet belongs to ownerId: 1
-      petOwnerRepository.findOne.mockResolvedValue({ petOwnerId: 999, accountId: 999 } as PetOwner);
+      petOwnerRepository.findOne.mockResolvedValue({
+        petOwnerId: 999,
+        accountId: 999,
+      } as PetOwner);
 
       await expect(service.createAppointment(validDto, user)).rejects.toThrow();
     });
@@ -313,7 +366,7 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
 
       expect(result.status).toBe(AppointmentStatus.CONFIRMED);
       expect(appointmentRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: AppointmentStatus.CONFIRMED })
+        expect.objectContaining({ status: AppointmentStatus.CONFIRMED }),
       );
     });
 
@@ -360,7 +413,7 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
       expect(result.status).toBe(AppointmentStatus.COMPLETED);
       expect(invoiceService.createInvoice).toHaveBeenCalledWith(
         expect.objectContaining({ appointmentId: 1 }),
-        queryRunner.manager
+        queryRunner.manager,
       );
       expect(queryRunner.commitTransaction).toHaveBeenCalled();
       expect(queryRunner.release).toHaveBeenCalled();
@@ -404,7 +457,9 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
 
     it('[P1-1] should update appointment successfully', async () => {
       appointmentRepository.findOne.mockResolvedValue(mockAppointment);
-      employeeRepository.findOne.mockResolvedValue({ employeeId: 2 } as Employee);
+      employeeRepository.findOne.mockResolvedValue({
+        employeeId: 2,
+      } as Employee);
       appointmentRepository.save.mockResolvedValue({
         ...mockAppointment,
         employeeId: 2,
@@ -426,28 +481,34 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
     it('[P1-2] should throw 404 when appointment does not exist', async () => {
       appointmentRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.updateAppointment(999, { startTime: '14:00' })).rejects.toThrow();
+      await expect(
+        service.updateAppointment(999, { startTime: '14:00' }),
+      ).rejects.toThrow();
     });
 
     it('[P1-3] should throw 404 when new employee does not exist', async () => {
       appointmentRepository.findOne.mockResolvedValue(mockAppointment);
       employeeRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.updateAppointment(1, { employeeId: 999 })).rejects.toThrow();
+      await expect(
+        service.updateAppointment(1, { employeeId: 999 }),
+      ).rejects.toThrow();
     });
 
     it('[P1-4] should throw 400 when endTime <= startTime', async () => {
       appointmentRepository.findOne.mockResolvedValue(mockAppointment);
 
       await expect(
-        service.updateAppointment(1, { startTime: '15:00', endTime: '14:00' })
+        service.updateAppointment(1, { startTime: '15:00', endTime: '14:00' }),
       ).rejects.toThrow();
     });
 
     it('[P1-5] should throw 400 when updating only endTime to be <= existing startTime', async () => {
       appointmentRepository.findOne.mockResolvedValue(mockAppointment);
 
-      await expect(service.updateAppointment(1, { endTime: '09:00' })).rejects.toThrow();
+      await expect(
+        service.updateAppointment(1, { endTime: '09:00' }),
+      ).rejects.toThrow();
     });
 
     it('[P1-6] should allow partial updates (only notes)', async () => {
@@ -457,7 +518,9 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
         notes: 'Updated notes',
       } as Appointment);
 
-      const result = await service.updateAppointment(1, { notes: 'Updated notes' });
+      const result = await service.updateAppointment(1, {
+        notes: 'Updated notes',
+      });
 
       expect(result.notes).toBe('Updated notes');
       expect(appointmentRepository.save).toHaveBeenCalled();
@@ -525,7 +588,9 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
 
       appointmentRepository.findOne.mockResolvedValue(mockAppointment);
 
-      await expect(service.cancelAppointment(1, 'Late cancel')).rejects.toThrow();
+      await expect(
+        service.cancelAppointment(1, 'Late cancel'),
+      ).rejects.toThrow();
     });
   });
 
@@ -585,7 +650,9 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
 
       await service.deleteAppointment(1);
 
-      expect(appointmentRepository.remove).toHaveBeenCalledWith(mockAppointment);
+      expect(appointmentRepository.remove).toHaveBeenCalledWith(
+        mockAppointment,
+      );
     });
 
     it('[P1-15] should throw 400 when trying to delete non-PENDING appointment', async () => {
@@ -601,4 +668,3 @@ describe('AppointmentService - Phase 1 Unit Tests', () => {
     });
   });
 });
-

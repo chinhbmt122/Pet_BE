@@ -5,7 +5,7 @@ import { seedDemoDatabase, clearDatabase } from './seed-demo';
 
 /**
  * DEMO Seed Runner for January 14, 2026
- * 
+ *
  * Usage:
  *   npm run seed:demo           - Seeds demo database
  *   npm run seed:demo --refresh - Clears and re-seeds demo database
@@ -27,25 +27,61 @@ async function runDemoSeed() {
 
     await seedDemoDatabase(dataSource);
 
-    console.log('\n╔════════════════════════════════════════════════════════════════╗');
-    console.log('║           📋 TEST ACCOUNTS FOR DEMO (Jan 14, 2026)            ║');
-    console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log('║ Role         │ Email                      │ Password          ║');
-    console.log('╠══════════════╪════════════════════════════╪═══════════════════╣');
-    console.log('║ Manager      │ manager@pawlovers.com      │ Password@123      ║');
-    console.log('║ Vet 1        │ vet.lan@pawlovers.com      │ Password@123      ║');
-    console.log('║ Vet 2        │ vet.tuan@pawlovers.com     │ Password@123      ║');
-    console.log('║ Vet 3        │ vet.minh@pawlovers.com     │ Password@123      ║');
-    console.log('║ Care Staff 1 │ care.hong@pawlovers.com    │ Password@123      ║');
-    console.log('║ Care Staff 2 │ care.nam@pawlovers.com     │ Password@123      ║');
-    console.log('║ Care Staff 3 │ care.huong@pawlovers.com   │ Password@123      ║');
-    console.log('║ Receptionist │ reception@pawlovers.com    │ Password@123      ║');
-    console.log('║ Pet Owner 1  │ owner.minhanh@gmail.com    │ Password@123      ║');
-    console.log('║ Pet Owner 2  │ owner.quocdai@gmail.com    │ Password@123      ║');
-    console.log('║ Pet Owner 3  │ owner.hoanglong@gmail.com  │ Password@123      ║');
-    console.log('╚════════════════════════════════════════════════════════════════╝');
+    console.log(
+      '\n╔════════════════════════════════════════════════════════════════╗',
+    );
+    console.log(
+      '║           📋 TEST ACCOUNTS FOR DEMO (Jan 14, 2026)            ║',
+    );
+    console.log(
+      '╠════════════════════════════════════════════════════════════════╣',
+    );
+    console.log(
+      '║ Role         │ Email                      │ Password          ║',
+    );
+    console.log(
+      '╠══════════════╪════════════════════════════╪═══════════════════╣',
+    );
+    console.log(
+      '║ Manager      │ manager@pawlovers.com      │ Password@123      ║',
+    );
+    console.log(
+      '║ Vet 1        │ vet.lan@pawlovers.com      │ Password@123      ║',
+    );
+    console.log(
+      '║ Vet 2        │ vet.tuan@pawlovers.com     │ Password@123      ║',
+    );
+    console.log(
+      '║ Vet 3        │ vet.minh@pawlovers.com     │ Password@123      ║',
+    );
+    console.log(
+      '║ Care Staff 1 │ care.hong@pawlovers.com    │ Password@123      ║',
+    );
+    console.log(
+      '║ Care Staff 2 │ care.nam@pawlovers.com     │ Password@123      ║',
+    );
+    console.log(
+      '║ Care Staff 3 │ care.huong@pawlovers.com   │ Password@123      ║',
+    );
+    console.log(
+      '║ Receptionist │ reception@pawlovers.com    │ Password@123      ║',
+    );
+    console.log(
+      '║ Pet Owner 1  │ owner.minhanh@gmail.com    │ Password@123      ║',
+    );
+    console.log(
+      '║ Pet Owner 2  │ owner.quocdai@gmail.com    │ Password@123      ║',
+    );
+    console.log(
+      '║ Pet Owner 3  │ owner.hoanglong@gmail.com  │ Password@123      ║',
+    );
+    console.log(
+      '╚════════════════════════════════════════════════════════════════╝',
+    );
     console.log('\n📌 Demo Date: January 14, 2026');
-    console.log('📌 Data includes: 15 pets, 30+ appointments, medical records, invoices, payments');
+    console.log(
+      '📌 Data includes: 15 pets, 30+ appointments, medical records, invoices, payments',
+    );
     console.log('');
   } catch (error: unknown) {
     console.error('❌ Demo seed runner failed!');

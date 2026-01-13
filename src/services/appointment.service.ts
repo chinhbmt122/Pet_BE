@@ -5,7 +5,7 @@ import {
   forwardRef,
   Logger,
 } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -868,17 +868,20 @@ export class AppointmentService {
           }
         } catch (emailError) {
           this.logger.error(
-            `[CRON] Failed to send reminder for appointment ${appointment.appointmentId}: ${emailError.message}`,
-            emailError.stack,
+            `[CRON] Failed to send reminder for appointment ${appointment.appointmentId}: ${emailError instanceof Error ? emailError.message : String(emailError)}`,
+            emailError instanceof Error ? emailError.stack : undefined,
           );
         }
       }
 
       this.logger.log('[CRON] Appointment reminder job completed');
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `[CRON] Appointment reminder job failed: ${error.message}`,
-        error.stack,
+        `[CRON] Appointment reminder job failed: ${errorMessage}`,
+        errorStack,
       );
     }
   }

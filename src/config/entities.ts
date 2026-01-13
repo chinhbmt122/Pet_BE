@@ -18,8 +18,11 @@ import { VaccineType } from '../entities/vaccine-type.entity';
 import { VaccinationHistory } from '../entities/vaccination-history.entity';
 import { Payment } from '../entities/payment.entity';
 import { Invoice } from '../entities/invoice.entity';
+import { InvoiceItem } from '../entities/invoice-item.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { AuditLog } from '../entities/audit-log.entity';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { EmailLog } from '../entities/email-log.entity';
 
 export const entitiesOrdered = [
   Account,
@@ -42,6 +45,9 @@ export const entitiesOrdered = [
   VaccinationHistory,
   Payment,
   Invoice,
+  InvoiceItem,
   PaymentGatewayArchive,
   AuditLog,
+  PasswordResetToken,
+  EmailLog,
 ];

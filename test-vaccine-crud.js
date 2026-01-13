@@ -35,7 +35,10 @@ async function loginAsManager() {
     log(`Token: ${authToken.substring(0, 20)}...`, colors.yellow);
     return true;
   } catch (error) {
-    log(`❌ Login failed: ${error.response?.data?.message || error.message}`, colors.red);
+    log(
+      `❌ Login failed: ${error.response?.data?.message || error.message}`,
+      colors.red,
+    );
     return false;
   }
 }
@@ -49,11 +52,17 @@ async function getAllVaccineTypes(step) {
 
     log(`✅ Found ${response.data.length} vaccine types`, colors.green);
     response.data.slice(0, 3).forEach((v) => {
-      log(`  - ${v.vaccineName} (${v.category}) - Active: ${v.isActive}`, colors.yellow);
+      log(
+        `  - ${v.vaccineName} (${v.category}) - Active: ${v.isActive}`,
+        colors.yellow,
+      );
     });
     return response.data;
   } catch (error) {
-    log(`❌ Failed: ${error.response?.data?.message || error.message}`, colors.red);
+    log(
+      `❌ Failed: ${error.response?.data?.message || error.message}`,
+      colors.red,
+    );
     return null;
   }
 }
@@ -80,7 +89,10 @@ async function createVaccineType() {
     log(`   Name: ${response.data.data.vaccineName}`, colors.yellow);
     return response.data.data;
   } catch (error) {
-    log(`❌ Failed: ${error.response?.data?.message || error.message}`, colors.red);
+    log(
+      `❌ Failed: ${error.response?.data?.message || error.message}`,
+      colors.red,
+    );
     return null;
   }
 }
@@ -124,15 +136,21 @@ async function updateVaccineType() {
       updates,
       {
         headers: { Authorization: `Bearer ${authToken}` },
-      }
+      },
     );
 
     log(`✅ Vaccine updated successfully`, colors.green);
     log(`   New name: ${response.data.data.vaccineName}`, colors.yellow);
-    log(`   New booster interval: ${response.data.data.boosterIntervalMonths} months`, colors.yellow);
+    log(
+      `   New booster interval: ${response.data.data.boosterIntervalMonths} months`,
+      colors.yellow,
+    );
     return response.data.data;
   } catch (error) {
-    log(`❌ Failed: ${error.response?.data?.message || error.message}`, colors.red);
+    log(
+      `❌ Failed: ${error.response?.data?.message || error.message}`,
+      colors.red,
+    );
     return null;
   }
 }
@@ -140,27 +158,41 @@ async function updateVaccineType() {
 async function deleteVaccineType() {
   try {
     log('\n📝 Step 6: Soft deleting vaccine type...', colors.blue);
-    const response = await axios.delete(`${BASE_URL}/vaccine-types/${createdVaccineId}`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-    });
+    const response = await axios.delete(
+      `${BASE_URL}/vaccine-types/${createdVaccineId}`,
+      {
+        headers: { Authorization: `Bearer ${authToken}` },
+      },
+    );
 
     log(`✅ Vaccine soft deleted: ${response.data.message}`, colors.green);
     return true;
   } catch (error) {
-    log(`❌ Failed: ${error.response?.data?.message || error.message}`, colors.red);
+    log(
+      `❌ Failed: ${error.response?.data?.message || error.message}`,
+      colors.red,
+    );
     return false;
   }
 }
 
 async function verifyDeletion() {
   try {
-    log('\n📝 Step 7: Verifying soft deletion (should not appear in active list)...', colors.blue);
+    log(
+      '\n📝 Step 7: Verifying soft deletion (should not appear in active list)...',
+      colors.blue,
+    );
     const vaccines = await getAllVaccineTypes('7');
-    
-    const deletedVaccine = vaccines?.find((v) => v.vaccineTypeId === createdVaccineId);
-    
+
+    const deletedVaccine = vaccines?.find(
+      (v) => v.vaccineTypeId === createdVaccineId,
+    );
+
     if (!deletedVaccine) {
-      log('✅ Soft deletion verified - vaccine not in active list', colors.green);
+      log(
+        '✅ Soft deletion verified - vaccine not in active list',
+        colors.green,
+      );
       return true;
     } else {
       log('❌ Soft deletion FAILED - vaccine still appears', colors.red);

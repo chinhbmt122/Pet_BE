@@ -22,6 +22,8 @@ import {
   CreateVaccinationDto,
   VaccinationResponseDto,
 } from '../dto/vaccination';
+import { CreateVaccineTypeDto } from '../dto/vaccine-type/create-vaccine-type.dto';
+import { UpdateVaccineTypeDto } from '../dto/vaccine-type/update-vaccine-type.dto';
 import { UserType } from '../entities/account.entity';
 import {
   OwnershipValidationHelper,
@@ -425,5 +427,71 @@ export class MedicalRecordService {
       where: { isActive: true },
       order: { vaccineName: 'ASC' },
     });
+  }
+
+  /**
+   * Creates a new vaccine type (Manager only).
+   */
+  async createVaccineType(dto: CreateVaccineTypeDto): Promise<VaccineType> {
+    const vaccineType = this.vaccineTypeRepository.create({
+      vaccineName: dto.vaccineName,
+      category: dto.category,
+      targetSpecies: dto.targetSpecies,
+      manufacturer: dto.manufacturer,
+      description: dto.description,
+      recommendedAgeMonths: dto.recommendedAgeMonths,
+      boosterIntervalMonths: dto.boosterIntervalMonths,
+      isActive: true,
+    });
+    return this.vaccineTypeRepository.save(vaccineType);
+  }
+
+  /**
+   * Updates an existing vaccine type (Manager only).
+   */
+  async updateVaccineType(
+    id: number,
+    dto: UpdateVaccineTypeDto,
+  ): Promise<VaccineType> {
+    const vaccineType = await this.vaccineTypeRepository.findOne({
+      where: { vaccineTypeId: id },
+    });
+
+    if (!vaccineType) {
+      I18nException.notFound('errors.notFound.vaccineType', { id });
+    }
+
+    if (dto.vaccineName !== undefined)
+      vaccineType.vaccineName = dto.vaccineName;
+    if (dto.category !== undefined) vaccineType.category = dto.category;
+    if (dto.targetSpecies !== undefined)
+      vaccineType.targetSpecies = dto.targetSpecies;
+    if (dto.manufacturer !== undefined)
+      vaccineType.manufacturer = dto.manufacturer;
+    if (dto.description !== undefined)
+      vaccineType.description = dto.description;
+    if (dto.recommendedAgeMonths !== undefined)
+      vaccineType.recommendedAgeMonths = dto.recommendedAgeMonths;
+    if (dto.boosterIntervalMonths !== undefined)
+      vaccineType.boosterIntervalMonths = dto.boosterIntervalMonths;
+    if (dto.isActive !== undefined) vaccineType.isActive = dto.isActive;
+
+    return this.vaccineTypeRepository.save(vaccineType);
+  }
+
+  /**
+   * Soft deletes a vaccine type (Manager only).
+   */
+  async deleteVaccineType(id: number): Promise<void> {
+    const vaccineType = await this.vaccineTypeRepository.findOne({
+      where: { vaccineTypeId: id },
+    });
+
+    if (!vaccineType) {
+      I18nException.notFound('errors.notFound.vaccineType', { id });
+    }
+
+    vaccineType.isActive = false;
+    await this.vaccineTypeRepository.save(vaccineType);
   }
 }

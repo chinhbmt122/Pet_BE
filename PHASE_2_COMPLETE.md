@@ -14,11 +14,13 @@ Phase 2 đã được triển khai thành công! Hệ thống email hiện tại
 ## ✅ Deliverables Completed
 
 ### 1. Dependencies Installed
+
 ```bash
 npm install @nestjs/bull bull ioredis @types/bull --save
 ```
 
 **Packages Added:**
+
 - `@nestjs/bull` - NestJS integration for Bull Queue
 - `bull` - Robust queue system based on Redis
 - `ioredis` - Redis client for Node.js
@@ -29,6 +31,7 @@ npm install @nestjs/bull bull ioredis @types/bull --save
 **File:** [src/services/email-queue.processor.ts](src/services/email-queue.processor.ts)
 
 **Features:**
+
 - ✅ Async email processing with Bull
 - ✅ Automatic retry logic (3 attempts with exponential backoff)
 - ✅ Email log status updates (pending → sent/failed)
@@ -36,6 +39,7 @@ npm install @nestjs/bull bull ioredis @types/bull --save
 - ✅ Failed job handler for permanent failures
 
 **Key Methods:**
+
 - `handleSendEmail()` - Processes email sending jobs from queue
 - `handleFailedJob()` - Handles permanently failed jobs after all retries
 
@@ -44,6 +48,7 @@ npm install @nestjs/bull bull ioredis @types/bull --save
 **File:** [src/modules/email.module.ts](src/modules/email.module.ts)
 
 **Changes:**
+
 - Imported `BullModule` from `@nestjs/bull`
 - Added `EmailQueueProcessor` provider
 - Configured Bull Queue with Redis connection
@@ -52,6 +57,7 @@ npm install @nestjs/bull bull ioredis @types/bull --save
 - Keep failed jobs for debugging
 
 **Configuration:**
+
 ```typescript
 BullModule.registerQueueAsync({
   name: 'email-queue',
@@ -71,7 +77,7 @@ BullModule.registerQueueAsync({
       removeOnFail: false,
     },
   }),
-})
+});
 ```
 
 ### 4. Updated EmailService
@@ -79,21 +85,25 @@ BullModule.registerQueueAsync({
 **File:** [src/services/email.service.ts](src/services/email.service.ts)
 
 **Changes:**
+
 - Removed direct dependency on `MailerService`
 - Added `@InjectQueue('email-queue')` for Bull Queue
 - Changed `sendEmail()` method to queue emails instead of sending directly
 
 **Before (Phase 1):**
+
 ```typescript
 await this.mailerService.sendMail({...}); // Blocking operation
 ```
 
 **After (Phase 2):**
+
 ```typescript
 await this.emailQueue.add('send-email', {...}); // Non-blocking, queued
 ```
 
 **Benefits:**
+
 - ✅ Non-blocking operations - requests return immediately
 - ✅ Automatic retry mechanism (3 attempts with exponential backoff)
 - ✅ Better error handling and recovery
@@ -104,6 +114,7 @@ await this.emailQueue.add('send-email', {...}); // Non-blocking, queued
 **File:** [.env](.env)
 
 **Added:**
+
 ```bash
 # Redis Configuration (for email queue)
 REDIS_HOST=localhost
@@ -116,6 +127,7 @@ REDIS_PASSWORD=
 ## Architecture Changes
 
 ### Before (Phase 1) - Synchronous
+
 ```
 Controller → Service → MailerService → SMTP → ✉️
    ↓ (blocks until complete)
@@ -123,6 +135,7 @@ Response
 ```
 
 ### After (Phase 2) - Asynchronous with Queue
+
 ```
 Controller → Service → Queue (Redis) → Immediate Response
                           ↓ (background processing)
@@ -132,6 +145,7 @@ Controller → Service → Queue (Redis) → Immediate Response
 ```
 
 **Advantages:**
+
 - ⚡ Faster response times (no waiting for SMTP)
 - 🔄 Automatic retry on failures
 - 📊 Better monitoring and visibility
@@ -143,12 +157,14 @@ Controller → Service → Queue (Redis) → Immediate Response
 ## Testing Results
 
 ### Build Status
+
 ```bash
 $ npm run build
 ✅ Build successful - No errors
 ```
 
 ### Error Check
+
 ```bash
 $ get_errors
 ✅ No errors found in Pet_BE
@@ -190,19 +206,21 @@ $ get_errors
 Redis must be running for email queue to work:
 
 **Option 1: Docker (Recommended)**
+
 ```bash
 docker run -d -p 6379:6379 --name redis redis:7-alpine
 ```
 
 **Option 2: Docker Compose**
 Add to `docker-compose.yml`:
+
 ```yaml
 services:
   redis:
     image: redis:7-alpine
     container_name: pet-care-redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -212,11 +230,13 @@ volumes:
 ```
 
 Then run:
+
 ```bash
 docker compose up -d redis
 ```
 
 **Option 3: Local Installation**
+
 ```bash
 # Windows (via Chocolatey)
 choco install redis-64
@@ -231,6 +251,7 @@ redis-server
 ### Email Configuration
 
 Update `.env` with your SMTP credentials:
+
 ```bash
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
@@ -250,17 +271,21 @@ REDIS_PASSWORD=  # Leave empty if no password
 ## Testing Email Queue
 
 ### 1. Start Redis
+
 ```bash
 docker compose up -d redis
 ```
 
 ### 2. Start Application
+
 ```bash
 npm run start:dev
 ```
 
 ### 3. Send Test Email
+
 Use the password reset endpoint:
+
 ```bash
 POST http://localhost:3001/api/auth/forgot-password
 Content-Type: application/json
@@ -271,12 +296,15 @@ Content-Type: application/json
 ```
 
 ### 4. Monitor Queue
+
 Check email logs in database:
+
 ```sql
 SELECT * FROM email_logs ORDER BY created_at DESC LIMIT 10;
 ```
 
 Expected status progression:
+
 - `pending` → Email queued successfully
 - `sent` → Email sent successfully
 - `failed` → Email failed after all retries
@@ -286,11 +314,13 @@ Expected status progression:
 ## Troubleshooting
 
 ### Redis Connection Error
+
 ```
 Error: connect ECONNREFUSED 127.0.0.1:6379
 ```
 
 **Solution:** Make sure Redis is running
+
 ```bash
 docker compose up -d redis
 # or
@@ -298,6 +328,7 @@ redis-server
 ```
 
 ### Email Not Sending
+
 1. Check Redis is running
 2. Check SMTP credentials in `.env`
 3. Check email logs table for error messages
@@ -305,6 +336,7 @@ redis-server
 5. Enable "Less secure app access" or use OAuth2
 
 ### Queue Not Processing
+
 1. Verify EmailQueueProcessor is registered in EmailModule
 2. Check NestJS logs for processor startup messages
 3. Inspect Redis keys: `redis-cli KEYS bull:email-queue:*`
@@ -316,11 +348,13 @@ redis-server
 ### Bull Board - Queue Dashboard
 
 Install Bull Board for visual queue monitoring:
+
 ```bash
 npm install @bull-board/nestjs @bull-board/express --save
 ```
 
 Add to `app.module.ts`:
+
 ```typescript
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
@@ -349,12 +383,14 @@ Access dashboard at: `http://localhost:3001/admin/queues`
 Phase 3 will focus on **scheduled tasks** for appointment reminders:
 
 ### Planned Features:
+
 1. **Install @nestjs/schedule** for cron jobs
 2. **Create AppointmentReminderService** with scheduled tasks
 3. **Implement daily job** to send 24-hour appointment reminders
 4. **Add appointment reminder email templates** (already done in Phase 1!)
 
 ### Timeline:
+
 - **Estimated Duration:** 1-2 hours
 - **Complexity:** Medium (involves cron jobs and appointment queries)
 
@@ -376,7 +412,7 @@ Phase 3 will focus on **scheduled tasks** for appointment reminders:
 ✅ **Reliability**: Automatic retry with exponential backoff  
 ✅ **Monitoring**: Full email lifecycle tracking in database  
 ✅ **Scalability**: Can add more queue workers if needed  
-✅ **Resilience**: Survives temporary SMTP outages  
+✅ **Resilience**: Survives temporary SMTP outages
 
 ### Verification:
 
@@ -384,7 +420,7 @@ Phase 3 will focus on **scheduled tasks** for appointment reminders:
 ✅ No TypeScript errors  
 ✅ All dependencies installed  
 ✅ Configuration complete  
-✅ Ready for Redis integration  
+✅ Ready for Redis integration
 
 ---
 

@@ -61,7 +61,7 @@ export class Appointment {
       eager: false,
     },
   )
-  appointmentServices: AppointmentService[];
+  appointmentServices?: AppointmentService[];
 
   @Column({ type: 'date' })
   appointmentDate: Date;
@@ -115,16 +115,6 @@ export class Appointment {
    */
   @OneToMany(() => MedicalRecord, (record) => record.appointment)
   medicalRecords?: MedicalRecord[];
-
-  /**
-   * One-to-Many relationship with AppointmentService
-   * An appointment can have multiple services (multi-service support)
-   */
-  @OneToMany(() => AppointmentService, (as) => as.appointment, {
-    cascade: true,
-    eager: false,
-  })
-  appointmentServices?: AppointmentService[];
 
   // ===== Boarding Integration (Story 7.3) =====
 

@@ -438,7 +438,8 @@ export class AppointmentController {
   })
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Send appointment reminder emails (manual trigger for demo/testing)',
+    summary:
+      'Send appointment reminder emails (manual trigger for demo/testing)',
   })
   @ApiResponse({
     status: 200,

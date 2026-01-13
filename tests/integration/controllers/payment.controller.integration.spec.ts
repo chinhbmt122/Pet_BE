@@ -176,7 +176,6 @@ describe('PaymentController (Integration)', () => {
     // Create Completed Appointment
     appointment = await dataSource.getRepository(Appointment).save({
       petId: pet.petId,
-      serviceId: service.serviceId,
       employeeId: veterinarian.employeeId,
       appointmentDate: new Date(),
       startTime: '10:00',
@@ -364,3 +363,4 @@ describe('PaymentController (Integration)', () => {
     });
   });
 });
+

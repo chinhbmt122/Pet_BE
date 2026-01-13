@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PetOwnerService } from '../../../src/services/pet-owner.service';
+import { EmailService } from '../../../src/services/email.service';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { Account } from '../../../src/entities/account.entity';
 import { Appointment } from '../../../src/entities/appointment.entity';
@@ -105,6 +106,12 @@ describe('PetOwnerService', () => {
         {
           provide: DataSource,
           useValue: dataSource,
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendRegistrationEmail: jest.fn().mockResolvedValue(undefined),            sendRegistrationSuccessEmail: jest.fn().mockResolvedValue(undefined),            sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

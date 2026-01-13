@@ -9,9 +9,9 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
  * Plus ability to toggle isActive status
  */
 export class UpdateVaccineTypeDto extends PartialType(CreateVaccineTypeDto) {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Active status of the vaccine type',
-    example: true 
+    example: true,
   })
   @IsBoolean()
   @IsOptional()

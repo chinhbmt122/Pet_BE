@@ -7,55 +7,55 @@ import { VaccineCategory } from '../../entities/types/entity.types';
  * Only Manager role can use this
  */
 export class CreateVaccineTypeDto {
-  @ApiProperty({ 
+  @ApiProperty({
     enum: VaccineCategory,
     description: 'Category of vaccine (Core, Non-core, Optional)',
-    example: 'Core'
+    example: 'Core',
   })
   @IsEnum(VaccineCategory)
   category: VaccineCategory;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Name of the vaccine',
-    example: 'Vaccine Dại' 
+    example: 'Vaccine Dại',
   })
   @IsString()
   vaccineName: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Target species for this vaccine',
-    example: 'Dog' 
+    example: 'Dog',
   })
   @IsString()
   targetSpecies: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Manufacturer of the vaccine',
-    example: 'Nobivac' 
+    example: 'Nobivac',
   })
   @IsString()
   @IsOptional()
   manufacturer?: string;
 
-  @ApiPropertyOptional({ 
-    description: 'Detailed description of the vaccine'
+  @ApiPropertyOptional({
+    description: 'Detailed description of the vaccine',
   })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Recommended age in months for first vaccination',
-    example: 3 
+    example: 3,
   })
   @IsNumber()
   @Min(1)
   @IsOptional()
   recommendedAgeMonths?: number;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Interval in months for booster shots',
-    example: 12 
+    example: 12,
   })
   @IsNumber()
   @Min(1)
