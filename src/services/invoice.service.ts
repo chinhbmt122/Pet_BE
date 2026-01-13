@@ -99,7 +99,8 @@ export class InvoiceService {
     // Calculate invoice amounts from appointment services
     // Use appointmentServices pricing if available
     const subtotal =
-      appointment.appointmentServices?.length > 0
+      appointment.appointmentServices &&
+      appointment.appointmentServices.length > 0
         ? appointment.appointmentServices.reduce(
             (sum, as) => sum + Number(as.unitPrice) * as.quantity,
             0,

@@ -341,7 +341,6 @@ describe('AppointmentController (Integration)', () => {
         endTime: '10:30',
         status: 'PENDING',
         estimatedCost: 50.00,
-        appointmentServices: [],
       });
     });
 

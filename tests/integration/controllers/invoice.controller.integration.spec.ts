@@ -151,7 +151,6 @@ describe('InvoiceController (Integration)', () => {
     // Create Completed Appointment
     appointment = await dataSource.getRepository(Appointment).save({
       petId: pet.petId,
-      serviceId: service.serviceId,
       employeeId: veterinarian.employeeId,
       appointmentDate: new Date(),
       startTime: '10:00',
@@ -219,7 +218,6 @@ describe('InvoiceController (Integration)', () => {
       // Create pending appointment
       const pendingAppointment = await dataSource.getRepository(Appointment).save({
         petId: pet.petId,
-        serviceId: service.serviceId,
         employeeId: veterinarian.employeeId,
         appointmentDate: new Date(),
         startTime: '14:00',
@@ -249,7 +247,6 @@ describe('InvoiceController (Integration)', () => {
       // Create separate appointments for invoices
       const appointment1 = await dataSource.getRepository(Appointment).save({
         petId: pet.petId,
-        serviceId: service.serviceId,
         employeeId: veterinarian.employeeId,
         appointmentDate: new Date(),
         startTime: '08:00',
@@ -260,7 +257,6 @@ describe('InvoiceController (Integration)', () => {
 
       const appointment2 = await dataSource.getRepository(Appointment).save({
         petId: pet.petId,
-        serviceId: service.serviceId,
         employeeId: veterinarian.employeeId,
         appointmentDate: new Date(),
         startTime: '09:00',
@@ -336,7 +332,6 @@ describe('InvoiceController (Integration)', () => {
       // Create separate appointment for this invoice
       const testAppointment = await dataSource.getRepository(Appointment).save({
         petId: pet.petId,
-        serviceId: service.serviceId,
         employeeId: veterinarian.employeeId,
         appointmentDate: new Date(),
         startTime: '12:00',
@@ -387,7 +382,6 @@ describe('InvoiceController (Integration)', () => {
       // Create separate appointment for this invoice
       const testAppointment = await dataSource.getRepository(Appointment).save({
         petId: pet.petId,
-        serviceId: service.serviceId,
         employeeId: veterinarian.employeeId,
         appointmentDate: new Date(),
         startTime: '13:00',
@@ -433,7 +427,6 @@ describe('InvoiceController (Integration)', () => {
       // Create separate appointment for this invoice
       const testAppointment = await dataSource.getRepository(Appointment).save({
         petId: pet.petId,
-        serviceId: service.serviceId,
         employeeId: veterinarian.employeeId,
         appointmentDate: new Date(),
         startTime: '14:00',
@@ -475,3 +468,4 @@ describe('InvoiceController (Integration)', () => {
     });
   });
 });
+
