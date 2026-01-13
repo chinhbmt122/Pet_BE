@@ -20,8 +20,12 @@ import { VaccineType } from '../../src/entities/vaccine-type.entity';
 import { VaccinationHistory } from '../../src/entities/vaccination-history.entity';
 import { Payment } from '../../src/entities/payment.entity';
 import { Invoice } from '../../src/entities/invoice.entity';
+import { InvoiceItem } from '../../src/entities/invoice-item.entity';
 import { PaymentGatewayArchive } from '../../src/entities/payment-gateway-archive.entity';
 import { AuditLog } from '../../src/entities/audit-log.entity';
+import { AppointmentService } from '../../src/entities/appointment-service.entity';
+import { PasswordResetToken } from '../../src/entities/password-reset-token.entity';
+import { EmailLog } from '../../src/entities/email-log.entity';
 
 // Ensure test env variables are loaded if available
 dotenv.config({ path: path.resolve(__dirname, '../../.env.test') });
@@ -82,13 +86,17 @@ export function getTestDatabaseConfig(): DataSourceOptions {
       CageAssignment,
       WorkSchedule,
       Appointment,
+      AppointmentService,
       MedicalRecord,
       VaccineType,
       VaccinationHistory,
       Payment,
       Invoice,
+      InvoiceItem,
       PaymentGatewayArchive,
       AuditLog,
+      PasswordResetToken,
+      EmailLog,
     ];
 
     return {

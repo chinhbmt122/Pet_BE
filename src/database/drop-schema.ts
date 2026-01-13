@@ -25,4 +25,4 @@ async function dropSchema() {
   }
 }
 
-dropSchema();
+void dropSchema();

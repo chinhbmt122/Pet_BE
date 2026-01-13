@@ -43,8 +43,10 @@ export class EmailService {
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     this.logger.log(`[SEND EMAIL] Starting sendEmail for ${options.to}`);
-    this.logger.log(`[SEND EMAIL] Template: ${options.template}, Type: ${options.emailType}`);
-    
+    this.logger.log(
+      `[SEND EMAIL] Template: ${options.template}, Type: ${options.emailType}`,
+    );
+
     // Create email log entry
     const emailLog = this.emailLogRepository.create({
       recipient: options.to,
@@ -55,7 +57,9 @@ export class EmailService {
     });
 
     const savedLog = await this.emailLogRepository.save(emailLog);
-    this.logger.log(`[SEND EMAIL] Email log created with ID: ${savedLog.emailLogId}`);
+    this.logger.log(
+      `[SEND EMAIL] Email log created with ID: ${savedLog.emailLogId}`,
+    );
 
     // Add email to queue for async processing
     try {
@@ -64,8 +68,8 @@ export class EmailService {
         subject: options.subject,
         template: options.template,
         context: {
-          ...options.context,
-          appName: this.configService.get('APP_NAME', 'PAW LOVERS'),
+          ...(options.context as Record<string, unknown>),
+          appName: this.configService.get<string>('APP_NAME', 'PAW LOVERS'),
           currentYear: new Date().getFullYear(),
         },
         emailLogId: savedLog.emailLogId,
@@ -97,7 +101,7 @@ export class EmailService {
     userName: string,
   ): Promise<void> {
     const resetUrl = `${this.configService.get('FRONTEND_URL')}/reset-password?token=${resetToken}`;
-    
+
     await this.sendEmail({
       to: email,
       subject: 'Đặt lại mật khẩu - PAW LOVERS',
@@ -170,9 +174,13 @@ export class EmailService {
       statusMessage: string;
     },
   ): Promise<void> {
-    this.logger.log(`[EMAIL SERVICE] sendAppointmentStatusUpdateEmail called for ${email}`);
-    this.logger.log(`[EMAIL SERVICE] Details: ${JSON.stringify(appointmentDetails)}`);
-    
+    this.logger.log(
+      `[EMAIL SERVICE] sendAppointmentStatusUpdateEmail called for ${email}`,
+    );
+    this.logger.log(
+      `[EMAIL SERVICE] Details: ${JSON.stringify(appointmentDetails)}`,
+    );
+
     await this.sendEmail({
       to: email,
       subject: 'Cập nhật lịch hẹn - PAW LOVERS',
@@ -180,7 +188,7 @@ export class EmailService {
       emailType: 'appointment_status_update',
       context: appointmentDetails,
     });
-    
+
     this.logger.log(`[EMAIL SERVICE] sendEmail completed for ${email}`);
   }
 

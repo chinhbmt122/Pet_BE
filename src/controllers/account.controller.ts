@@ -209,14 +209,17 @@ export class AccountController {
   @HttpCode(HttpStatus.OK)
   @RouteConfig({ message: 'Request password reset', requiresAuth: false })
   @ApiOperation({ summary: 'Request password reset email' })
-  @ApiResponse({ status: 200, description: 'Reset email sent if account exists' })
+  @ApiResponse({
+    status: 200,
+    description: 'Reset email sent if account exists',
+  })
   @ApiResponse({ status: 400, description: 'Invalid email format' })
   async requestPasswordReset(
     @Body() dto: RequestPasswordResetDto,
   ): Promise<{ message: string }> {
     await this.authService.requestPasswordReset(dto.email);
-    return { 
-      message: 'If the email exists, a password reset link has been sent.' 
+    return {
+      message: 'If the email exists, a password reset link has been sent.',
     };
   }
 

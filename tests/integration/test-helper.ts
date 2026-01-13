@@ -31,8 +31,11 @@ import { VaccineType } from '../../src/entities/vaccine-type.entity';
 import { VaccinationHistory } from '../../src/entities/vaccination-history.entity';
 import { Payment } from '../../src/entities/payment.entity';
 import { Invoice } from '../../src/entities/invoice.entity';
+import { InvoiceItem } from '../../src/entities/invoice-item.entity';
 import { PaymentGatewayArchive } from '../../src/entities/payment-gateway-archive.entity';
 import { AuditLog } from '../../src/entities/audit-log.entity';
+import { PasswordResetToken } from '../../src/entities/password-reset-token.entity';
+import { EmailLog } from '../../src/entities/email-log.entity';
 
 // Import all modules needed
 import { AccountModule } from '../../src/modules/account.module';
@@ -74,8 +77,11 @@ const entities = [
   VaccinationHistory,
   Payment,
   Invoice,
+  InvoiceItem,
   PaymentGatewayArchive,
   AuditLog,
+  PasswordResetToken,
+  EmailLog,
 ];
 
 export async function createTestApp(): Promise<INestApplication> {
@@ -151,7 +157,9 @@ export async function cleanDatabase(app: INestApplication): Promise<void> {
 
   for (const entity of entities.reverse()) {
     const repository = dataSource.getRepository(entity.name);
-    await repository.query(`TRUNCATE TABLE "${entity.tableName}" RESTART IDENTITY CASCADE`);
+    await repository.query(
+      `TRUNCATE TABLE "${entity.tableName}" RESTART IDENTITY CASCADE`,
+    );
   }
 }
 
@@ -159,22 +167,22 @@ export async function cleanDatabase(app: INestApplication): Promise<void> {
 
 /**
  * Transaction Test Context
- * 
+ *
  * Wraps each test in a transaction that is rolled back after the test.
  * This is 10-50x faster than TRUNCATE for test cleanup.
- * 
+ *
  * Usage:
  * ```typescript
  * let ctx: TransactionTestContext;
- * 
+ *
  * beforeEach(async () => {
  *   ctx = await createTransactionTestContext(app);
  * });
- * 
+ *
  * afterEach(async () => {
  *   await ctx.rollback();
  * });
- * 
+ *
  * it('should do something', async () => {
  *   // Use ctx.manager for database operations
  *   await ctx.manager.save(Account, { ... });
@@ -194,7 +202,7 @@ export interface TransactionTestContext {
 
 /**
  * Creates a transaction test context for faster test cleanup
- * 
+ *
  * @param app - NestJS application instance
  * @returns TransactionTestContext for test interactions
  */
@@ -220,16 +228,16 @@ export async function createTransactionTestContext(
 
 /**
  * Helper to setup beforeEach/afterEach with transaction context
- * 
+ *
  * @example
  * ```typescript
  * describe('MyTest', () => {
  *   const { getContext, setup, teardown } = useTransactionContext();
- * 
+ *
  *   beforeAll(async () => { app = await createTestApp(); });
  *   beforeEach(async () => { await setup(app); });
  *   afterEach(async () => { await teardown(); });
- * 
+ *
  *   it('test', async () => {
  *     const ctx = getContext();
  *     await ctx.manager.save(...);
@@ -243,7 +251,9 @@ export function useTransactionContext() {
   return {
     getContext: (): TransactionTestContext => {
       if (!context) {
-        throw new Error('Transaction context not initialized. Call setup() in beforeEach.');
+        throw new Error(
+          'Transaction context not initialized. Call setup() in beforeEach.',
+        );
       }
       return context;
     },
@@ -259,4 +269,3 @@ export function useTransactionContext() {
     },
   };
 }
-

@@ -5,6 +5,8 @@ import { AuthService } from '../../../src/services/auth.service';
 import { Account, UserType } from '../../../src/entities/account.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { Employee } from '../../../src/entities/employee.entity';
+import { PasswordResetToken } from '../../../src/entities/password-reset-token.entity';
+import { EmailService } from '../../../src/services/email.service';
 import * as bcrypt from 'bcrypt';
 
 // ===== Use new test helpers =====
@@ -17,6 +19,7 @@ describe('AuthService - Phase 1 Unit Tests', () => {
   let accountRepository: ReturnType<typeof createMockRepository<Account>>;
   let petOwnerRepository: ReturnType<typeof createMockRepository<PetOwner>>;
   let employeeRepository: ReturnType<typeof createMockRepository<Employee>>;
+  let passwordResetTokenRepository: ReturnType<typeof createMockRepository<PasswordResetToken>>;
   let jwtService: ReturnType<typeof createMockJwtService>;
 
   beforeEach(async () => {
@@ -31,6 +34,7 @@ describe('AuthService - Phase 1 Unit Tests', () => {
     accountRepository = createMockRepository<Account>();
     petOwnerRepository = createMockRepository<PetOwner>();
     employeeRepository = createMockRepository<Employee>();
+    passwordResetTokenRepository = createMockRepository<PasswordResetToken>();
     jwtService = createMockJwtService();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -49,8 +53,19 @@ describe('AuthService - Phase 1 Unit Tests', () => {
           useValue: employeeRepository,
         },
         {
+          provide: getRepositoryToken(PasswordResetToken),
+          useValue: passwordResetTokenRepository,
+        },
+        {
           provide: JwtService,
           useValue: jwtService,
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+            sendPasswordChangedNotification: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
