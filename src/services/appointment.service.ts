@@ -631,7 +631,13 @@ export class AppointmentService {
   async confirmAppointment(appointmentId: number): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: ['pet', 'pet.owner', 'pet.owner.account', 'appointmentServices', 'appointmentServices.service'],
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'appointmentServices',
+        'appointmentServices.service',
+      ],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -647,7 +653,11 @@ export class AppointmentService {
     const savedAppointment = await this.appointmentRepository.save(appointment);
 
     // Send confirmation email
-    await this.sendAppointmentStatusEmail(appointment, 'CONFIRMED', 'Lịch hẹn của bạn đã được xác nhận');
+    await this.sendAppointmentStatusEmail(
+      appointment,
+      'CONFIRMED',
+      'Lịch hẹn của bạn đã được xác nhận',
+    );
 
     return savedAppointment;
   }
@@ -778,7 +788,13 @@ export class AppointmentService {
     // Load relations for email if not already loaded
     const appointmentWithRelations = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: ['pet', 'pet.owner', 'pet.owner.account', 'appointmentServices', 'appointmentServices.service'],
+      relations: [
+        'pet',
+        'pet.owner',
+        'pet.owner.account',
+        'appointmentServices',
+        'appointmentServices.service',
+      ],
     });
 
     // Send cancellation email

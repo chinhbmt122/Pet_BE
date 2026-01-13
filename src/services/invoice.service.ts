@@ -619,7 +619,8 @@ export class InvoiceService {
       });
 
       const ownerEmail = appointmentWithOwner?.pet?.owner?.account?.email;
-      const ownerName = appointmentWithOwner?.pet?.owner?.fullName || 'Quý khách';
+      const ownerName =
+        appointmentWithOwner?.pet?.owner?.fullName || 'Quý khách';
 
       if (!ownerEmail) {
         console.log('[EMAIL] No owner email found for invoice notification');
@@ -645,7 +646,8 @@ export class InvoiceService {
         ownerName,
         invoiceNumber: invoice.invoiceNumber,
         issueDate: formattedDate,
-        totalAmount: Number(invoice.totalAmount).toLocaleString('vi-VN') + ' VNĐ',
+        totalAmount:
+          Number(invoice.totalAmount).toLocaleString('vi-VN') + ' VNĐ',
         items,
         invoiceUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${invoice.invoiceId}`,
       });
