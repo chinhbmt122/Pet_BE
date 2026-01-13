@@ -50,11 +50,28 @@ import { PetOwnerModule } from '../../src/modules/pet-owner.module';
 import { CageModule } from '../../src/modules/cage.module';
 import { PaymentModule } from '../../src/modules/payment.module';
 import { SharedHelpersModule } from '../../src/modules/shared-helpers.module';
+import { EmailModule } from '../../src/modules/email.module';
+import { EmailService } from '../../src/services/email.service';
 
 /**
  * Integration Test Helper
  * Creates a test app with real database connection (Docker PostgreSQL)
  */
+
+// Mock EmailService for integration tests (avoids Redis dependency)
+const mockEmailService = {
+  sendAppointmentConfirmationEmail: jest.fn().mockResolvedValue(undefined),
+  sendAppointmentReminderEmail: jest.fn().mockResolvedValue(undefined),
+  sendAppointmentCancellationEmail: jest.fn().mockResolvedValue(undefined),
+  sendAppointmentStatusUpdateEmail: jest.fn().mockResolvedValue(undefined),
+  sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+  sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+  sendPasswordResetConfirmationEmail: jest.fn().mockResolvedValue(undefined),
+  sendPaymentConfirmationEmail: jest.fn().mockResolvedValue(undefined),
+  sendInvoiceEmail: jest.fn().mockResolvedValue(undefined),
+  sendVaccinationReminderEmail: jest.fn().mockResolvedValue(undefined),
+  sendRegistrationSuccessEmail: jest.fn().mockResolvedValue(undefined),
+};
 
 const entities = [
   Account,
@@ -127,7 +144,10 @@ export async function createTestApp(): Promise<INestApplication> {
         useClass: RolesGuard,
       },
     ],
-  }).compile();
+  })
+    .overrideProvider(EmailService)
+    .useValue(mockEmailService)
+    .compile();
 
   const app = moduleFixture.createNestApplication();
 
