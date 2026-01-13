@@ -1,8 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+  Logger,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, FindOptionsWhere, Between } from 'typeorm';
+import {
+  Repository,
+  Not,
+  FindOptionsWhere,
+  DataSource,
+  Between,
+} from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { AppointmentService as AppointmentServiceEntity } from '../entities/appointment-service.entity';
 import { Pet } from '../entities/pet.entity';
@@ -11,13 +23,36 @@ import { Service } from '../entities/service.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { UserType } from '../entities/account.entity';
+import { InvoiceService } from './invoice.service';
 import { EmailService } from './email.service';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
- * AppointmentService (Pure Anemic Pattern)
+ * Validated appointment creation data.
+ * Result of pre-creation validation to avoid code duplication.
+ */
+interface ValidatedAppointmentData {
+  pet: Pet;
+  employee: Employee;
+  serviceDetails: Array<{
+    service: Service;
+    quantity: number;
+    notes?: string;
+  }>;
+  totalEstimatedCost: number;
+  appointmentDate: Date;
+}
+
+/**
+ * AppointmentService
  *
  * Manages appointments with business logic in service layer.
  * Handles appointment lifecycle: PENDING → CONFIRMED → IN_PROGRESS → COMPLETED/CANCELLED.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class AppointmentService {
@@ -36,8 +71,199 @@ export class AppointmentService {
     private readonly serviceRepository: Repository<Service>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    @Inject(forwardRef(() => InvoiceService))
+    private readonly invoiceService: InvoiceService,
     private readonly emailService: EmailService,
+    private readonly dataSource: DataSource,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
+
+  // ============================================
+  // PRIVATE VALIDATION HELPERS (DRY - Phase 1 Refactoring)
+  // ============================================
+
+  /**
+   * Validates pet exists and optionally validates ownership for PET_OWNER users.
+   * Delegates to shared OwnershipValidationHelper.
+   * @throws NotFoundException if pet not found or ownership validation fails
+   */
+  private async validatePetAndOwnership(
+    petId: number,
+    user?: UserContext,
+  ): Promise<Pet> {
+    const pet = await this.petRepository.findOne({
+      where: { petId },
+    });
+    if (!pet) {
+      I18nException.notFound('errors.notFound.pet', { id: petId });
+      throw new NotFoundException(`Pet not found`); // Unreachable but for type safety
+    }
+
+    // Delegate ownership validation to shared helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
+
+    return pet;
+  }
+
+  /**
+   * Validates employee exists.
+   * @throws NotFoundException if employee not found
+   */
+  private async validateEmployee(employeeId: number): Promise<Employee> {
+    const employee = await this.employeeRepository.findOne({
+      where: { employeeId },
+    });
+    if (!employee) {
+      I18nException.notFound('errors.notFound.employee', { id: employeeId });
+      throw new NotFoundException(`Employee not found`); // Unreachable but for type safety
+    }
+    return employee;
+  }
+
+  /**
+   * Validates all services exist and calculates total estimated cost.
+   * @throws NotFoundException if any service not found
+   */
+  private async validateServicesAndCalculateCost(
+    services: CreateAppointmentDto['services'],
+  ): Promise<{
+    serviceDetails: ValidatedAppointmentData['serviceDetails'];
+    totalEstimatedCost: number;
+  }> {
+    const serviceDetails: ValidatedAppointmentData['serviceDetails'] = [];
+    let totalEstimatedCost = 0;
+
+    for (const serviceDto of services) {
+      const service = await this.serviceRepository.findOne({
+        where: { serviceId: serviceDto.serviceId },
+      });
+      if (!service) {
+        I18nException.notFound('errors.notFound.service', {
+          id: serviceDto.serviceId,
+        });
+        throw new NotFoundException(`Service not found`);
+      }
+      const quantity = serviceDto.quantity || 1;
+      totalEstimatedCost += service.basePrice * quantity;
+      serviceDetails.push({
+        service,
+        quantity,
+        notes: serviceDto.notes,
+      });
+    }
+
+    return { serviceDetails, totalEstimatedCost };
+  }
+
+  /**
+   * Validates time constraints and checks for schedule conflicts.
+   * @throws BadRequestException if end time is before start time
+   * @throws ConflictException if there's a schedule conflict
+   */
+  private async validateTimeAndCheckConflicts(
+    dto: CreateAppointmentDto,
+  ): Promise<Date> {
+    // Validate time (end must be after start)
+    if (dto.endTime <= dto.startTime) {
+      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
+    }
+
+    // Check for schedule conflicts
+    const appointmentDate = new Date(dto.appointmentDate);
+    const conflict = await this.appointmentRepository.findOne({
+      where: {
+        employeeId: dto.employeeId,
+        appointmentDate,
+        status: Not(AppointmentStatus.CANCELLED),
+      },
+    });
+
+    if (conflict) {
+      // Check time overlap
+      if (
+        (dto.startTime >= conflict.startTime &&
+          dto.startTime < conflict.endTime) ||
+        (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
+        (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
+      ) {
+        I18nException.conflict('errors.badRequest.conflictingAppointment', {
+          time: `${conflict.startTime} - ${conflict.endTime}`,
+        });
+      }
+    }
+
+    return appointmentDate;
+  }
+
+  /**
+   * Orchestrates all appointment creation validations.
+   * Single entry point for validation logic - eliminates duplication.
+   */
+  private async validateAppointmentCreation(
+    dto: CreateAppointmentDto,
+    user?: { accountId: number; userType: UserType },
+  ): Promise<ValidatedAppointmentData> {
+    const pet = await this.validatePetAndOwnership(dto.petId, user);
+    const employee = await this.validateEmployee(dto.employeeId);
+    const { serviceDetails, totalEstimatedCost } =
+      await this.validateServicesAndCalculateCost(dto.services);
+    const appointmentDate = await this.validateTimeAndCheckConflicts(dto);
+
+    return {
+      pet,
+      employee,
+      serviceDetails,
+      totalEstimatedCost,
+      appointmentDate,
+    };
+  }
+
+  /**
+   * Saves appointment and related services within a transaction.
+   * Single entry point for persistence logic - eliminates duplication.
+   */
+  private async saveAppointmentWithServices(
+    dto: CreateAppointmentDto,
+    validatedData: ValidatedAppointmentData,
+  ): Promise<Appointment> {
+    return await this.dataSource.transaction(async (manager) => {
+      // Create appointment
+      const appointment = manager.create(Appointment, {
+        petId: dto.petId,
+        employeeId: dto.employeeId,
+        appointmentDate: validatedData.appointmentDate,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        notes: dto.notes ?? undefined,
+        estimatedCost: dto.estimatedCost ?? validatedData.totalEstimatedCost,
+        status: AppointmentStatus.PENDING,
+      });
+
+      const savedAppointment = await manager.save(Appointment, appointment);
+
+      // Create appointment-service junction records
+      for (const { service, quantity, notes } of validatedData.serviceDetails) {
+        const appointmentService = manager.create(AppointmentServiceEntity, {
+          appointmentId: savedAppointment.appointmentId,
+          serviceId: service.serviceId,
+          quantity,
+          unitPrice: service.basePrice,
+          notes: notes ?? null,
+        });
+        await manager.save(AppointmentServiceEntity, appointmentService);
+      }
+
+      // Load and return appointment with services
+      const result = await manager.findOne(Appointment, {
+        where: { appointmentId: savedAppointment.appointmentId },
+        relations: ['appointmentServices', 'appointmentServices.service'],
+      });
+      if (!result) {
+        throw new Error('Failed to load created appointment');
+      }
+      return result;
+    });
+  }
 
   // ============================================
   // APPOINTMENT CRUD
@@ -46,261 +272,31 @@ export class AppointmentService {
   /**
    * Creates new appointment with validation.
    * If PET_OWNER, validates they own the pet.
-   * Supports both legacy serviceId and new services array.
+   * Supports multiple services per appointment.
+   *
+   * @refactored Uses validateAppointmentCreation() and saveAppointmentWithServices() helpers
    */
   async createAppointment(
     dto: CreateAppointmentDto,
     user?: { accountId: number; userType: UserType },
   ): Promise<Appointment> {
-    // Validate pet exists
-    const pet = await this.petRepository.findOne({
-      where: { petId: dto.petId },
-    });
-    if (!pet) {
-      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-    }
-
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-      }
-    }
-
-    // Validate employee exists
-    const employee = await this.employeeRepository.findOne({
-      where: { employeeId: dto.employeeId },
-    });
-    if (!employee) {
-      I18nException.notFound('errors.notFound.employee', {
-        id: dto.employeeId,
-      });
-    }
-
-    // Prepare services array - support both legacy and new format
-    let servicesToCreate = dto.services || [];
-    
-    // Backward compatibility: if serviceId provided but no services array, use legacy format
-    if (dto.serviceId && (!dto.services || dto.services.length === 0)) {
-      servicesToCreate = [{ serviceId: dto.serviceId, quantity: 1, notes: undefined }];
-    }
-
-    // Validate we have at least one service
-    if (servicesToCreate.length === 0) {
-      I18nException.badRequest('errors.badRequest.noServices');
-    }
-
-    // Validate all services exist and calculate total cost
-    let totalEstimatedCost = 0;
-    const validatedServices: Array<{ serviceId: number; quantity: number; notes?: string; service: Service }> = [];
-    
-    for (const serviceItem of servicesToCreate) {
-      const service = await this.serviceRepository.findOne({
-        where: { serviceId: serviceItem.serviceId },
-      });
-      if (!service) {
-        I18nException.notFound('errors.notFound.service', { id: serviceItem.serviceId });
-      }
-      totalEstimatedCost += service.basePrice * serviceItem.quantity;
-      validatedServices.push({ ...serviceItem, service });
-    }
-
-    // Legacy: For backward compatibility, set first service as main service
-    const firstService = validatedServices[0].service;
-
-    // Validate time (end must be after start)
-    if (dto.endTime <= dto.startTime) {
-      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
-    }
-
-    // Check for schedule conflicts
-    const appointmentDate = new Date(dto.appointmentDate);
-    const conflict = await this.appointmentRepository.findOne({
-      where: {
-        employeeId: dto.employeeId,
-        appointmentDate,
-        status: Not(AppointmentStatus.CANCELLED),
-      },
-    });
-
-    if (conflict) {
-      // Check time overlap
-      if (
-        (dto.startTime >= conflict.startTime &&
-          dto.startTime < conflict.endTime) ||
-        (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
-        (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
-      ) {
-        I18nException.conflict('errors.badRequest.conflictingAppointment', {
-          time: `${conflict.startTime} - ${conflict.endTime}`,
-        });
-      }
-    }
-
-    // Create appointment (keep serviceId for backward compatibility)
-    const appointment = this.appointmentRepository.create({
-      petId: dto.petId,
-      employeeId: dto.employeeId,
-      serviceId: firstService.serviceId, // Legacy field
-      appointmentDate,
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      notes: dto.notes ?? undefined,
-      estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
-      status: AppointmentStatus.PENDING,
-    });
-
-    const savedAppointment = await this.appointmentRepository.save(appointment);
-
-    // Create appointment services (multi-service support)
-    const appointmentServices = validatedServices.map(item =>
-      this.appointmentServiceRepository.create({
-        appointmentId: savedAppointment.appointmentId,
-        serviceId: item.serviceId,
-        quantity: item.quantity,
-        unitPrice: item.service.basePrice,
-        notes: item.notes || null,
-      }),
-    );
-
-    await this.appointmentServiceRepository.save(appointmentServices);
-
-    return savedAppointment;
+    const validatedData = await this.validateAppointmentCreation(dto, user);
+    return this.saveAppointmentWithServices(dto, validatedData);
   }
 
   /**
    * Creates appointment for current user.
    * - PET_OWNER: Validates pet ownership
    * - VET/RECEPTIONIST: Can create appointment for any pet
+   *
+   * @refactored Uses validateAppointmentCreation() and saveAppointmentWithServices() helpers
    */
   async createMyAppointment(
     dto: CreateAppointmentDto,
     user: { accountId: number; userType: UserType },
   ): Promise<Appointment> {
-    // Validate pet exists
-    const pet = await this.petRepository.findOne({
-      where: { petId: dto.petId },
-    });
-    if (!pet) {
-      I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-    }
-
-    // If PET_OWNER, validate they own the pet
-    if (user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner) {
-        I18nException.notFound('errors.notFound.owner');
-      }
-      if (pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet', { id: dto.petId });
-      }
-    }
-    // VET, RECEPTIONIST, and other staff can create appointments for any pet
-
-    // Validate employee exists
-    const employee = await this.employeeRepository.findOne({
-      where: { employeeId: dto.employeeId },
-    });
-    if (!employee) {
-      I18nException.notFound('errors.notFound.employee', {
-        id: dto.employeeId,
-      });
-    }
-
-    // Prepare services array - support both legacy and new format
-    let servicesToCreate = dto.services || [];
-    
-    // Backward compatibility: if serviceId provided but no services array, use legacy format
-    if (dto.serviceId && (!dto.services || dto.services.length === 0)) {
-      servicesToCreate = [{ serviceId: dto.serviceId, quantity: 1, notes: undefined }];
-    }
-
-    // Validate we have at least one service
-    if (servicesToCreate.length === 0) {
-      I18nException.badRequest('errors.badRequest.noServices');
-    }
-
-    // Validate all services exist and calculate total cost
-    let totalEstimatedCost = 0;
-    const validatedServices: Array<{ serviceId: number; quantity: number; notes?: string; service: Service }> = [];
-    
-    for (const serviceItem of servicesToCreate) {
-      const service = await this.serviceRepository.findOne({
-        where: { serviceId: serviceItem.serviceId },
-      });
-      if (!service) {
-        I18nException.notFound('errors.notFound.service', { id: serviceItem.serviceId });
-      }
-      totalEstimatedCost += service.basePrice * serviceItem.quantity;
-      validatedServices.push({ ...serviceItem, service });
-    }
-
-    // Legacy: For backward compatibility, set first service as main service
-    const firstService = validatedServices[0].service;
-
-    // Validate time (end must be after start)
-    if (dto.endTime <= dto.startTime) {
-      I18nException.badRequest('errors.badRequest.endTimeAfterStartTime');
-    }
-
-    // Check for schedule conflicts
-    const appointmentDate = new Date(dto.appointmentDate);
-    const conflict = await this.appointmentRepository.findOne({
-      where: {
-        employeeId: dto.employeeId,
-        appointmentDate,
-        status: Not(AppointmentStatus.CANCELLED),
-      },
-    });
-
-    if (conflict) {
-      // Check time overlap
-      if (
-        (dto.startTime >= conflict.startTime &&
-          dto.startTime < conflict.endTime) ||
-        (dto.endTime > conflict.startTime && dto.endTime <= conflict.endTime) ||
-        (dto.startTime <= conflict.startTime && dto.endTime >= conflict.endTime)
-      ) {
-        I18nException.conflict('errors.badRequest.conflictingAppointment', {
-          time: `${conflict.startTime} - ${conflict.endTime}`,
-        });
-      }
-    }
-
-    // Create appointment (keep serviceId for backward compatibility)
-    const appointment = this.appointmentRepository.create({
-      petId: dto.petId,
-      employeeId: dto.employeeId,
-      serviceId: firstService.serviceId, // Legacy field
-      appointmentDate,
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      notes: dto.notes ?? undefined,
-      estimatedCost: dto.estimatedCost ?? totalEstimatedCost,
-      status: AppointmentStatus.PENDING,
-    });
-
-    const savedAppointment = await this.appointmentRepository.save(appointment);
-
-    // Create appointment services (multi-service support)
-    const appointmentServices = validatedServices.map(item =>
-      this.appointmentServiceRepository.create({
-        appointmentId: savedAppointment.appointmentId,
-        serviceId: item.serviceId,
-        quantity: item.quantity,
-        unitPrice: item.service.basePrice,
-        notes: item.notes || null,
-      }),
-    );
-
-    await this.appointmentServiceRepository.save(appointmentServices);
-
-    return savedAppointment;
+    const validatedData = await this.validateAppointmentCreation(dto, user);
+    return this.saveAppointmentWithServices(dto, validatedData);
   }
 
   /**
@@ -352,7 +348,7 @@ export class AppointmentService {
   ): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: ['pet', 'employee', 'service', 'pet.owner'],
+      relations: ['pet', 'employee', 'appointmentServices', 'pet.owner'],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -404,7 +400,10 @@ export class AppointmentService {
         .leftJoinAndSelect('appointment.pet', 'pet')
         .leftJoinAndSelect('pet.owner', 'owner')
         .leftJoinAndSelect('appointment.employee', 'employee')
-        .leftJoinAndSelect('appointment.service', 'service')
+        .leftJoinAndSelect(
+          'appointment.appointmentServices',
+          'appointmentServices',
+        )
         .where('appointment.petId IN (:...petIds)', { petIds });
 
       // Apply filters
@@ -452,7 +451,7 @@ export class AppointmentService {
       relations: [
         'pet',
         'employee',
-        'service',
+        'appointmentServices',
         'pet.owner',
         'pet.owner.account',
       ],
@@ -475,7 +474,10 @@ export class AppointmentService {
       .leftJoinAndSelect('appointment.pet', 'pet')
       .leftJoinAndSelect('pet.owner', 'owner')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.service', 'service');
+      .leftJoinAndSelect(
+        'appointment.appointmentServices',
+        'appointmentServices',
+      );
 
     // PET_OWNER: Only their pets' appointments
     if (user.userType === UserType.PET_OWNER) {
@@ -527,7 +529,7 @@ export class AppointmentService {
       relations: [
         'pet',
         'employee',
-        'service',
+        'appointmentServices',
         'pet.owner',
         'pet.owner.account',
       ],
@@ -541,7 +543,7 @@ export class AppointmentService {
   async getAppointmentsByPet(petId: number): Promise<Appointment[]> {
     return this.appointmentRepository.find({
       where: { petId },
-      relations: ['employee', 'service'],
+      relations: ['employee', 'appointmentServices'],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
     });
   }
@@ -574,7 +576,7 @@ export class AppointmentService {
         'pet',
         'pet.owner',
         'pet.owner.account',
-        'service',
+        'appointmentServices',
         'employee',
       ],
       order: { appointmentDate: 'DESC', startTime: 'ASC' },
@@ -592,7 +594,7 @@ export class AppointmentService {
         'pet.owner',
         'pet.owner.account',
         'employee',
-        'service',
+        'appointmentServices',
       ],
       order: { startTime: 'ASC' },
     });
@@ -626,95 +628,21 @@ export class AppointmentService {
    * Confirms appointment (PENDING → CONFIRMED)
    */
   async confirmAppointment(appointmentId: number): Promise<Appointment> {
-    console.log('============================================');
-    console.log(`CONFIRM APPOINTMENT #${appointmentId} - START`);
-    console.log('============================================');
-    
-    this.logger.log(`[CONFIRM] ===== METHOD CALLED for appointment ${appointmentId} =====`);
-    
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
-      relations: [
-        'pet',
-        'pet.owner',
-        'pet.owner.account',
-        'employee',
-        'service',
-      ],
     });
-    
-    this.logger.log(`[CONFIRM] Appointment loaded: ${appointment ? 'EXISTS' : 'NULL'}`);
-    
-    this.logger.log(`[CONFIRM] Appointment loaded: ${appointment ? 'EXISTS' : 'NULL'}`);
     if (!appointment) {
-      this.logger.error(`[CONFIRM] Appointment ${appointmentId} not found!`);
       I18nException.notFound('errors.notFound.appointment', {
         id: appointmentId,
       });
     }
 
-    this.logger.log(`[CONFIRM] Current status: ${appointment.status}`);
     if (appointment.status !== AppointmentStatus.PENDING) {
-      this.logger.warn(`[CONFIRM] Cannot confirm - status is ${appointment.status}, not PENDING`);
       I18nException.badRequest('errors.badRequest.canOnlyConfirmPending');
     }
 
-    this.logger.log(`[CONFIRM] Changing status from ${appointment.status} to CONFIRMED`);
-    const oldStatus = appointment.status;
     appointment.status = AppointmentStatus.CONFIRMED;
-    const savedAppointment = await this.appointmentRepository.save(appointment);
-    this.logger.log(`[CONFIRM] Status saved successfully`);
-
-    // Send confirmation email
-    this.logger.log(`[CONFIRM] Starting email sending for appointment ${appointmentId}`);
-    this.logger.log(`[CONFIRM] Pet: ${appointment.pet ? 'EXISTS' : 'NULL'}`);
-    this.logger.log(`[CONFIRM] Owner: ${appointment.pet?.owner ? 'EXISTS' : 'NULL'}`);
-    this.logger.log(`[CONFIRM] Account: ${appointment.pet?.owner?.account ? 'EXISTS' : 'NULL'}`);
-    
-    try {
-      if (appointment.pet?.owner?.account) {
-        const ownerEmail = appointment.pet.owner.account.email;
-        this.logger.log(`[CONFIRM] Sending email to: ${ownerEmail}`);
-        
-        // Format date properly
-        const appointmentDate = new Date(appointment.appointmentDate);
-        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-        
-        this.logger.log(`[CONFIRM] Formatted date: ${formattedDate}`);
-        
-        await this.emailService.sendAppointmentStatusUpdateEmail(
-          ownerEmail,
-          {
-            ownerName: appointment.pet.owner.fullName,
-            petName: appointment.pet.name,
-            serviceName: appointment.service.serviceName,
-            appointmentDate: formattedDate,
-            appointmentTime: appointment.startTime,
-            status: AppointmentStatus.CONFIRMED,
-            statusMessage: 'Lịch hẹn của bạn đã được xác nhận',
-          },
-        );
-        this.logger.log(`[CONFIRM] Email sent successfully to ${ownerEmail}`);
-      } else {
-        this.logger.warn(`[CONFIRM] Cannot send email - missing pet/owner/account data`);
-      }
-    } catch (emailError) {
-      console.error('============ EMAIL ERROR ============');
-      console.error('Error message:', emailError.message);
-      console.error('Error stack:', emailError.stack);
-      console.error('=====================================');
-      this.logger.error(
-        `[CONFIRM] Failed to send confirmation email for appointment ${appointmentId}: ${emailError.message}`,
-        emailError.stack,
-      );
-      // Don't fail the operation if email fails
-    }
-
-    return savedAppointment;
+    return this.appointmentRepository.save(appointment);
   }
 
   /**
@@ -740,112 +668,92 @@ export class AppointmentService {
 
   /**
    * Completes appointment (IN_PROGRESS → COMPLETED)
+   * Automatically generates invoice after completion (FR-028)
+   *
+   * Uses database transaction to ensure atomic operation:
+   * - Both appointment completion AND invoice creation succeed, OR
+   * - Both operations rollback on failure
+   *
+   * @throws NotFoundException if appointment doesn't exist
+   * @throws BadRequestException if appointment is not IN_PROGRESS
+   * @throws ConflictException if invoice already exists
    */
   async completeAppointment(
     appointmentId: number,
     actualCost?: number,
   ): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findOne({
-      where: { appointmentId },
-      relations: [
-        'pet',
-        'pet.owner',
-        'pet.owner.account',
-        'employee',
-        'service',
-      ],
-    });
-    if (!appointment) {
-      I18nException.notFound('errors.notFound.appointment', {
-        id: appointmentId,
-      });
-    }
+    // Use QueryRunner for transactional control
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
-      I18nException.badRequest('errors.badRequest.canOnlyCompleteInProgress');
-    }
-
-    appointment.status = AppointmentStatus.COMPLETED;
-    if (actualCost !== undefined) {
-      appointment.actualCost = actualCost;
-    }
-    const savedAppointment = await this.appointmentRepository.save(appointment);
-
-    // Send completion email
     try {
-      if (appointment.pet?.owner?.account) {
-        const appointmentDate = new Date(appointment.appointmentDate);
-        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-        
-        await this.emailService.sendAppointmentStatusUpdateEmail(
-          appointment.pet.owner.account.email,
-          {
-            ownerName: appointment.pet.owner.fullName,
-            petName: appointment.pet.name,
-            serviceName: appointment.service.serviceName,
-            appointmentDate: formattedDate,
-            appointmentTime: appointment.startTime,
-            status: AppointmentStatus.COMPLETED,
-            statusMessage: actualCost 
-              ? `Lịch hẹn đã hoàn thành. Chi phí thực tế: ${actualCost.toLocaleString('vi-VN')}đ`
-              : 'Lịch hẹn đã hoàn thành',
-          },
-        );
-        this.logger.log(`[COMPLETE] Completion email sent to ${appointment.pet.owner.account.email}`);
-      }
-    } catch (emailError) {
-      console.error('============ COMPLETE EMAIL ERROR ============');
-      console.error('Error:', emailError.message);
-      console.error('==============================================');
-      this.logger.error(
-        `[COMPLETE] Failed to send completion email: ${emailError.message}`,
-        emailError.stack,
-      );
-    }
-
-    return savedAppointment;
-  }
-
-  /**
-   * Cancels appointment (any status → CANCELLED)
-   * If PET_OWNER, validates they own the pet.
-   */
-  async cancelAppointment(
-    appointmentId: number,
-    reason?: string,
-    user?: { accountId: number; userType: UserType },
-  ): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findOne({
-      where: { appointmentId },
-      relations: [
-        'pet',
-        'pet.owner',
-        'pet.owner.account',
-        'employee',
-        'service',
-      ],
-    });
-    if (!appointment) {
-      I18nException.notFound('errors.notFound.appointment', {
-        id: appointmentId,
+      // Load appointment with service relation for pricing
+      const appointment = await queryRunner.manager.findOne(Appointment, {
+        where: { appointmentId },
+        relations: ['appointmentServices'],
       });
-    }
 
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner || appointment.pet?.ownerId !== petOwner.petOwnerId) {
+      if (!appointment) {
         I18nException.notFound('errors.notFound.appointment', {
           id: appointmentId,
         });
       }
+
+      if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
+        I18nException.badRequest('errors.badRequest.canOnlyCompleteInProgress');
+      }
+
+      // Update appointment status
+      appointment.status = AppointmentStatus.COMPLETED;
+      if (actualCost !== undefined) {
+        appointment.actualCost = actualCost;
+      }
+      const completedAppointment = await queryRunner.manager.save(appointment);
+
+      // Delegate to InvoiceService (Single Responsibility Principle)
+      await this.invoiceService.createInvoice(
+        {
+          appointmentId,
+          notes: `Auto-generated for completed appointment ${appointmentId}`,
+        },
+        queryRunner.manager, // Pass transaction manager for atomic operation
+      );
+
+      // Commit transaction - both operations succeeded
+      await queryRunner.commitTransaction();
+      return completedAppointment;
+    } catch (error) {
+      // Rollback transaction on any failure
+      await queryRunner.rollbackTransaction();
+      throw error; // Re-throw to maintain error contract
+    } finally {
+      // Release database connection
+      await queryRunner.release();
     }
+  }
+
+  /**
+   * Cancels appointment (PENDING/CONFIRMED → CANCELLED)
+   * Uses shared helper for ownership validation (Phase 1).
+   */
+  async cancelAppointment(
+    appointmentId: number,
+    reason?: string,
+    user?: UserContext,
+  ): Promise<Appointment> {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+      relations: ['pet'],
+    });
+    if (!appointment) {
+      I18nException.notFound('errors.notFound.appointment', {
+        id: appointmentId,
+      });
+    }
+
+    // Use shared helper for ownership validation (Phase 1)
+    await this.ownershipHelper.validateAppointmentOwnership(appointment, user);
 
     if (appointment.status === AppointmentStatus.COMPLETED) {
       I18nException.badRequest('errors.badRequest.cannotCancelCompleted');
@@ -855,50 +763,10 @@ export class AppointmentService {
       I18nException.badRequest('errors.badRequest.alreadyCancelled');
     }
 
-    const oldStatus = appointment.status;
     appointment.status = AppointmentStatus.CANCELLED;
     appointment.cancellationReason = reason ?? null;
     appointment.cancelledAt = new Date();
-    const savedAppointment = await this.appointmentRepository.save(appointment);
-
-    // Send cancellation email
-    try {
-      if (appointment.pet?.owner?.account) {
-        const appointmentDate = new Date(appointment.appointmentDate);
-        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-        
-        await this.emailService.sendAppointmentStatusUpdateEmail(
-          appointment.pet.owner.account.email,
-          {
-            ownerName: appointment.pet.owner.fullName,
-            petName: appointment.pet.name,
-            serviceName: appointment.service.serviceName,
-            appointmentDate: formattedDate,
-            appointmentTime: appointment.startTime,
-            status: AppointmentStatus.CANCELLED,
-            statusMessage: reason
-              ? `Lịch hẹn đã bị hủy. Lý do: ${reason}`
-              : 'Lịch hẹn đã bị hủy',
-          },
-        );
-        this.logger.log(`[CANCEL] Cancellation email sent to ${appointment.pet.owner.account.email}`);
-      }
-    } catch (emailError) {
-      console.error('============ CANCEL EMAIL ERROR ============');
-      console.error('Error:', emailError.message);
-      console.error('============================================');
-      this.logger.error(
-        `Failed to send cancellation email for appointment ${appointmentId}: ${emailError.message}`,
-        emailError.stack,
-      );
-      // Don't fail the operation if email fails
-    }
-
-    return savedAppointment;
+    return this.appointmentRepository.save(appointment);
   }
 
   /**
@@ -913,7 +781,10 @@ export class AppointmentService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.pet', 'pet')
       .leftJoinAndSelect('appointment.employee', 'employee')
-      .leftJoinAndSelect('appointment.service', 'service')
+      .leftJoinAndSelect(
+        'appointment.appointmentServices',
+        'appointmentServices',
+      )
       .where('appointment.appointmentDate >= :startDate', { startDate })
       .andWhere('appointment.appointmentDate <= :endDate', { endDate });
 
@@ -929,100 +800,84 @@ export class AppointmentService {
       .getMany();
   }
 
-  // ============================================
-  // SCHEDULED TASKS (CRON JOBS)
-  // ============================================
-
   /**
-   * Sends appointment reminders for appointments in the next 18-30 hours.
-   * Runs daily at 9:00 AM (Vietnam timezone).
-   * This ensures reminders are sent once per day, roughly 24 hours before appointment.
+   * Sends email reminders for upcoming appointments
+   * Runs daily at 9:00 AM
    */
-  @Cron('0 9 * * *') // Every day at 9:00 AM
+  @Cron('0 9 * * *')
   async sendAppointmentReminders(): Promise<void> {
+    this.logger.log('[CRON] Starting appointment reminder job');
+
     try {
-      this.logger.log('============================================');
-      this.logger.log('Starting appointment reminder cron job');
+      // Get appointments for tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
 
-      // Calculate time range: 18-30 hours from now
-      // This gives a window for appointments tomorrow
-      const now = new Date();
-      const startTime = new Date(now);
-      startTime.setHours(now.getHours() + 18); // 18 hours from now
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
-      const endTime = new Date(now);
-      endTime.setHours(now.getHours() + 30); // 30 hours from now
-
-      this.logger.log(
-        `Searching for CONFIRMED appointments between ${startTime.toISOString()} and ${endTime.toISOString()}`,
-      );
-
-      // Find CONFIRMED appointments in the time range
-      const appointments = await this.appointmentRepository.find({
+      const upcomingAppointments = await this.appointmentRepository.find({
         where: {
-          appointmentDate: Between(startTime, endTime),
+          appointmentDate: Between(tomorrow, dayAfterTomorrow),
           status: AppointmentStatus.CONFIRMED,
         },
         relations: [
           'pet',
           'pet.owner',
           'pet.owner.account',
-          'employee',
-          'service',
+          'appointmentServices',
+          'appointmentServices.service',
         ],
       });
 
-      this.logger.log(`Found ${appointments.length} appointments to remind`);
+      this.logger.log(
+        `[CRON] Found ${upcomingAppointments.length} appointments for reminders`,
+      );
 
-      let successCount = 0;
-      let failureCount = 0;
-
-      // Send reminder emails
-      for (const appointment of appointments) {
+      for (const appointment of upcomingAppointments) {
         try {
-          if (appointment.pet?.owner?.account) {
-            // Format date consistently
-            const appointmentDate = new Date(appointment.appointmentDate);
-            const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            });
+          if (appointment.pet?.owner?.account?.email) {
+            const formattedDate =
+              appointment.appointmentDate.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              });
+
+            const services =
+              appointment.appointmentServices
+                ?.map((as) => as.service?.serviceName)
+                .filter(Boolean)
+                .join(', ') || 'Dịch vụ';
 
             await this.emailService.sendAppointmentReminderEmail(
               appointment.pet.owner.account.email,
               {
                 ownerName: appointment.pet.owner.fullName,
                 petName: appointment.pet.name,
-                serviceName: appointment.service.serviceName,
+                serviceName: services,
                 appointmentDate: formattedDate,
-                appointmentTime: `${appointment.startTime} - ${appointment.endTime}`,
-                veterinarianName: appointment.employee.fullName,
+                appointmentTime: appointment.startTime,
               },
             );
 
-            successCount++;
             this.logger.log(
-              `✓ Sent reminder for appointment #${appointment.appointmentId} to ${appointment.pet.owner.account.email}`,
+              `[CRON] Reminder sent for appointment ${appointment.appointmentId}`,
             );
           }
         } catch (emailError) {
-          failureCount++;
           this.logger.error(
-            `✗ Failed to send reminder for appointment #${appointment.appointmentId}: ${emailError.message}`,
+            `[CRON] Failed to send reminder for appointment ${appointment.appointmentId}: ${emailError.message}`,
             emailError.stack,
           );
-          // Continue with other appointments even if one fails
         }
       }
 
-      this.logger.log('============================================');
-      this.logger.log(
-        `Appointment reminder cron job completed: ${successCount} sent, ${failureCount} failed`,
-      );
+      this.logger.log('[CRON] Appointment reminder job completed');
     } catch (error) {
       this.logger.error(
-        `Error in appointment reminder cron job: ${error.message}`,
+        `[CRON] Appointment reminder job failed: ${error.message}`,
         error.stack,
       );
     }

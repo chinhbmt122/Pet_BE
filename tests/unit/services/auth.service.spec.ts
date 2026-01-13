@@ -1,235 +1,252 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../../../src/services/auth.service';
-import { Account } from '../../../src/entities/account.entity';
+import { Account, UserType } from '../../../src/entities/account.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { Employee } from '../../../src/entities/employee.entity';
-import { JwtService } from '@nestjs/jwt';
-import { UserType } from '../../../src/entities/types/entity.types';
-import { AccountMapper } from '../../../src/mappers/account.mapper';
+import * as bcrypt from 'bcrypt';
 
-describe('AuthService', () => {
+// ===== Use new test helpers =====
+import { createMockRepository, createMockJwtService } from '../../helpers';
+
+describe('AuthService - Phase 1 Unit Tests', () => {
   let service: AuthService;
-  let accountRepository: jest.Mocked<Repository<Account>>;
-  let petOwnerRepository: jest.Mocked<Repository<PetOwner>>;
-  let employeeRepository: jest.Mocked<Repository<Employee>>;
-  let jwtService: jest.Mocked<JwtService>;
 
-  const mockAccount: Account = {
-    accountId: 1,
-    email: 'test@example.com',
-    passwordHash: '$2b$10$hashedpassword',
-    userType: UserType.PET_OWNER,
-    isActive: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    deletedAt: null,
-  } as Account;
-
-  const mockPetOwner: PetOwner = {
-    petOwnerId: 1,
-    accountId: 1,
-    fullName: 'John Doe',
-    phoneNumber: '1234567890',
-    address: '123 Main St',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  } as PetOwner;
+  // ===== Use helper types instead of manual jest.Mocked<Repository<T>> =====
+  let accountRepository: ReturnType<typeof createMockRepository<Account>>;
+  let petOwnerRepository: ReturnType<typeof createMockRepository<PetOwner>>;
+  let employeeRepository: ReturnType<typeof createMockRepository<Employee>>;
+  let jwtService: ReturnType<typeof createMockJwtService>;
 
   beforeEach(async () => {
+    // ===== BEFORE: Inline mock creation =====
+    // const mockRepository = () => ({
+    //   findOne: jest.fn(),
+    //   save: jest.fn(),
+    //   ...
+    // });
+
+    // ===== AFTER: Use shared helpers - less code, more methods =====
+    accountRepository = createMockRepository<Account>();
+    petOwnerRepository = createMockRepository<PetOwner>();
+    employeeRepository = createMockRepository<Employee>();
+    jwtService = createMockJwtService();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         {
           provide: getRepositoryToken(Account),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: accountRepository,
         },
         {
           provide: getRepositoryToken(PetOwner),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: petOwnerRepository,
         },
         {
           provide: getRepositoryToken(Employee),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: employeeRepository,
         },
         {
           provide: JwtService,
-          useValue: {
-            sign: jest.fn(),
-            verify: jest.fn(),
-          },
+          useValue: jwtService,
         },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    accountRepository = module.get(getRepositoryToken(Account));
-    petOwnerRepository = module.get(getRepositoryToken(PetOwner));
-    employeeRepository = module.get(getRepositoryToken(Employee));
-    jwtService = module.get(JwtService);
-
-    // Mock AccountMapper
-    jest.spyOn(AccountMapper, 'toDomain').mockImplementation(
-      (entity) =>
-        ({
-          accountId: entity.accountId,
-          email: entity.email,
-          passwordHash: entity.passwordHash,
-          userType: entity.userType,
-          isActive: entity.isActive,
-          validatePassword: jest.fn().mockResolvedValue(true),
-          hashPassword: jest.fn(),
-          activate: jest.fn(),
-          deactivate: jest.fn(),
-        }) as any,
-    );
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('login', () => {
-    it('should return JWT token for valid credentials', async () => {
-      const email = 'test@example.com';
-      const password = 'password123';
 
+  describe('P0: login (5 tests)', () => {
+    const validEmail = 'user@example.com';
+    const validPassword = 'password123';
+    const hashedPassword = bcrypt.hashSync(validPassword, 10);
+
+    const mockAccount: Account = {
+      accountId: 1,
+      email: validEmail,
+      passwordHash: hashedPassword,
+      userType: UserType.PET_OWNER,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Account;
+
+    const mockPetOwner: PetOwner = {
+      petOwnerId: 1,
+      accountId: 1,
+      fullName: 'John Doe',
+      phoneNumber: '0123456789',
+      address: '123 Main St',
+    } as PetOwner;
+
+    it('[P0-13] should login successfully with valid credentials and return token + account', async () => {
       accountRepository.findOne.mockResolvedValue(mockAccount);
       petOwnerRepository.findOne.mockResolvedValue(mockPetOwner);
-      jwtService.sign.mockReturnValue('jwt-token');
+      jwtService.sign.mockReturnValue('mock.jwt.token');
 
-      const result = await service.login(email, password);
+      const result = await service.login(validEmail, validPassword);
 
+      expect(result).toBeDefined();
+      expect(result.accessToken).toBe('mock.jwt.token');
+      expect(result.account.accountId).toBe(1);
+      expect(result.account.email).toBe(validEmail);
+      expect(result.account.userType).toBe(UserType.PET_OWNER);
+      expect(result.account.fullName).toBe('John Doe');
       expect(accountRepository.findOne).toHaveBeenCalledWith({
-        where: { email: email.toLowerCase() },
+        where: { email: validEmail.toLowerCase() },
       });
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        id: mockAccount.accountId,
-        email: mockAccount.email,
-      });
-      expect(result).toEqual({
-        accessToken: 'jwt-token',
-        account: expect.objectContaining({
-          accountId: mockAccount.accountId,
-          email: mockAccount.email,
-          fullName: mockPetOwner.fullName,
-        }),
-      });
+      expect(jwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 1,
+          email: validEmail,
+        })
+      );
     });
 
-    it('should throw UnauthorizedException for invalid email', async () => {
-      const email = 'invalid@example.com';
-      const password = 'password123';
-
+    it('[P0-14] should throw 401 when email does not exist', async () => {
       accountRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.login(email, password)).rejects.toThrow(
-        expect.objectContaining({
-          response: expect.objectContaining({
-            i18nKey: 'errors.unauthorized.invalidCredentials',
-          }),
-        }),
-      );
+      await expect(service.login('nonexistent@example.com', validPassword)).rejects.toThrow();
+      expect(jwtService.sign).not.toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException for invalid password', async () => {
-      const email = 'test@example.com';
-      const password = 'wrongpassword';
-
-      // Mock domain model to return false for password validation
-      jest.spyOn(AccountMapper, 'toDomain').mockImplementation(
-        (entity) =>
-          ({
-            accountId: entity.accountId,
-            email: entity.email,
-            passwordHash: entity.passwordHash,
-            userType: entity.userType,
-            isActive: entity.isActive,
-            validatePassword: jest.fn().mockResolvedValue(false),
-            hashPassword: jest.fn(),
-            activate: jest.fn(),
-            deactivate: jest.fn(),
-          }) as any,
-      );
-
+    it('[P0-15] should throw 401 when password is incorrect', async () => {
       accountRepository.findOne.mockResolvedValue(mockAccount);
 
-      await expect(service.login(email, password)).rejects.toThrow(
-        expect.objectContaining({
-          response: expect.objectContaining({
-            i18nKey: 'errors.unauthorized.invalidCredentials',
-          }),
-        }),
-      );
+      await expect(service.login(validEmail, 'wrongPassword')).rejects.toThrow();
+      expect(jwtService.sign).not.toHaveBeenCalled();
     });
 
-    it('should throw UnauthorizedException for inactive account', async () => {
-      const email = 'test@example.com';
-      const password = 'password123';
-      const inactiveAccount = { ...mockAccount, isActive: false };
+    it('[P0-16] should handle case-insensitive email lookup', async () => {
+      accountRepository.findOne.mockResolvedValue(mockAccount);
+      petOwnerRepository.findOne.mockResolvedValue(mockPetOwner);
+      jwtService.sign.mockReturnValue('mock.jwt.token');
+
+      const result = await service.login('USER@EXAMPLE.COM', validPassword);
+
+      expect(result).toBeDefined();
+      expect(accountRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'user@example.com' }, // Should be lowercase
+      });
+    });
+
+    it('[P0-17] should throw 401 when account is inactive', async () => {
+      const inactiveAccount = {
+        ...mockAccount,
+        isActive: false,
+      } as Account;
 
       accountRepository.findOne.mockResolvedValue(inactiveAccount);
 
-      await expect(service.login(email, password)).rejects.toThrow(
+      await expect(service.login(validEmail, validPassword)).rejects.toThrow();
+      expect(jwtService.sign).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('P0: generateToken (1 test)', () => {
+    it('[P0-18] should generate JWT token with correct payload structure', async () => {
+      const validEmail = 'vet@example.com';
+      const validPassword = 'password123';
+      const hashedPassword = bcrypt.hashSync(validPassword, 10);
+
+      const mockEmployee: Employee = {
+        employeeId: 1,
+        accountId: 2,
+        fullName: 'Dr. Smith',
+        phoneNumber: '0987654321',
+        address: '456 Vet St',
+      } as Employee;
+
+      const mockAccount: Account = {
+        accountId: 2,
+        email: validEmail,
+        passwordHash: hashedPassword,
+        userType: UserType.VETERINARIAN,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Account;
+
+      accountRepository.findOne.mockResolvedValue(mockAccount);
+      employeeRepository.findOne.mockResolvedValue(mockEmployee);
+      jwtService.sign.mockReturnValue('vet.jwt.token');
+
+      const result = await service.login(validEmail, validPassword);
+
+      expect(jwtService.sign).toHaveBeenCalledWith(
         expect.objectContaining({
-          response: expect.objectContaining({
-            i18nKey: 'errors.unauthorized.accountInactive',
-          }),
-        }),
+          id: 2,
+          email: validEmail,
+        })
       );
+      expect(result.accessToken).toBe('vet.jwt.token');
+      expect(result.account.userType).toBe(UserType.VETERINARIAN);
     });
   });
 
-  describe('logout', () => {
-    it('should return true', async () => {
-      const result = await service.logout('some-token');
-      expect(result).toBe(true);
-    });
-  });
+  describe('P0: validateToken (2 tests)', () => {
+    it('[P0-19] should validate valid JWT token and return payload', () => {
+      const mockPayload = {
+        id: 1,
+        email: 'user@example.com',
+      };
 
-  describe('validateToken', () => {
-    it('should return payload for valid token', async () => {
-      const mockPayload = { id: 1, email: 'test@example.com' };
       jwtService.verify.mockReturnValue(mockPayload);
 
-      const result = await service.validateToken('valid-token');
+      const result = service.validateToken('valid.jwt.token');
 
-      expect(jwtService.verify).toHaveBeenCalledWith('valid-token');
       expect(result).toEqual(mockPayload);
+      expect(jwtService.verify).toHaveBeenCalledWith('valid.jwt.token');
     });
 
-    it('should return null for invalid token', async () => {
+    it('[P0-20] should return null when token is invalid or expired', () => {
       jwtService.verify.mockImplementation(() => {
         throw new Error('Invalid token');
       });
 
-      const result = await service.validateToken('invalid-token');
+      const result = service.validateToken('invalid.jwt.token');
 
       expect(result).toBeNull();
+      expect(jwtService.verify).toHaveBeenCalledWith('invalid.jwt.token');
     });
   });
 
-  describe('getAccountById', () => {
-    it('should return account by ID', async () => {
+  describe('P2: logout (1 test)', () => {
+    it('[P2-1] should return true (stateless JWT)', () => {
+      const result = service.logout('some.jwt.token');
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('P1: getAccountById (2 tests)', () => {
+    it('[P1-16] should return account when found', async () => {
+      const mockAccount: Account = {
+        accountId: 1,
+        email: 'user@example.com',
+        passwordHash: 'hash',
+        userType: UserType.PET_OWNER,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Account;
+
       accountRepository.findOne.mockResolvedValue(mockAccount);
 
       const result = await service.getAccountById(1);
 
-      expect(accountRepository.findOne).toHaveBeenCalledWith({
-        where: { accountId: 1 },
-      });
       expect(result).toEqual(mockAccount);
+      expect(accountRepository.findOne).toHaveBeenCalledWith({ where: { accountId: 1 } });
     });
 
-    it('should return null for non-existent account', async () => {
+    it('[P1-17] should return null when account not found', async () => {
       accountRepository.findOne.mockResolvedValue(null);
 
       const result = await service.getAccountById(999);

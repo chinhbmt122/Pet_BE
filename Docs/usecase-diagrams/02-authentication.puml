@@ -1,0 +1,36 @@
+@startuml UC-02-Authentication-Access-Control
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Authentication & Access Control
+
+' PRIMARY ACTORS (LEFT) - Using generalization to reduce clutter
+actor "System User" as User
+actor "Manager" as Manager
+actor "Pet Owner" as Customer
+actor "Veterinarian" as Vet
+actor "Care Staff" as Staff
+actor "Receptionist" as Receptionist
+
+' ACTOR GENERALIZATIONS
+Manager --|> User
+Customer --|> User
+Vet --|> User
+Staff --|> User
+Receptionist --|> User
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-07\nLog In" as UC07
+  usecase "UC-08\nLog Out" as UC08
+  usecase "UC-09\nReset Password" as UC09
+}
+
+' ASSOCIATIONS - Cleaner: one parent actor connects to all
+User -- UC07
+User -- UC08
+User -- UC09
+
+@enduml

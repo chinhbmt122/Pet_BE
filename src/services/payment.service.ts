@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
@@ -10,7 +10,6 @@ import {
 } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
-import { UserType } from '../entities/account.entity';
 import type {
   IPaymentGatewayService,
   PaymentCallbackData,
@@ -24,7 +23,10 @@ import {
   GetPaymentHistoryQueryDto,
 } from '../dto/payment';
 import { VNPayService } from './vnpay.service';
-import { EmailService } from './email.service';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
  * PaymentService (PaymentManager)
@@ -34,11 +36,11 @@ import { EmailService } from './email.service';
  * Integrates with payment gateways via IPaymentGatewayService interface.
  * Manages payment callbacks and transaction records.
  * Uses Active Record pattern with business logic in entities.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class PaymentService {
-  private readonly logger = new Logger(PaymentService.name);
-
   // Remove this for production
   DEFAULT_GATEWAY = PaymentMethod.VNPAY;
   TAX_RATE = 0.1;
@@ -53,7 +55,7 @@ export class PaymentService {
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly vnpayService: VNPayService,
-    private readonly emailService: EmailService,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
@@ -139,7 +141,7 @@ export class PaymentService {
    */
   async initiateOnlinePayment(
     dto: InitiateOnlinePaymentDto,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<{ paymentUrl: string; paymentId: number }> {
     // 1. Find invoice with appointment and pet relations
     const invoice = await this.invoiceRepository.findOne({
@@ -153,20 +155,11 @@ export class PaymentService {
       });
     }
 
-    // 2. If PET_OWNER, validate they own this invoice
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        invoice.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoice', {
-          id: dto.invoiceId,
-        });
-      }
-    }
+    // 2. Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      invoice.appointment,
+      user,
+    );
 
     // 3. Check for existing processing payment and cancel it (allow re-initiation)
     const existingPayment = await this.paymentRepository.findOne({
@@ -256,13 +249,7 @@ export class PaymentService {
     const paymentId = parseInt(callbackDto.vnp_TxnRef);
     const payment = await this.paymentRepository.findOne({
       where: { paymentId },
-      relations: [
-        'invoice',
-        'invoice.appointment',
-        'invoice.appointment.pet',
-        'invoice.appointment.pet.owner',
-        'invoice.appointment.pet.owner.account',
-      ],
+      relations: ['invoice'],
     });
 
     if (!payment) {
@@ -295,62 +282,6 @@ export class PaymentService {
       verification.rawData,
       new Date(),
     );
-
-    // 6. Send email notification
-    try {
-      const owner = invoice.appointment?.pet?.owner;
-      const account = owner?.account;
-
-      if (account && owner) {
-        if (verification.status === 'SUCCESS') {
-          // Send payment success email
-          const paymentDate = payment.paidAt || new Date();
-          const formattedDate = paymentDate.toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          });
-          const formattedAmount = new Intl.NumberFormat('vi-VN').format(payment.amount);
-          
-          await this.emailService.sendPaymentConfirmationEmail(
-            account.email,
-            {
-              ownerName: owner.fullName,
-              invoiceNumber: invoice.invoiceNumber,
-              amount: `${formattedAmount} VNĐ`,
-              paymentMethod: this.translatePaymentMethod(payment.paymentMethod),
-              transactionId: payment.transactionId || 'N/A',
-              paymentDate: formattedDate,
-            },
-          );
-
-          this.logger.log(
-            `Sent payment confirmation email to ${account.email} for payment ${paymentId}`,
-          );
-        } else {
-          // Send payment failed email
-          const formattedAmount = new Intl.NumberFormat('vi-VN').format(payment.amount);
-          
-          await this.emailService.sendPaymentFailedEmail(account.email, {
-            ownerName: owner.fullName,
-            invoiceNumber: invoice.invoiceNumber,
-            amount: formattedAmount,
-            failureReason: verification.message || 'Giao dịch không thành công',
-            retryUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${invoice.invoiceId}`,
-          });
-
-          this.logger.log(
-            `Sent payment failed email to ${account.email} for payment ${paymentId}`,
-          );
-        }
-      }
-    } catch (emailError) {
-      this.logger.error(
-        `Failed to send payment email for payment ${paymentId}: ${emailError.message}`,
-        emailError.stack,
-      );
-      // Don't fail the callback if email fails
-    }
 
     return {
       success: verification.status === 'SUCCESS',
@@ -393,13 +324,7 @@ export class PaymentService {
       const paymentId = parseInt(ipnDto.vnp_TxnRef);
       const payment = await this.paymentRepository.findOne({
         where: { paymentId },
-        relations: [
-          'invoice',
-          'invoice.appointment',
-          'invoice.appointment.pet',
-          'invoice.appointment.pet.owner',
-          'invoice.appointment.pet.owner.account',
-        ],
+        relations: ['invoice'],
       });
 
       // 4. If payment not found, return error response
@@ -458,66 +383,7 @@ export class PaymentService {
 
       console.log('IPN processed successfully');
 
-      // 10. Send email notification (async, don't block IPN response)
-      const owner = payment.invoice?.appointment?.pet?.owner;
-      const account = owner?.account;
-
-      if (account && owner) {
-        // Send email asynchronously without blocking IPN response
-        setImmediate(async () => {
-          try {
-            if (verification.status === 'SUCCESS') {
-              const paymentDate = payment.paidAt || new Date();
-              const formattedDate = paymentDate.toLocaleDateString('vi-VN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-              });
-              const formattedAmount = new Intl.NumberFormat('vi-VN').format(payment.amount);
-              
-              await this.emailService.sendPaymentConfirmationEmail(
-                account.email,
-                {
-                  ownerName: owner.fullName,
-                  invoiceNumber: payment.invoice.invoiceNumber,
-                  amount: `${formattedAmount} VNĐ`,
-                  paymentMethod: this.translatePaymentMethod(
-                    payment.paymentMethod,
-                  ),
-                  transactionId: payment.transactionId || 'N/A',
-                  paymentDate: formattedDate,
-                },
-              );
-
-              this.logger.log(
-                `[IPN] Sent payment confirmation email to ${account.email} for payment ${paymentId}`,
-              );
-            } else {
-              const formattedAmount = new Intl.NumberFormat('vi-VN').format(payment.amount);
-              
-              await this.emailService.sendPaymentFailedEmail(account.email, {
-                ownerName: owner.fullName,
-                invoiceNumber: payment.invoice.invoiceNumber,
-                amount: formattedAmount,
-                failureReason:
-                  verification.message || 'Giao dịch không thành công',
-                retryUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${payment.invoice.invoiceId}`,
-              });
-
-              this.logger.log(
-                `[IPN] Sent payment failed email to ${account.email} for payment ${paymentId}`,
-              );
-            }
-          } catch (emailError: any) {
-            this.logger.error(
-              `[IPN] Failed to send payment email for payment ${paymentId}: ${emailError.message}`,
-              emailError.stack,
-            );
-          }
-        });
-      }
-
-      // 11. Return success response to VNPay
+      // 10. Return success response to VNPay
       return this.vnpayService.generateIpnResponse(
         true,
         verification.status === 'SUCCESS' ? 'Order confirmed' : 'Order failed',
@@ -632,10 +498,7 @@ export class PaymentService {
    * Generates payment receipt with transaction details.
    * If PET_OWNER, validates they own the invoice.
    */
-  async generateReceipt(
-    paymentId: number,
-    user?: { accountId: number; userType: UserType },
-  ): Promise<any> {
+  async generateReceipt(paymentId: number, user?: UserContext): Promise<any> {
     const payment = await this.paymentRepository.findOne({
       where: { paymentId },
       relations: [
@@ -652,22 +515,23 @@ export class PaymentService {
       });
     }
 
-    // If PET_OWNER, validate they own the invoice
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        payment.invoice?.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.payment', {
-          id: paymentId,
-        });
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      payment.invoice?.appointment,
+      user,
+    );
 
     // Build receipt object
+    const appointmentServices =
+      payment.invoice.appointment?.appointmentServices || [];
+    const services = appointmentServices
+      .filter((as) => as.service)
+      .map((as) => ({
+        serviceId: as.service.serviceId,
+        serviceName: as.service.serviceName,
+        basePrice: Number(as.service.basePrice),
+      }));
+
     const receipt = {
       receiptNumber: `RCP-${paymentId}`,
       paymentId: payment.paymentId,
@@ -677,7 +541,7 @@ export class PaymentService {
       amount: payment.amount,
       transactionId: payment.transactionId,
       status: payment.paymentStatus,
-      service: payment.invoice.appointment?.service?.serviceName,
+      services, // ALL services
       petName: payment.invoice.appointment?.pet?.name,
       notes: payment.notes,
     };
@@ -789,23 +653,5 @@ export class PaymentService {
       .getMany();
 
     return entities.map((entity) => PaymentResponseDto.fromEntity(entity));
-  }
-
-  // ============================================
-  // HELPER METHODS
-  // ============================================
-
-  /**
-   * Translates payment method enum to Vietnamese
-   */
-  private translatePaymentMethod(method: PaymentMethod): string {
-    const translations: Record<PaymentMethod, string> = {
-      [PaymentMethod.CASH]: 'Tiền mặt',
-      [PaymentMethod.BANK_TRANSFER]: 'Chuyển khoản ngân hàng',
-      [PaymentMethod.VNPAY]: 'VNPay',
-      [PaymentMethod.MOMO]: 'MoMo',
-      [PaymentMethod.ZALOPAY]: 'ZaloPay',
-    };
-    return translations[method] || method;
   }
 }

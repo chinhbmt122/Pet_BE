@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, EntityManager } from 'typeorm';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
-import { InvoiceItem } from '../entities/invoice-item.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import {
@@ -13,24 +12,29 @@ import {
   CustomerStatisticsResponseDto,
 } from '../dto/invoice';
 import { UserType } from '../entities/account.entity';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
  * InvoiceService (Active Record Pattern)
  *
  * Manages invoices with business logic in Invoice entity.
  * Handles invoice creation, payment status transitions, and calculations.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class InvoiceService {
   constructor(
     @InjectRepository(Invoice)
     private readonly invoiceRepository: Repository<Invoice>,
-    @InjectRepository(InvoiceItem)
-    private readonly invoiceItemRepository: Repository<InvoiceItem>,
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
@@ -58,14 +62,23 @@ export class InvoiceService {
 
   /**
    * Creates a new invoice for an appointment
-   * NOTE: In production, this would calculate amounts from appointment service.
-   * For now, we expect the caller to provide calculated amounts.
+   * Supports transactional context via optional EntityManager
+   *
+   * @param dto Invoice creation data
+   * @param transactionManager Optional EntityManager for transactional operations
+   * @returns Created invoice DTO
    */
-  async createInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
+  async createInvoice(
+    dto: CreateInvoiceDto,
+    transactionManager?: EntityManager,
+  ): Promise<InvoiceResponseDto> {
+    // Use transaction manager if provided, otherwise use default repository
+    const manager = transactionManager || this.appointmentRepository.manager;
+
     // Verify appointment exists
-    const appointment = await this.appointmentRepository.findOne({
+    const appointment = await manager.findOne(Appointment, {
       where: { appointmentId: dto.appointmentId },
-      relations: ['service'],
+      relations: ['appointmentServices', 'appointmentServices.service'],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -74,7 +87,7 @@ export class InvoiceService {
     }
 
     // Check if invoice already exists for this appointment
-    const existingInvoice = await this.invoiceRepository.findOne({
+    const existingInvoice = await manager.findOne(Invoice, {
       where: { appointmentId: dto.appointmentId },
     });
     if (existingInvoice) {
@@ -83,9 +96,15 @@ export class InvoiceService {
       });
     }
 
-    // Calculate invoice amounts from service
-    const servicePrice = Number(appointment.service.basePrice);
-    const subtotal = servicePrice;
+    // Calculate invoice amounts from appointment services
+    // Use appointmentServices pricing if available
+    const subtotal =
+      appointment.appointmentServices?.length > 0
+        ? appointment.appointmentServices.reduce(
+            (sum, as) => sum + Number(as.unitPrice) * as.quantity,
+            0,
+          )
+        : Number(appointment.actualCost) || 0;
 
     // Apply discount (TODO: implement discount code lookup)
     let discount = 0;
@@ -102,11 +121,11 @@ export class InvoiceService {
     // Calculate total
     const totalAmount = subtotal - discount + tax;
 
-    // Generate invoice number
-    const invoiceNumber = await this.generateInvoiceNumber();
+    // Generate invoice number (thread-safe within transaction)
+    const invoiceNumber = await this.generateInvoiceNumber(manager);
 
     // Create invoice entity
-    const entity = this.invoiceRepository.create({
+    const entity = manager.create(Invoice, {
       appointmentId: dto.appointmentId,
       invoiceNumber,
       issueDate: new Date(),
@@ -118,77 +137,29 @@ export class InvoiceService {
       status: InvoiceStatus.PENDING,
     });
 
-    // Save invoice first to get the invoiceId
-    const saved = await this.invoiceRepository.save(entity);
-
-    // Create invoice items
-    const items: InvoiceItem[] = [];
-    
-    // Add main service as first item
-    const serviceItem = this.invoiceItemRepository.create({
-      invoiceId: saved.invoiceId,
-      description: appointment.service.serviceName,
-      quantity: 1,
-      unitPrice: servicePrice,
-      amount: servicePrice,
-      itemType: 'SERVICE',
-      serviceId: appointment.service.serviceId,
-    });
-    items.push(serviceItem);
-
-    // Add additional items from notes if any (parse notes for additional services)
-    // Example: "Thêm dịch vụ massage +30k" -> create item for massage
-    if (dto.notes) {
-      const additionalItems = this.parseAdditionalServicesFromNotes(dto.notes, saved.invoiceId);
-      items.push(...additionalItems);
-    }
-
-    // Save all items
-    if (items.length > 0) {
-      await this.invoiceItemRepository.save(items);
-    }
-
+    // Save and return
+    const saved = await manager.save(Invoice, entity);
     return InvoiceResponseDto.fromEntity(saved);
   }
 
   /**
-   * Parse additional services from notes string
-   * Example: "Thêm dịch vụ massage +30k" -> { description: "Massage", unitPrice: 30000 }
-   */
-  private parseAdditionalServicesFromNotes(notes: string, invoiceId: number): InvoiceItem[] {
-    const items: InvoiceItem[] = [];
-    
-    // Pattern: "Thêm dịch vụ [name] +[price]k"
-    const pattern = /Thêm dịch vụ\s+([^+]+)\s*\+(\d+)k/gi;
-    let match;
-    
-    while ((match = pattern.exec(notes)) !== null) {
-      const description = match[1].trim();
-      const price = parseInt(match[2]) * 1000; // Convert k to full amount
-      
-      const item = this.invoiceItemRepository.create({
-        invoiceId,
-        description,
-        quantity: 1,
-        unitPrice: price,
-        amount: price,
-        itemType: 'ADDITIONAL',
-      });
-      items.push(item);
-    }
-    
-    return items;
-  }
-
-  /**
    * Generate unique invoice number in format: INV-YYYYMMDD-00001
+   * Thread-safe within transaction context
+   *
+   * @param manager EntityManager for transaction context
    */
-  private async generateInvoiceNumber(): Promise<string> {
+  private async generateInvoiceNumber(
+    manager?: EntityManager,
+  ): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
 
+    const repo = manager
+      ? manager.getRepository(Invoice)
+      : this.invoiceRepository;
+
     // Find the latest invoice number for today
-    const latestInvoice = await this.invoiceRepository
+    const latestInvoice = await repo
       .createQueryBuilder('invoice')
       .where('invoice.invoiceNumber LIKE :pattern', {
         pattern: `INV-${dateStr}-%`,
@@ -243,32 +214,27 @@ export class InvoiceService {
    */
   async getInvoiceById(
     invoiceId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
+      relations: [
+        'appointment',
+        'appointment.appointmentServices',
+        'appointment.appointmentServices.service',
+        'appointment.pet',
+        'appointment.pet.owner',
+      ],
     });
     if (!entity) {
       I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
-    // If PET_OWNER, validate ownership via appointment → pet → owner
-    if (user && user.userType === UserType.PET_OWNER) {
-      const appointment = await this.appointmentRepository.findOne({
-        where: { appointmentId: entity.appointmentId },
-        relations: ['pet'],
-      });
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        !appointment ||
-        appointment.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
-      }
-    }
+    // Validate ownership via helper (handles PET_OWNER check internally)
+    await this.ownershipHelper.validateAppointmentOwnership(
+      entity.appointment,
+      user,
+    );
 
     return InvoiceResponseDto.fromEntity(entity);
   }
@@ -279,11 +245,17 @@ export class InvoiceService {
    */
   async getInvoiceByNumber(
     invoiceNumber: string,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceNumber },
-      relations: ['appointment', 'appointment.pet'],
+      relations: [
+        'appointment',
+        'appointment.appointmentServices',
+        'appointment.appointmentServices.service',
+        'appointment.pet',
+        'appointment.pet.owner',
+      ],
     });
     if (!entity) {
       I18nException.notFound('errors.notFound.invoiceByNumber', {
@@ -291,20 +263,11 @@ export class InvoiceService {
       });
     }
 
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoiceByNumber', {
-          number: invoiceNumber,
-        });
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      entity.appointment,
+      user,
+    );
 
     return InvoiceResponseDto.fromEntity(entity);
   }
@@ -317,6 +280,13 @@ export class InvoiceService {
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { appointmentId },
+      relations: [
+        'appointment',
+        'appointment.appointmentServices',
+        'appointment.appointmentServices.service',
+        'appointment.pet',
+        'appointment.pet.owner',
+      ],
     });
     if (!entity) {
       I18nException.notFound('errors.notFound.invoiceByAppointment', {
@@ -371,6 +341,11 @@ export class InvoiceService {
       // Include related entities if requested
       if (filters?.includeAppointment) {
         qb.leftJoinAndSelect('invoice.appointment', 'appointment');
+        qb.leftJoinAndSelect(
+          'appointment.appointmentServices',
+          'appointmentServices',
+        );
+        qb.leftJoinAndSelect('appointmentServices.service', 'service');
 
         if (filters?.includePet) {
           qb.leftJoinAndSelect('appointment.pet', 'pet');
@@ -408,8 +383,11 @@ export class InvoiceService {
     // Include related entities if requested
     if (filters?.includeAppointment) {
       qb.leftJoinAndSelect('invoice.appointment', 'appointment');
-      qb.leftJoinAndSelect('appointment.service', 'service');
-      qb.leftJoinAndSelect('invoice.items', 'items');
+      qb.leftJoinAndSelect(
+        'appointment.appointmentServices',
+        'appointmentServices',
+      );
+      qb.leftJoinAndSelect('appointmentServices.service', 'service');
 
       if (filters?.includePet) {
         qb.leftJoinAndSelect('appointment.pet', 'pet');
@@ -522,6 +500,7 @@ export class InvoiceService {
       .groupBy('owner.petOwnerId')
       .getRawMany();
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return CustomerStatisticsResponseDto.fromRawList(result);
   }
 
@@ -570,7 +549,7 @@ export class InvoiceService {
    */
   async markAsProcessing(
     invoiceId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<InvoiceResponseDto> {
     const entity = await this.invoiceRepository.findOne({
       where: { invoiceId },
@@ -580,18 +559,11 @@ export class InvoiceService {
       I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
     }
 
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (
-        !petOwner ||
-        entity.appointment?.pet?.ownerId !== petOwner.petOwnerId
-      ) {
-        I18nException.notFound('errors.notFound.invoice', { id: invoiceId });
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validateAppointmentOwnership(
+      entity.appointment,
+      user,
+    );
 
     // Use entity business method
     entity.markAsProcessing();

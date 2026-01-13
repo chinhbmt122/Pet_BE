@@ -1,121 +1,125 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang='vi'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: #ffffff;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
-        }
-        .content {
-            padding: 40px 30px;
-        }
-        .content h2 {
-            color: #28a745;
-            font-size: 22px;
-            margin-top: 0;
-        }
-        .success-icon {
-            text-align: center;
-            font-size: 60px;
-            margin: 20px 0;
-        }
-        .info-box {
-            background-color: #d4edda;
-            border-left: 4px solid #28a745;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        .detail-row {
-            display: flex;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .detail-label {
-            font-weight: 600;
-            min-width: 140px;
-            color: #555;
-        }
-        .detail-value {
-            color: #333;
-        }
-        .footer {
-            background-color: #f8f9fa;
-            padding: 20px 30px;
-            text-align: center;
-            font-size: 14px;
-            color: #666;
-        }
+      body {
+        font-family: 'Arial', sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: #ffffff;
+        padding: 30px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 600;
+      }
+      .content {
+        padding: 40px 30px;
+      }
+      .content h2 {
+        color: #28a745;
+        font-size: 22px;
+        margin-top: 0;
+      }
+      .success-icon {
+        text-align: center;
+        font-size: 60px;
+        margin: 20px 0;
+      }
+      .info-box {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+      .detail-row {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .detail-label {
+        font-weight: 600;
+        min-width: 140px;
+        color: #555;
+      }
+      .detail-value {
+        color: #333;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        padding: 20px 30px;
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+      }
     </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🐾 {{appName}}</h1>
-        </div>
-        <div class="content">
-            <div class="success-icon">✅</div>
-            <h2 style="text-align: center;">Thanh toán thành công!</h2>
-            <p>Xin chào <strong>{{ownerName}}</strong>,</p>
-            <p>Chúng tôi đã nhận được thanh toán của bạn. Cảm ơn bạn đã tin tưởng sử dụng dịch vụ của PAW LOVERS!</p>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <h1>🐾 {{appName}}</h1>
+      </div>
+      <div class='content'>
+        <div class='success-icon'>✅</div>
+        <h2 style='text-align: center;'>Thanh toán thành công!</h2>
+        <p>Xin chào <strong>{{ownerName}}</strong>,</p>
+        <p>Chúng tôi đã nhận được thanh toán của bạn. Cảm ơn bạn đã tin tưởng sử
+          dụng dịch vụ của PAW LOVERS!</p>
 
-            <div class="info-box">
-                <h3 style="margin-top: 0; color: #28a745;">💳 Chi tiết thanh toán:</h3>
-                <div class="detail-row">
-                    <div class="detail-label">Số hóa đơn:</div>
-                    <div class="detail-value"><strong>{{invoiceNumber}}</strong></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Số tiền:</div>
-                    <div class="detail-value"><strong style="color: #28a745; font-size: 18px;">{{amount}}</strong></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Phương thức:</div>
-                    <div class="detail-value">{{paymentMethod}}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Mã giao dịch:</div>
-                    <div class="detail-value">{{transactionId}}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Ngày thanh toán:</div>
-                    <div class="detail-value">{{paymentDate}}</div>
-                </div>
-            </div>
+        <div class='info-box'>
+          <h3 style='margin-top: 0; color: #28a745;'>💳 Chi tiết thanh toán:</h3>
+          <div class='detail-row'>
+            <div class='detail-label'>Số hóa đơn:</div>
+            <div class='detail-value'><strong>{{invoiceNumber}}</strong></div>
+          </div>
+          <div class='detail-row'>
+            <div class='detail-label'>Số tiền:</div>
+            <div class='detail-value'><strong
+                style='color: #28a745; font-size: 18px;'
+              >{{amount}}</strong></div>
+          </div>
+          <div class='detail-row'>
+            <div class='detail-label'>Phương thức:</div>
+            <div class='detail-value'>{{paymentMethod}}</div>
+          </div>
+          <div class='detail-row'>
+            <div class='detail-label'>Mã giao dịch:</div>
+            <div class='detail-value'>{{transactionId}}</div>
+          </div>
+          <div class='detail-row'>
+            <div class='detail-label'>Ngày thanh toán:</div>
+            <div class='detail-value'>{{paymentDate}}</div>
+          </div>
+        </div>
 
-            <p>Bạn có thể xem chi tiết hóa đơn trong tài khoản của mình hoặc chờ email hóa đơn riêng biệt.</p>
-            
-            <p style="margin-top: 30px;">Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
-        </div>
-        <div class="footer">
-            <p>&copy; {{currentYear}} {{appName}}. Mọi quyền được bảo lưu.</p>
-            <p>Email này được gửi tự động, vui lòng không trả lời.</p>
-        </div>
+        <p>Bạn có thể xem chi tiết hóa đơn trong tài khoản của mình hoặc chờ
+          email hóa đơn riêng biệt.</p>
+
+        <p style='margin-top: 30px;'>Cảm ơn bạn đã sử dụng dịch vụ của chúng
+          tôi!</p>
+      </div>
+      <div class='footer'>
+        <p>&copy; {{currentYear}} {{appName}}. Mọi quyền được bảo lưu.</p>
+        <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+      </div>
     </div>
-</body>
+  </body>
 </html>

@@ -1,0 +1,95 @@
+@startuml EXAMPLE-Best-Practice-Use-Case-Diagram
+' This is a REFERENCE EXAMPLE showing ALL best practices
+
+!theme plain
+skinparam packageStyle rectangle
+left to right direction
+
+title Use Case Diagram Best Practice Example
+
+' ============================================
+' PRIMARY ACTORS (LEFT SIDE)
+' ============================================
+actor ":Customer:" as Customer
+actor ":Staff:" as Staff
+actor ":Manager:" as Manager
+
+' Actor Generalization (Manager IS-A Staff)
+Manager --|> Staff
+
+' ============================================
+' SYSTEM BOUNDARY
+' ============================================
+rectangle "E-Commerce System" {
+  
+  ' Main use cases
+  usecase "Browse Products" as UC1
+  usecase "Add to Cart" as UC2
+  usecase "Checkout" as UC3
+  usecase "Make Payment" as UC4
+  usecase "Apply Discount" as UC5
+  usecase "Process Credit Card" as UC6
+  usecase "Process PayPal" as UC7
+  usecase "Generate Invoice" as UC8
+  usecase "View Order History" as UC9
+  usecase "Cancel Order" as UC10
+  
+  ' Use case relationships
+  UC3 ..> UC4 : <<include>>
+  note on link: Checkout ALWAYS\nincludes payment
+  
+  UC5 ..> UC3 : <<extend>>
+  note on link: Discount is\nOPTIONAL
+  
+  UC6 --|> UC4
+  UC7 --|> UC4
+  note on link: Specialized\npayment methods
+  
+  UC3 ..> UC8 : <<include>>
+}
+
+' ============================================
+' SECONDARY ACTORS (RIGHT SIDE)
+' ============================================
+actor ":Payment Gateway:" as PaymentGW <<system>>
+actor ":Email Service:" as Email <<system>>
+
+' ============================================
+' ASSOCIATIONS
+' ============================================
+' Primary actors to use cases
+Customer -- UC1
+Customer -- UC2
+Customer -- UC3
+Customer -- UC9
+Customer -- UC10
+
+Staff -- UC9
+Manager -- UC10
+
+' Secondary actors to use cases
+UC4 -- PaymentGW
+UC8 -- Email
+
+' ============================================
+' NOTES & ANNOTATIONS
+' ============================================
+note top of UC5
+  Extension point: after total calculated
+  Condition: customer has valid coupon
+end note
+
+note bottom of Manager
+  Inherits all Staff permissions
+  + additional admin rights
+end note
+
+legend bottom left
+  **Relationship Types:**
+  ─────── Association (actor ↔ use case)
+  ──────> <<include>> (mandatory sub-behavior)
+  ──────> <<extend>> (optional behavior)
+  ──────▷ Generalization (inheritance)
+endlegend
+
+@enduml

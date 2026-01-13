@@ -1,4 +1,9 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableForeignKey,
+} from 'typeorm';
 
 export class AddMultipleServicesSupport20260113003027 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -94,14 +99,18 @@ export class AddMultipleServicesSupport20260113003027 implements MigrationInterf
     `);
 
     console.log('✅ Multi-service support added successfully');
-    console.log('✅ Existing appointments migrated to appointment_services table');
+    console.log(
+      '✅ Existing appointments migrated to appointment_services table',
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign keys
-    const appointmentServicesTable = await queryRunner.getTable('appointment_services');
+    const appointmentServicesTable = await queryRunner.getTable(
+      'appointment_services',
+    );
     const foreignKeys = appointmentServicesTable?.foreignKeys;
-    
+
     if (foreignKeys) {
       for (const fk of foreignKeys) {
         await queryRunner.dropForeignKey('appointment_services', fk);
@@ -109,7 +118,9 @@ export class AddMultipleServicesSupport20260113003027 implements MigrationInterf
     }
 
     // Drop index
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_appointment_services_appointmentId"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_appointment_services_appointmentId"`,
+    );
 
     // Drop table
     await queryRunner.dropTable('appointment_services');

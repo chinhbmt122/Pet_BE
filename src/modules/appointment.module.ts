@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppointmentController } from '../controllers/appointment.controller';
@@ -11,6 +11,7 @@ import { Service } from '../entities/service.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { AppointmentFactory } from '../factories/appointment.factory';
 import { EmailModule } from './email.module';
+import { PaymentModule } from './payment.module';
 
 /**
  * AppointmentModule
@@ -18,6 +19,9 @@ import { EmailModule } from './email.module';
  * Handles appointment booking, cancellation, and status updates.
  * Manages appointment lifecycle: Pending → Confirmed → In-Progress → Completed/Cancelled.
  * Coordinates with ScheduleManager for availability and NotificationService for confirmations.
+ *
+ * Integrates with PaymentModule for automatic invoice generation on appointment completion.
+ * Supports multiple services per appointment through AppointmentService junction entity.
  */
 @Module({
   imports: [
@@ -31,6 +35,7 @@ import { EmailModule } from './email.module';
     ]),
     ScheduleModule.forRoot(),
     EmailModule,
+    forwardRef(() => PaymentModule), // Circular dependency: PaymentModule also uses Appointment
   ],
   controllers: [AppointmentController],
   providers: [AppointmentService, AppointmentFactory],

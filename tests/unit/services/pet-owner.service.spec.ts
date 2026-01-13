@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PetOwnerService } from '../../../src/services/pet-owner.service';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
@@ -11,12 +11,21 @@ import { Pet } from '../../../src/entities/pet.entity';
 import { AccountFactory } from '../../../src/factories/account.factory';
 import { PetOwnerFactory } from '../../../src/factories/pet-owner.factory';
 
+// ===== Use new test helpers =====
+import { createMockRepository, createMockDataSource } from '../../helpers';
+
 describe('PetOwnerService', () => {
   let service: PetOwnerService;
-  let petOwnerRepository: jest.Mocked<Repository<PetOwner>>;
-  let accountRepository: jest.Mocked<Repository<Account>>;
+
+  // ===== Use helper types for cleaner declarations =====
+  let petOwnerRepository: ReturnType<typeof createMockRepository<PetOwner>>;
+  let accountRepository: ReturnType<typeof createMockRepository<Account>>;
+  let appointmentRepository: ReturnType<typeof createMockRepository<Appointment>>;
+  let invoiceRepository: ReturnType<typeof createMockRepository<Invoice>>;
+  let petRepository: ReturnType<typeof createMockRepository<Pet>>;
   let accountFactory: jest.Mocked<AccountFactory>;
   let petOwnerFactory: jest.Mocked<PetOwnerFactory>;
+  let dataSource: ReturnType<typeof createMockDataSource>;
 
   const mockAccount: Account = {
     accountId: 1,
@@ -40,54 +49,46 @@ describe('PetOwnerService', () => {
   } as PetOwner;
 
   beforeEach(async () => {
+    // ===== Use shared helpers =====
+    petOwnerRepository = createMockRepository<PetOwner>();
+    accountRepository = createMockRepository<Account>();
+    appointmentRepository = createMockRepository<Appointment>();
+    invoiceRepository = createMockRepository<Invoice>();
+    petRepository = createMockRepository<Pet>();
+
+    // Custom DataSource mock for transaction behavior
+    dataSource = createMockDataSource({
+      managerMocks: {
+        save: jest.fn().mockImplementation((entity, data) => {
+          if (entity === Account) return mockAccount;
+          if (entity === PetOwner) return mockPetOwner;
+          return data;
+        }),
+      },
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PetOwnerService,
         {
           provide: getRepositoryToken(PetOwner),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-            update: jest.fn(),
-            softDelete: jest.fn(),
-          },
+          useValue: petOwnerRepository,
         },
         {
           provide: getRepositoryToken(Account),
-          useValue: {
-            findOne: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: accountRepository,
         },
         {
           provide: getRepositoryToken(Appointment),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: appointmentRepository,
         },
         {
           provide: getRepositoryToken(Invoice),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: invoiceRepository,
         },
         {
           provide: getRepositoryToken(Pet),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: petRepository,
         },
         {
           provide: AccountFactory,
@@ -103,34 +104,23 @@ describe('PetOwnerService', () => {
         },
         {
           provide: DataSource,
-          useValue: {
-            transaction: jest.fn((callback) =>
-              callback({
-                save: jest.fn().mockImplementation((entity, data) => {
-                  if (entity === Account) return mockAccount;
-                  if (entity === PetOwner) return mockPetOwner;
-                  return data;
-                }),
-              }),
-            ),
-          },
+          useValue: dataSource,
         },
       ],
     }).compile();
 
     service = module.get<PetOwnerService>(PetOwnerService);
-    petOwnerRepository = module.get(getRepositoryToken(PetOwner));
-    accountRepository = module.get(getRepositoryToken(Account));
     accountFactory = module.get(AccountFactory);
     petOwnerFactory = module.get(PetOwnerFactory);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('register', () => {
-    it('should create new pet owner successfully', async () => {
+
+  describe('P0: register (2 tests)', () => {
+    it('[P0-103] should create new pet owner successfully', async () => {
       const registerDto = {
         email: 'newowner@test.com',
         password: 'password123',
@@ -160,7 +150,7 @@ describe('PetOwnerService', () => {
       expect(result).toEqual(mockPetOwner);
     });
 
-    it('should throw ConflictException for existing email', async () => {
+    it('[P0-104] should throw ConflictException for existing email', async () => {
       const registerDto = {
         email: 'existing@test.com',
         password: 'password123',
@@ -181,8 +171,8 @@ describe('PetOwnerService', () => {
     });
   });
 
-  describe('getByAccountId', () => {
-    it('should return pet owner by account ID', async () => {
+  describe('P1: getByAccountId (3 tests)', () => {
+    it('[P1-75] should return pet owner by account ID', async () => {
       petOwnerRepository.findOne.mockResolvedValue(mockPetOwner);
 
       const result = await service.getByAccountId(1);
@@ -193,7 +183,7 @@ describe('PetOwnerService', () => {
       expect(result).toEqual(mockPetOwner);
     });
 
-    it('should throw NotFoundException for non-existent account', async () => {
+    it('[P1-76] should throw NotFoundException for non-existent account', async () => {
       petOwnerRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getByAccountId(999)).rejects.toThrow(
@@ -204,10 +194,22 @@ describe('PetOwnerService', () => {
         }),
       );
     });
+
+    it('[P1-77] should throw 403 if PET_OWNER tries to access another account', async () => {
+      const user = { accountId: 2, userType: 'PET_OWNER' as any };
+
+      await expect(service.getByAccountId(1, user)).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.selfAccessOnly',
+          }),
+        }),
+      );
+    });
   });
 
-  describe('updateProfile', () => {
-    it('should update pet owner profile successfully', async () => {
+  describe('P0: updateProfile (3 tests)', () => {
+    it('[P0-105] should update pet owner profile successfully', async () => {
       const updateDto = {
         fullName: 'Updated Name',
         phoneNumber: '+1111111111',
@@ -242,6 +244,76 @@ describe('PetOwnerService', () => {
           }),
         }),
       );
+    });
+
+    it('[P0-107] should throw 403 if PET_OWNER tries to update another account', async () => {
+      const updateDto = {
+        fullName: 'Updated Name',
+      };
+      const user = { accountId: 2, userType: 'PET_OWNER' as any };
+
+      await expect(service.updateProfile(1, updateDto, user)).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            i18nKey: 'errors.forbidden.selfAccessOnly',
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('P2: getAllPetOwners (1 test)', () => {
+    it('[P2-20] should return all pet owners with optional filters', async () => {
+      const mockPetOwners = [mockPetOwner];
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(mockPetOwners),
+      };
+
+      petOwnerRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+
+      const result = await service.getAllPetOwners();
+
+      expect(result).toEqual(mockPetOwners);
+      expect(petOwnerRepository.createQueryBuilder).toHaveBeenCalled();
+    });
+  });
+
+  describe('P2: getAppointments (1 test)', () => {
+    it('[P2-21] should return appointments for pet owner', async () => {
+      const mockPets = [{ petId: 1 }, { petId: 2 }];
+      const mockAppointments = [
+        {
+          appointmentId: 1,
+          petId: 1,
+        },
+      ];
+
+      petOwnerRepository.findOne.mockResolvedValue(mockPetOwner);
+      petRepository.find.mockResolvedValue(mockPets as any);
+
+      const mockQueryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue(mockAppointments),
+      };
+
+      appointmentRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder as any);
+
+      const result = await service.getAppointments(1);
+
+      expect(result).toBeDefined();
+      expect(petOwnerRepository.findOne).toHaveBeenCalledWith({
+        where: { petOwnerId: 1 },
+      });
+      expect(petRepository.find).toHaveBeenCalled();
+      expect(appointmentRepository.createQueryBuilder).toHaveBeenCalled();
     });
   });
 });

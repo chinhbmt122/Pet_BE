@@ -4,11 +4,14 @@
   "testEnvironment": "node",
   "testRegex": ".spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": ["ts-jest", {
+      "tsconfig": "<rootDir>/tsconfig.test.json"
+    }]
   },
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1",
-    "^@/(.*)$": "<rootDir>/src/$1"
+    "^@/(.*)$": "<rootDir>/src/$1",
+    "^nestjs-i18n$": "<rootDir>/tests/unit/__mocks__/nestjs-i18n.ts"
   },
   "roots": ["<rootDir>/tests"],
   "transformIgnorePatterns": ["node_modules/(?!.*\\.mjs$)"],

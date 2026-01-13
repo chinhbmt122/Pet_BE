@@ -14,17 +14,38 @@ import { entitiesOrdered } from './entities';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DATABASE_HOST'),
-        port: configService.get('DATABASE_PORT'),
-        username: configService.get('DATABASE_USER'),
-        password: configService.get('DATABASE_PASSWORD'),
-        database: configService.get('DATABASE_NAME'),
-        entities: entitiesOrdered, // Always use explicit entity list for ts-node/seeder compatibility
-        synchronize: configService.get('NODE_ENV') === 'development', // Disable in production
-        logging: configService.get('NODE_ENV') === 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const isProduction = configService.get('NODE_ENV') === 'production';
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+
+        const baseConfig = {
+          type: 'postgres' as const,
+          entities: entitiesOrdered,
+          // For initial deployment, use synchronize to create schema
+          // TODO: Switch to migrations once stable
+          synchronize: true,
+          logging: !isProduction,
+          // Disable migrationsRun - migrations aren't compiled by nest build
+          migrationsRun: false,
+          ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+        };
+
+        if (databaseUrl) {
+          return {
+            ...baseConfig,
+            url: databaseUrl,
+          };
+        }
+
+        return {
+          ...baseConfig,
+          host: configService.get<string>('DATABASE_HOST'),
+          port: configService.get<number>('DATABASE_PORT'),
+          username: configService.get<string>('DATABASE_USER'),
+          password: configService.get<string>('DATABASE_PASSWORD'),
+          database: configService.get<string>('DATABASE_NAME'),
+        };
+      },
     }),
   ],
 })

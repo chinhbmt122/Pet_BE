@@ -1,0 +1,33 @@
+@startuml UC-04-Medical-Vaccination-Records
+!theme plain
+skinparam packageStyle rectangle
+skinparam linetype ortho
+left to right direction
+
+title Feature: Medical & Vaccination Records
+
+' PRIMARY ACTOR (LEFT)
+actor "Veterinarian" as Vet
+
+' SYSTEM BOUNDARY
+package "PAW LOVERS Pet Care Management System" {
+  usecase "UC-12\nManage Pet &\nOwner Records" as UC12
+  usecase "UC-13\nManage Medical\nRecords" as UC13
+  usecase "UC-14\nManage Vaccination\nRecords" as UC14
+  
+  ' USE CASE RELATIONSHIPS
+  UC13 ..> UC12 : <<include>>
+  UC14 ..> UC12 : <<include>>
+}
+
+' ASSOCIATIONS
+Vet -- UC12
+Vet -- UC13
+Vet -- UC14
+
+note right of UC13
+  Medical and vaccination records
+  require pet record access
+end note
+
+@enduml

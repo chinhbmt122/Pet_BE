@@ -59,15 +59,25 @@ export class ScheduleService {
     }
 
     // Create via domain model (validates time constraints)
-    const domain = WorkScheduleDomainModel.create({
-      employeeId: dto.employeeId,
-      workDate: new Date(dto.workDate),
-      startTime: dto.startTime,
-      endTime: dto.endTime,
-      breakStart: dto.breakStart,
-      breakEnd: dto.breakEnd,
-      notes: dto.notes,
-    });
+    let domain: WorkScheduleDomainModel;
+    try {
+      domain = WorkScheduleDomainModel.create({
+        employeeId: dto.employeeId,
+        workDate: new Date(dto.workDate),
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        breakStart: dto.breakStart,
+        breakEnd: dto.breakEnd,
+        notes: dto.notes,
+      });
+    } catch (error) {
+      // Domain validation errors are Bad Requests
+      const message = error instanceof Error ? error.message : String(error);
+      I18nException.badRequest('validation.custom.invalidTimeRange', {
+        error: message,
+      });
+      throw error; // Fallback if I18nException doesn't throw (it does)
+    }
 
     const entityData = WorkScheduleMapper.toPersistence(domain);
     const entity = this.scheduleRepository.create(entityData);

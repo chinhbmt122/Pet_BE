@@ -10,7 +10,7 @@ import {
   Index,
 } from 'typeorm';
 import { ServiceCategory } from './service-category.entity';
-import { Appointment } from './appointment.entity';
+import { AppointmentService } from './appointment-service.entity';
 
 /**
  * Service Entity
@@ -61,9 +61,12 @@ export class Service {
   updatedAt: Date;
 
   /**
-   * One-to-Many relationship with Appointment
-   * A service can be used in multiple appointments
+   * One-to-Many relationship with AppointmentService (junction table)
+   * A service can be used in multiple appointments through the junction table
    */
-  @OneToMany(() => Appointment, (appointment) => appointment.service)
-  appointments?: Appointment[];
+  @OneToMany(
+    () => AppointmentService,
+    (appointmentService) => appointmentService.service,
+  )
+  appointmentServices?: AppointmentService[];
 }

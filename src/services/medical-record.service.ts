@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
@@ -22,23 +22,22 @@ import {
   CreateVaccinationDto,
   VaccinationResponseDto,
 } from '../dto/vaccination';
-import {
-  CreateVaccineTypeDto,
-  UpdateVaccineTypeDto,
-} from '../dto/vaccine-type';
 import { UserType } from '../entities/account.entity';
-import { EmailService } from './email.service';
+import {
+  OwnershipValidationHelper,
+  UserContext,
+} from './helpers/ownership-validation.helper';
 
 /**
  * MedicalRecordService (MedicalRecordManager)
  *
  * Manages veterinary examination records using DDD pattern.
  * Uses domain models for business logic and mappers for entity conversion.
+ *
+ * @refactored Phase 1 - Uses OwnershipValidationHelper for pet ownership checks
  */
 @Injectable()
 export class MedicalRecordService {
-  private readonly logger = new Logger(MedicalRecordService.name);
-
   constructor(
     @InjectRepository(MedicalRecord)
     private readonly medicalRecordRepository: Repository<MedicalRecord>,
@@ -54,7 +53,7 @@ export class MedicalRecordService {
     private readonly veterinarianRepository: Repository<Veterinarian>,
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
-    private readonly emailService: EmailService,
+    private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
 
   /**
@@ -169,44 +168,7 @@ export class MedicalRecordService {
     const entity = this.medicalRecordRepository.create(entityData);
     const saved = await this.medicalRecordRepository.save(entity);
 
-    // 7. Load full relations for email notification
-    const fullRecord = await this.medicalRecordRepository.findOne({
-      where: { recordId: saved.recordId },
-      relations: [
-        'pet',
-        'pet.owner',
-        'pet.owner.account',
-        'veterinarian',
-        'veterinarian.account',
-      ],
-    });
-
-    // 8. Send email notification to pet owner
-    try {
-      if (fullRecord?.pet?.owner?.account) {
-        await this.emailService.sendMedicalRecordNotificationEmail(
-          fullRecord.pet.owner.account.email,
-          {
-            ownerName: fullRecord.pet.owner.fullName,
-            petName: fullRecord.pet.name,
-            diagnosis: fullRecord.diagnosis,
-            treatment: fullRecord.treatment,
-            veterinarianName: fullRecord.veterinarian.fullName,
-            recordDate: fullRecord.examinationDate.toLocaleDateString('vi-VN'),
-          },
-        );
-        this.logger.log(
-          `Sent medical record notification for record ${saved.recordId}`,
-        );
-      }
-    } catch (emailError) {
-      this.logger.error(
-        `Failed to send medical record email: ${emailError.message}`,
-      );
-      // Don't fail the operation if email fails
-    }
-
-    // 9. Return response DTO
+    // 7. Return response DTO
     const savedDomain = MedicalRecordMapper.toDomain(saved);
     return MedicalRecordResponseDto.fromDomain(savedDomain);
   }
@@ -248,7 +210,7 @@ export class MedicalRecordService {
    */
   async getMedicalRecordById(
     recordId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<MedicalRecordResponseDto> {
     const entity = await this.medicalRecordRepository.findOne({
       where: { recordId },
@@ -258,21 +220,9 @@ export class MedicalRecordService {
       I18nException.notFound('errors.notFound.medicalRecord', { id: recordId });
     }
 
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      if (!petOwner || entity.petId !== undefined) {
-        const pet = await this.petRepository.findOne({
-          where: { petId: entity.petId },
-        });
-        if (!pet || pet.ownerId !== petOwner?.petOwnerId) {
-          I18nException.notFound('errors.notFound.medicalRecord', {
-            id: recordId,
-          });
-        }
-      }
+    // Validate ownership via helper (handles PET_OWNER check internally)
+    if (entity.petId) {
+      await this.ownershipHelper.validatePetOwnership(entity.petId, user);
     }
 
     const domain = MedicalRecordMapper.toDomain(entity);
@@ -285,18 +235,10 @@ export class MedicalRecordService {
    */
   async getMedicalHistoryByPet(
     petId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<MedicalRecordResponseDto[]> {
-    // If PET_OWNER, validate they own the pet
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        return [];
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const entities = await this.medicalRecordRepository.find({
       where: { petId },
@@ -377,18 +319,10 @@ export class MedicalRecordService {
    */
   async getVaccinationHistory(
     petId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<VaccinationResponseDto[]> {
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet');
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
@@ -416,18 +350,10 @@ export class MedicalRecordService {
   async getUpcomingVaccinations(
     petId: number,
     daysAhead: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<VaccinationResponseDto[]> {
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet');
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const today = new Date();
     const futureDate = new Date();
@@ -458,18 +384,10 @@ export class MedicalRecordService {
    */
   async getOverdueVaccinations(
     petId: number,
-    user?: { accountId: number; userType: UserType },
+    user?: UserContext,
   ): Promise<VaccinationResponseDto[]> {
-    // If PET_OWNER, validate ownership
-    if (user && user.userType === UserType.PET_OWNER) {
-      const petOwner = await this.petOwnerRepository.findOne({
-        where: { accountId: user.accountId },
-      });
-      const pet = await this.petRepository.findOne({ where: { petId } });
-      if (!petOwner || !pet || pet.ownerId !== petOwner.petOwnerId) {
-        I18nException.notFound('errors.notFound.pet');
-      }
-    }
+    // Validate ownership via helper
+    await this.ownershipHelper.validatePetOwnership(petId, user);
 
     const entities = await this.vaccinationHistoryRepository.find({
       where: { petId },
@@ -497,94 +415,6 @@ export class MedicalRecordService {
     const overdueDomains = domains.filter((d) => d.isFollowUpOverdue());
 
     return overdueDomains.map((d) => MedicalRecordResponseDto.fromDomain(d));
-  }
-
-  /**
-   * Creates a new vaccine type (Manager only).
-   * Validates that vaccine name is unique before creation.
-   */
-  async createVaccineType(dto: CreateVaccineTypeDto): Promise<VaccineType> {
-    this.logger.log(`Creating new vaccine type: ${dto.vaccineName}`);
-
-    // Check for duplicate vaccine name
-    const existing = await this.vaccineTypeRepository.findOne({
-      where: { vaccineName: dto.vaccineName },
-    });
-
-    if (existing) {
-      I18nException.badRequest('errors.duplicate.vaccineName', {
-        name: dto.vaccineName,
-      });
-    }
-
-    const vaccineType = this.vaccineTypeRepository.create({
-      ...dto,
-      isActive: true,
-    });
-
-    const saved = await this.vaccineTypeRepository.save(vaccineType);
-    this.logger.log(
-      `Vaccine type created successfully: ${saved.vaccineTypeId}`,
-    );
-
-    return saved;
-  }
-
-  /**
-   * Updates an existing vaccine type (Manager only).
-   * Validates that vaccine name is unique if changed.
-   */
-  async updateVaccineType(
-    id: number,
-    dto: UpdateVaccineTypeDto,
-  ): Promise<VaccineType> {
-    this.logger.log(`Updating vaccine type: ${id}`);
-
-    const vaccineType = await this.vaccineTypeRepository.findOne({
-      where: { vaccineTypeId: id },
-    });
-
-    if (!vaccineType) {
-      I18nException.notFound('errors.notFound.vaccineType', { id });
-    }
-
-    // Check for duplicate name if changing
-    if (dto.vaccineName && dto.vaccineName !== vaccineType.vaccineName) {
-      const duplicate = await this.vaccineTypeRepository.findOne({
-        where: { vaccineName: dto.vaccineName },
-      });
-      if (duplicate) {
-        I18nException.badRequest('errors.duplicate.vaccineName', {
-          name: dto.vaccineName,
-        });
-      }
-    }
-
-    Object.assign(vaccineType, dto);
-    const saved = await this.vaccineTypeRepository.save(vaccineType);
-    this.logger.log(`Vaccine type updated successfully: ${id}`);
-
-    return saved;
-  }
-
-  /**
-   * Soft deletes a vaccine type by setting isActive to false (Manager only).
-   * This preserves referential integrity with vaccination history.
-   */
-  async deleteVaccineType(id: number): Promise<void> {
-    this.logger.log(`Soft deleting vaccine type: ${id}`);
-
-    const vaccineType = await this.vaccineTypeRepository.findOne({
-      where: { vaccineTypeId: id },
-    });
-
-    if (!vaccineType) {
-      I18nException.notFound('errors.notFound.vaccineType', { id });
-    }
-
-    vaccineType.isActive = false;
-    await this.vaccineTypeRepository.save(vaccineType);
-    this.logger.log(`Vaccine type soft deleted successfully: ${id}`);
   }
 
   /**

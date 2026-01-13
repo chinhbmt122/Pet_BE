@@ -1,0 +1,19 @@
+| 12/27/2025 | 2.0 | Updated to reflect actual implementation: Added cage management, vaccination tracking, medical record use cases | Group 9 |
+
+# 
+
+# **Table of Contents**
+
+1\. Use-case Diagrams	3
+
+2\. List of Actor	3
+
+[3\. List of Use-cases](#heading=h.un22oeefnlsu)	3
+
+4\. [Use-case Specification](#heading=h.q3bzobqn6ci1)	3
+
+[4.1	Use-case Specification  “Name Use-case”](https://docs.google.com/document/d/18FFFh7ArbpML1M2XKUiQsY5bH7SEWhJJ/edit#heading=h.y5nmbogmbxim)	3
+
+# **1\. Use-case Diagram**
+
+This section presents the visual UML Use-Case diagrams for the PAW LOVERS system. The diagrams are organized into two levels of detail: a high-level Level 0 diagram to show the overall system context, and a series of detailed Level 1 diagrams, one for each major feature.  

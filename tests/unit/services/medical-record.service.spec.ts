@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { MedicalRecordService } from '../../../src/services/medical-record.service';
 import { MedicalRecord } from '../../../src/entities/medical-record.entity';
@@ -11,15 +10,29 @@ import { Veterinarian } from '../../../src/entities/veterinarian.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
 import { CreateMedicalRecordDto } from '../../../src/dto/medical-record/create-medical-record.dto';
 import { CreateVaccinationDto } from '../../../src/dto/vaccination/create-vaccination.dto';
-import { Appointment } from 'src/entities/appointment.entity';
+import { Appointment } from '../../../src/entities/appointment.entity';
+import { OwnershipValidationHelper } from '../../../src/services/helpers/ownership-validation.helper';
+
+// ===== Use new test helpers =====
+import { createMockRepository } from '../../helpers';
+
+// Mock for OwnershipValidationHelper
+const mockOwnershipHelper = {
+  validatePetOwnership: jest.fn().mockResolvedValue(undefined),
+  validateAppointmentOwnership: jest.fn().mockResolvedValue(undefined),
+  userOwnsPet: jest.fn().mockResolvedValue(true),
+  getPetOwnerByAccount: jest.fn().mockResolvedValue(null),
+};
 
 describe('MedicalRecordService', () => {
   let service: MedicalRecordService;
-  let medicalRecordRepository: jest.Mocked<Repository<MedicalRecord>>;
-  let vaccineTypeRepository: jest.Mocked<Repository<VaccineType>>;
-  let vaccinationHistoryRepository: jest.Mocked<Repository<VaccinationHistory>>;
-  let petRepository: jest.Mocked<Repository<Pet>>;
-  let veterinarianRepository: jest.Mocked<Repository<Veterinarian>>;
+
+  // ===== Use helper types for cleaner declarations =====
+  let medicalRecordRepository: ReturnType<typeof createMockRepository<MedicalRecord>>;
+  let vaccineTypeRepository: ReturnType<typeof createMockRepository<VaccineType>>;
+  let vaccinationHistoryRepository: ReturnType<typeof createMockRepository<VaccinationHistory>>;
+  let petRepository: ReturnType<typeof createMockRepository<Pet>>;
+  let veterinarianRepository: ReturnType<typeof createMockRepository<Veterinarian>>;
 
   const mockPet: Partial<Pet> = {
     petId: 1,
@@ -69,75 +82,63 @@ describe('MedicalRecordService', () => {
   } as VaccinationHistory;
 
   beforeEach(async () => {
+    // ===== Use shared helpers =====
+    medicalRecordRepository = createMockRepository<MedicalRecord>();
+    vaccineTypeRepository = createMockRepository<VaccineType>();
+    vaccinationHistoryRepository = createMockRepository<VaccinationHistory>();
+    petRepository = createMockRepository<Pet>();
+    veterinarianRepository = createMockRepository<Veterinarian>();
+
+    // Reset mocks
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MedicalRecordService,
         {
           provide: getRepositoryToken(MedicalRecord),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: medicalRecordRepository,
         },
         {
           provide: getRepositoryToken(Appointment),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: createMockRepository<Appointment>(),
         },
         {
           provide: getRepositoryToken(VaccineType),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: vaccineTypeRepository,
         },
         {
           provide: getRepositoryToken(VaccinationHistory),
-          useValue: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: vaccinationHistoryRepository,
         },
         {
           provide: getRepositoryToken(Pet),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: petRepository,
         },
         {
           provide: getRepositoryToken(Veterinarian),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: veterinarianRepository,
         },
         {
           provide: getRepositoryToken(PetOwner),
-          useValue: {
-            findOne: jest.fn(),
-          },
+          useValue: createMockRepository<PetOwner>(),
+        },
+        {
+          provide: OwnershipValidationHelper,
+          useValue: mockOwnershipHelper,
         },
       ],
     }).compile();
 
     service = module.get<MedicalRecordService>(MedicalRecordService);
-    medicalRecordRepository = module.get(getRepositoryToken(MedicalRecord));
-    vaccineTypeRepository = module.get(getRepositoryToken(VaccineType));
-    vaccinationHistoryRepository = module.get(
-      getRepositoryToken(VaccinationHistory),
-    );
-    petRepository = module.get(getRepositoryToken(Pet));
-    veterinarianRepository = module.get(getRepositoryToken(Veterinarian));
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('createMedicalRecord', () => {
+
+  describe('P0: createMedicalRecord (3 tests)', () => {
     const createDto: CreateMedicalRecordDto = {
       petId: 1,
       veterinarianId: 1,
@@ -145,7 +146,7 @@ describe('MedicalRecordService', () => {
       treatment: 'None required',
     };
 
-    it('should create medical record via domain model', async () => {
+    it('[P0-108] should create medical record via domain model', async () => {
       petRepository.findOne.mockResolvedValue(mockPet as Pet);
       veterinarianRepository.findOne.mockResolvedValue(
         mockVeterinarian as Veterinarian,
@@ -168,7 +169,7 @@ describe('MedicalRecordService', () => {
       expect(typeof result.needsFollowUp).toBe('boolean');
     });
 
-    it('should throw NotFoundException when pet not found', async () => {
+    it('[P0-109] should throw NotFoundException when pet not found', async () => {
       petRepository.findOne.mockResolvedValue(null);
 
       await expect(service.createMedicalRecord(createDto)).rejects.toThrow(
@@ -194,7 +195,7 @@ describe('MedicalRecordService', () => {
     });
   });
 
-  describe('addVaccination', () => {
+  describe('P0: addVaccination (4 tests)', () => {
     const createVaccinationDto: CreateVaccinationDto = {
       vaccineTypeId: 1,
       administeredBy: 1,
@@ -203,7 +204,7 @@ describe('MedicalRecordService', () => {
       site: 'Left shoulder',
     };
 
-    it('should create vaccination with auto-calculated nextDueDate', async () => {
+    it('[P0-111] should create vaccination with auto-calculated nextDueDate', async () => {
       petRepository.findOne.mockResolvedValue(mockPet as Pet);
       vaccineTypeRepository.findOne.mockResolvedValue(
         mockVaccineType as VaccineType,
@@ -239,7 +240,7 @@ describe('MedicalRecordService', () => {
       ).toBe(true);
     });
 
-    it('should throw NotFoundException when pet not found', async () => {
+    it('[P0-112] should throw NotFoundException when pet not found', async () => {
       petRepository.findOne.mockResolvedValue(null);
 
       await expect(
@@ -253,7 +254,7 @@ describe('MedicalRecordService', () => {
       );
     });
 
-    it('should throw NotFoundException when vaccine type not found', async () => {
+    it('[P0-113] should throw NotFoundException when vaccine type not found', async () => {
       petRepository.findOne.mockResolvedValue(mockPet as Pet);
       vaccineTypeRepository.findOne.mockResolvedValue(null);
 
@@ -287,8 +288,8 @@ describe('MedicalRecordService', () => {
     });
   });
 
-  describe('getVaccinationHistory', () => {
-    it('should return vaccination history with computed isDue', async () => {
+  describe('P1: getVaccinationHistory (1 test)', () => {
+    it('[P1-78] should return vaccination history with computed isDue', async () => {
       vaccinationHistoryRepository.find.mockResolvedValue([
         {
           ...mockVaccinationHistory,
@@ -308,8 +309,8 @@ describe('MedicalRecordService', () => {
     });
   });
 
-  describe('getMedicalHistoryByPet', () => {
-    it('should return medical history in chronological order', async () => {
+  describe('P1: getMedicalHistoryByPet (1 test)', () => {
+    it('[P1-79] should return medical history in chronological order', async () => {
       medicalRecordRepository.find.mockResolvedValue([mockMedicalRecord]);
 
       const result = await service.getMedicalHistoryByPet(1);
@@ -321,6 +322,45 @@ describe('MedicalRecordService', () => {
       });
       expect(result.length).toBe(1);
       expect(result[0].isFollowUpOverdue).toBeDefined();
+    });
+  });
+
+  describe('P2: updateMedicalRecord (1 test)', () => {
+    it('[P2-22] should update medical record successfully', async () => {
+      const updateDto = {
+        diagnosis: 'Updated diagnosis',
+        treatment: 'Updated treatment',
+      };
+
+      medicalRecordRepository.findOne.mockResolvedValue(mockMedicalRecord);
+      medicalRecordRepository.save.mockResolvedValue({
+        ...mockMedicalRecord,
+        ...updateDto,
+      });
+
+      const result = await service.updateMedicalRecord(1, updateDto);
+
+      expect(result).toBeDefined();
+      expect(medicalRecordRepository.findOne).toHaveBeenCalledWith({
+        where: { recordId: 1 },
+      });
+      expect(medicalRecordRepository.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('P2: getOverdueFollowUps (1 test)', () => {
+    it('[P2-23] should return overdue follow-up records', async () => {
+      const overdueRecord = {
+        ...mockMedicalRecord,
+        followUpDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      };
+
+      medicalRecordRepository.find.mockResolvedValue([overdueRecord]);
+
+      const result = await service.getOverdueFollowUps();
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
     });
   });
 });

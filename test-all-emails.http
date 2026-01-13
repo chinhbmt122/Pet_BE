@@ -1,0 +1,91 @@
+### ===========================================
+### EMAIL SYSTEM - COMPLETE TEST SUITE
+### ===========================================
+
+### 1. ✅ Password Reset Email (Already tested)
+POST http://localhost:3001/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "manager@pawlovers.com"
+}
+
+### 2. ✅ Registration Confirmation Email
+POST http://localhost:3001/api/pet-owners/register
+Content-Type: application/json
+
+{
+  "email": "newuser{{$timestamp}}@example.com",
+  "password": "Test123456!",
+  "fullName": "Nguyễn Văn Test",
+  "phoneNumber": "0987654321",
+  "address": "123 Đường Test, Quận 1, TP.HCM"
+}
+
+### 3. Get Login Token (Required for protected endpoints)
+# @name login
+POST http://localhost:3001/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "manager@pawlovers.com",
+  "password": "password123"
+}
+
+### Extract token
+@token = {{login.response.body.data.accessToken}}
+
+### 4. Create Appointment (Triggers reminder email 24h before)
+POST http://localhost:3001/api/appointments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "petId": 1,
+  "serviceId": 1,
+  "appointmentDate": "2026-01-13T10:00:00.000Z",
+  "notes": "Test appointment for reminder email"
+}
+
+### 5. Update Appointment Status (Triggers status update email)
+# @name createAppt
+PUT http://localhost:3001/api/appointments/1/confirm
+Authorization: Bearer {{token}}
+
+### 6. Create Payment (Triggers payment confirmation email)
+POST http://localhost:3001/api/payments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "invoiceId": 1,
+  "paymentMethod": "CASH",
+  "amount": 500000,
+  "notes": "Test payment for email"
+}
+
+### 7. Create Medical Record (Triggers medical record notification email)
+POST http://localhost:3001/api/medical-records
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "petId": 1,
+  "veterinarianId": 2,
+  "diagnosis": "Khám sức khỏe định kỳ",
+  "treatment": "Tiêm vaccine phòng dại",
+  "prescription": "Thuốc kháng sinh 3 ngày",
+  "notes": "Test medical record for email notification",
+  "nextFollowUp": "2026-02-13"
+}
+
+### ===========================================
+### RESULTS SUMMARY
+### ===========================================
+# ✅ Password Reset - TESTED & WORKING
+# ✅ Registration - TESTED & WORKING  
+# ⏰ Appointment Reminder - Scheduled (24h before)
+# 🔒 Appointment Update - Requires auth + appointment ID
+# 🔒 Payment Confirmation - Requires auth + invoice
+# 🔒 Medical Record - Requires auth + valid pet/vet IDs
+### ===========================================

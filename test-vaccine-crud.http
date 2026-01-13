@@ -1,0 +1,122 @@
+### Test Vaccine Type CRUD Operations
+### Prerequisites: 
+### 1. Backend server running on http://localhost:3000
+### 2. Valid Manager JWT token
+
+### Variables
+@baseUrl = http://localhost:3000/api
+@managerToken = YOUR_MANAGER_TOKEN_HERE
+
+### ============================================
+### 1. GET All Vaccine Types (Before CRUD)
+### ============================================
+GET {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+### ============================================
+### 2. CREATE New Vaccine Type
+### ============================================
+POST {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "category": "Core",
+  "vaccineName": "Test Vaccine - Rabies Premium",
+  "targetSpecies": "Dog",
+  "manufacturer": "Nobivac",
+  "description": "Premium rabies vaccine for testing CRUD operations",
+  "recommendedAgeMonths": 3,
+  "boosterIntervalMonths": 12
+}
+
+### ============================================
+### 3. CREATE Duplicate Vaccine (Should Fail)
+### ============================================
+POST {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "category": "Core",
+  "vaccineName": "Test Vaccine - Rabies Premium",
+  "targetSpecies": "Dog"
+}
+
+### ============================================
+### 4. UPDATE Vaccine Type
+### Replace {vaccineTypeId} with actual ID from step 2
+### ============================================
+PUT {{baseUrl}}/vaccine-types/11
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "vaccineName": "Test Vaccine - Rabies Premium UPDATED",
+  "manufacturer": "Zoetis",
+  "boosterIntervalMonths": 24
+}
+
+### ============================================
+### 5. GET All Vaccine Types (After Update)
+### Verify changes are reflected
+### ============================================
+GET {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+### ============================================
+### 6. SOFT DELETE Vaccine Type
+### Replace {vaccineTypeId} with actual ID
+### ============================================
+DELETE {{baseUrl}}/vaccine-types/11
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+### ============================================
+### 7. GET All Vaccine Types (After Delete)
+### Deleted vaccine should NOT appear (isActive=false)
+### ============================================
+GET {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+### ============================================
+### 8. Test Access Control - Veterinarian (Should Fail for POST/PUT/DELETE)
+### ============================================
+@vetToken = YOUR_VET_TOKEN_HERE
+
+POST {{baseUrl}}/vaccine-types
+Authorization: Bearer {{vetToken}}
+Content-Type: application/json
+
+{
+  "category": "Core",
+  "vaccineName": "Unauthorized Test",
+  "targetSpecies": "Dog"
+}
+
+### ============================================
+### 9. Test Validation - Missing Required Fields
+### ============================================
+POST {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "category": "Core"
+}
+
+### ============================================
+### 10. Test Validation - Invalid Category
+### ============================================
+POST {{baseUrl}}/vaccine-types
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "category": "InvalidCategory",
+  "vaccineName": "Test Invalid Category",
+  "targetSpecies": "Dog"
+}
