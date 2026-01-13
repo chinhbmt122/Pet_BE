@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
 import {
   Controller,
   Post,
   Get,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -29,9 +29,14 @@ import {
   CreateVaccinationDto,
   VaccinationResponseDto,
 } from '../dto/vaccination';
+import {
+  CreateVaccineTypeDto,
+  UpdateVaccineTypeDto,
+} from '../dto/vaccine-type';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
 import { GetUser } from '../middleware/decorators/user.decorator';
+import { VaccineType } from '../entities/vaccine-type.entity';
 
 /**
  * MedicalRecordController
