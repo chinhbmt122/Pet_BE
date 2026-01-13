@@ -626,10 +626,12 @@ export class AppointmentService {
 
   /**
    * Confirms appointment (PENDING → CONFIRMED)
+   * Sends email notification to pet owner
    */
   async confirmAppointment(appointmentId: number): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({
       where: { appointmentId },
+      relations: ['pet', 'pet.owner', 'pet.owner.account', 'appointmentServices', 'appointmentServices.service'],
     });
     if (!appointment) {
       I18nException.notFound('errors.notFound.appointment', {
@@ -642,7 +644,12 @@ export class AppointmentService {
     }
 
     appointment.status = AppointmentStatus.CONFIRMED;
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+
+    // Send confirmation email
+    await this.sendAppointmentStatusEmail(appointment, 'CONFIRMED', 'Lịch hẹn của bạn đã được xác nhận');
+
+    return savedAppointment;
   }
 
   /**
@@ -766,7 +773,72 @@ export class AppointmentService {
     appointment.status = AppointmentStatus.CANCELLED;
     appointment.cancellationReason = reason ?? null;
     appointment.cancelledAt = new Date();
-    return this.appointmentRepository.save(appointment);
+    const savedAppointment = await this.appointmentRepository.save(appointment);
+
+    // Load relations for email if not already loaded
+    const appointmentWithRelations = await this.appointmentRepository.findOne({
+      where: { appointmentId },
+      relations: ['pet', 'pet.owner', 'pet.owner.account', 'appointmentServices', 'appointmentServices.service'],
+    });
+
+    // Send cancellation email
+    if (appointmentWithRelations) {
+      await this.sendAppointmentStatusEmail(
+        appointmentWithRelations,
+        'CANCELLED',
+        reason ? `Lịch hẹn đã bị hủy. Lý do: ${reason}` : 'Lịch hẹn đã bị hủy',
+      );
+    }
+
+    return savedAppointment;
+  }
+
+  /**
+   * Helper method to send appointment status update email
+   */
+  private async sendAppointmentStatusEmail(
+    appointment: Appointment,
+    status: string,
+    statusMessage: string,
+  ): Promise<void> {
+    try {
+      if (appointment.pet?.owner?.account?.email) {
+        const appointmentDate = new Date(appointment.appointmentDate);
+        const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+
+        const services =
+          appointment.appointmentServices
+            ?.map((as) => as.service?.serviceName)
+            .filter(Boolean)
+            .join(', ') || 'Dịch vụ';
+
+        await this.emailService.sendAppointmentStatusUpdateEmail(
+          appointment.pet.owner.account.email,
+          {
+            ownerName: appointment.pet.owner.fullName,
+            petName: appointment.pet.name,
+            serviceName: services,
+            appointmentDate: formattedDate,
+            appointmentTime: appointment.startTime,
+            status,
+            statusMessage,
+          },
+        );
+
+        this.logger.log(
+          `[EMAIL] Status update email sent for appointment ${appointment.appointmentId}`,
+        );
+      }
+    } catch (error) {
+      // Log but don't fail the operation if email fails
+      this.logger.error(
+        `[EMAIL] Failed to send status email for appointment ${appointment.appointmentId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**
@@ -838,12 +910,13 @@ export class AppointmentService {
       for (const appointment of upcomingAppointments) {
         try {
           if (appointment.pet?.owner?.account?.email) {
-            const formattedDate =
-              appointment.appointmentDate.toLocaleDateString('vi-VN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-              });
+            // Convert string date to Date object for formatting
+            const appointmentDate = new Date(appointment.appointmentDate);
+            const formattedDate = appointmentDate.toLocaleDateString('vi-VN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            });
 
             const services =
               appointment.appointmentServices

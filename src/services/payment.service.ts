@@ -23,6 +23,7 @@ import {
   GetPaymentHistoryQueryDto,
 } from '../dto/payment';
 import { VNPayService } from './vnpay.service';
+import { EmailService } from './email.service';
 import {
   OwnershipValidationHelper,
   UserContext,
@@ -56,6 +57,7 @@ export class PaymentService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly vnpayService: VNPayService,
     private readonly ownershipHelper: OwnershipValidationHelper,
+    private readonly emailService: EmailService,
   ) {}
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
@@ -249,7 +251,7 @@ export class PaymentService {
     const paymentId = parseInt(callbackDto.vnp_TxnRef);
     const payment = await this.paymentRepository.findOne({
       where: { paymentId },
-      relations: ['invoice'],
+      relations: ['invoice', 'invoice.appointment', 'invoice.appointment.pet', 'invoice.appointment.pet.owner', 'invoice.appointment.pet.owner.account'],
     });
 
     if (!payment) {
@@ -282,6 +284,9 @@ export class PaymentService {
       verification.rawData,
       new Date(),
     );
+
+    // 6. Send email notification
+    await this.sendPaymentEmail(payment, invoice, verification.status === 'SUCCESS');
 
     return {
       success: verification.status === 'SUCCESS',
@@ -653,5 +658,59 @@ export class PaymentService {
       .getMany();
 
     return entities.map((entity) => PaymentResponseDto.fromEntity(entity));
+  }
+
+  /**
+   * Helper method to send payment notification email
+   */
+  private async sendPaymentEmail(
+    payment: Payment,
+    invoice: Invoice,
+    isSuccess: boolean,
+  ): Promise<void> {
+    try {
+      const ownerEmail = invoice.appointment?.pet?.owner?.account?.email;
+      const ownerName = invoice.appointment?.pet?.owner?.fullName || 'Quý khách';
+
+      if (!ownerEmail) {
+        console.log('[EMAIL] No owner email found for payment notification');
+        return;
+      }
+
+      const paymentDate = new Date(payment.createdAt);
+      const formattedDate = paymentDate.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      if (isSuccess) {
+        await this.emailService.sendPaymentConfirmationEmail(ownerEmail, {
+          ownerName,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: Number(payment.amount).toLocaleString('vi-VN') + ' VNĐ',
+          paymentMethod: payment.paymentMethod,
+          transactionId: payment.transactionId || 'N/A',
+          paymentDate: formattedDate,
+        });
+        console.log(`[EMAIL] Payment confirmation sent to ${ownerEmail}`);
+      } else {
+        await this.emailService.sendPaymentFailedEmail(ownerEmail, {
+          ownerName,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: Number(payment.amount).toLocaleString('vi-VN') + ' VNĐ',
+          failureReason: 'Thanh toán không thành công. Vui lòng thử lại.',
+          retryUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${invoice.invoiceId}`,
+        });
+        console.log(`[EMAIL] Payment failed notification sent to ${ownerEmail}`);
+      }
+    } catch (error) {
+      // Log but don't fail the operation if email fails
+      console.error(
+        `[EMAIL] Failed to send payment email: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }
