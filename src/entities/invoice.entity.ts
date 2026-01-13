@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Appointment } from './appointment.entity';
 import { Payment } from './payment.entity';
+import { InvoiceItem } from './invoice-item.entity';
 import { InvoiceStatus } from './types/entity.types';
 
 export { InvoiceStatus };
@@ -77,6 +78,15 @@ export class Invoice {
    */
   @OneToMany(() => Payment, (payment) => payment.invoice)
   payments?: Payment[];
+
+  /**
+   * One-to-Many relationship with InvoiceItem
+   * An invoice can have multiple line items
+   */
+  @OneToMany(() => InvoiceItem, (item) => item.invoice, {
+    cascade: true,
+  })
+  items?: InvoiceItem[];
 
   // ===== Business Logic Methods =====
 

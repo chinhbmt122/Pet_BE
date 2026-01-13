@@ -15,6 +15,7 @@ import { MedicalRecordModule } from './modules/medical-record.module';
 import { ReportModule } from './modules/report.module';
 import { ServiceCategoryModule } from './modules/service-category.module';
 import { CageModule } from './modules/cage.module';
+import { EmailModule } from './modules/email.module';
 import { SharedHelpersModule } from './modules/shared-helpers.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './middleware/interceptors/response.interceptor';
@@ -62,6 +63,7 @@ import * as path from 'path';
     MedicalRecordModule,
     ReportModule,
     CageModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [

@@ -9,6 +9,7 @@ import { VaccinationHistory } from '../entities/vaccination-history.entity';
 import { Pet } from '../entities/pet.entity';
 import { Veterinarian } from '../entities/veterinarian.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
+import { EmailModule } from './email.module';
 
 /**
  * MedicalRecordModule
@@ -29,6 +30,7 @@ import { PetOwner } from '../entities/pet-owner.entity';
       Veterinarian,
       PetOwner,
     ]),
+    EmailModule,
   ],
   controllers: [MedicalRecordController],
   providers: [MedicalRecordService],

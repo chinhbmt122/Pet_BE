@@ -7,12 +7,14 @@ import { PaymentController } from '../controllers/payment.controller';
 import { PaymentService } from '../services/payment.service';
 import { VNPayService } from '../services/vnpay.service';
 import { Invoice } from '../entities/invoice.entity';
+import { InvoiceItem } from '../entities/invoice-item.entity';
 import { Payment } from '../entities/payment.entity';
 import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { InvoiceService } from 'src/services/invoice.service';
 import { InvoiceController } from 'src/controllers/invoice.controller';
+import { EmailModule } from './email.module';
 
 /**
  * PaymentModule
@@ -26,6 +28,7 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
   imports: [
     TypeOrmModule.forFeature([
       Invoice,
+      InvoiceItem,
       Payment,
       PaymentGatewayArchive,
       Appointment,
@@ -57,6 +60,7 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
       },
       inject: [ConfigService],
     }),
+    EmailModule,
   ],
   controllers: [PaymentController, InvoiceController],
   providers: [PaymentService, VNPayService, InvoiceService],

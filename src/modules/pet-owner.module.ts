@@ -9,6 +9,7 @@ import { PetOwner } from '../entities/pet-owner.entity';
 import { Appointment } from '../entities/appointment.entity';
 import { Invoice } from '../entities/invoice.entity';
 import { Pet } from '../entities/pet.entity';
+import { EmailModule } from './email.module';
 
 /**
  * PetOwnerModule
@@ -21,6 +22,7 @@ import { Pet } from '../entities/pet.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Account, PetOwner, Appointment, Invoice, Pet]),
+    EmailModule,
   ],
   controllers: [PetOwnerController],
   providers: [PetOwnerService, PetOwnerFactory, AccountFactory],

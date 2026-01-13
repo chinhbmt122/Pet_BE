@@ -1,0 +1,24 @@
+### Test Password Reset Email
+# This will trigger the email system to send a password reset email
+POST http://localhost:3001/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "violette32@ethereal.email"
+}
+
+###
+
+### Alternative: Test with any email
+POST http://localhost:3001/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "test@example.com"
+}
+
+###
+
+### Check if there are any existing accounts (requires authentication)
+# GET http://localhost:3001/api/auth/me
+# Authorization: Bearer YOUR_TOKEN_HERE

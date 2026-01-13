@@ -6,6 +6,8 @@ import { AuthService } from '../services/auth.service';
 import { Account } from '../entities/account.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { EmailModule } from './email.module';
 
 /**
  * AuthModule
@@ -14,10 +16,12 @@ import { Employee } from '../entities/employee.entity';
  * - Login/Logout
  * - Token validation
  * - JWT management
+ * - Password reset
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Account, PetOwner, Employee]),
+    TypeOrmModule.forFeature([Account, PetOwner, Employee, PasswordResetToken]),
+    EmailModule,
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],

@@ -3,10 +3,18 @@ import {
   NotFoundException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, FindOptionsWhere, DataSource } from 'typeorm';
+import {
+  Repository,
+  Not,
+  FindOptionsWhere,
+  DataSource,
+  Between,
+} from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { AppointmentService as AppointmentServiceEntity } from '../entities/appointment-service.entity';
 import { Pet } from '../entities/pet.entity';
@@ -16,6 +24,7 @@ import { PetOwner } from '../entities/pet-owner.entity';
 import { CreateAppointmentDto, UpdateAppointmentDto } from '../dto/appointment';
 import { UserType } from '../entities/account.entity';
 import { InvoiceService } from './invoice.service';
+import { EmailService } from './email.service';
 import {
   OwnershipValidationHelper,
   UserContext,
@@ -47,6 +56,8 @@ interface ValidatedAppointmentData {
  */
 @Injectable()
 export class AppointmentService {
+  private readonly logger = new Logger(AppointmentService.name);
+
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
@@ -62,6 +73,7 @@ export class AppointmentService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     @Inject(forwardRef(() => InvoiceService))
     private readonly invoiceService: InvoiceService,
+    private readonly emailService: EmailService,
     private readonly dataSource: DataSource,
     private readonly ownershipHelper: OwnershipValidationHelper,
   ) {}
@@ -786,5 +798,88 @@ export class AppointmentService {
       .orderBy('appointment.appointmentDate', 'ASC')
       .addOrderBy('appointment.startTime', 'ASC')
       .getMany();
+  }
+
+  /**
+   * Sends email reminders for upcoming appointments
+   * Runs daily at 9:00 AM
+   */
+  @Cron('0 9 * * *')
+  async sendAppointmentReminders(): Promise<void> {
+    this.logger.log('[CRON] Starting appointment reminder job');
+
+    try {
+      // Get appointments for tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const dayAfterTomorrow = new Date(tomorrow);
+      dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+
+      const upcomingAppointments = await this.appointmentRepository.find({
+        where: {
+          appointmentDate: Between(tomorrow, dayAfterTomorrow),
+          status: AppointmentStatus.CONFIRMED,
+        },
+        relations: [
+          'pet',
+          'pet.owner',
+          'pet.owner.account',
+          'appointmentServices',
+          'appointmentServices.service',
+        ],
+      });
+
+      this.logger.log(
+        `[CRON] Found ${upcomingAppointments.length} appointments for reminders`,
+      );
+
+      for (const appointment of upcomingAppointments) {
+        try {
+          if (appointment.pet?.owner?.account?.email) {
+            const formattedDate =
+              appointment.appointmentDate.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+              });
+
+            const services =
+              appointment.appointmentServices
+                ?.map((as) => as.service?.serviceName)
+                .filter(Boolean)
+                .join(', ') || 'Dịch vụ';
+
+            await this.emailService.sendAppointmentReminderEmail(
+              appointment.pet.owner.account.email,
+              {
+                ownerName: appointment.pet.owner.fullName,
+                petName: appointment.pet.name,
+                serviceName: services,
+                appointmentDate: formattedDate,
+                appointmentTime: appointment.startTime,
+              },
+            );
+
+            this.logger.log(
+              `[CRON] Reminder sent for appointment ${appointment.appointmentId}`,
+            );
+          }
+        } catch (emailError) {
+          this.logger.error(
+            `[CRON] Failed to send reminder for appointment ${appointment.appointmentId}: ${emailError.message}`,
+            emailError.stack,
+          );
+        }
+      }
+
+      this.logger.log('[CRON] Appointment reminder job completed');
+    } catch (error) {
+      this.logger.error(
+        `[CRON] Appointment reminder job failed: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 }

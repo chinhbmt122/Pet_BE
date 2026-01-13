@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #667eea;
+            font-size: 22px;
+            margin-top: 0;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box.success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .info-box.warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .info-box.cancelled {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .detail-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .detail-label {
+            font-weight: 600;
+            min-width: 140px;
+            color: #555;
+        }
+        .detail-value {
+            color: #333;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .status-badge.confirmed {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-badge.cancelled {
+            background-color: #dc3545;
+            color: white;
+        }
+        .status-badge.pending {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .status-badge.completed {
+            background-color: #007bff;
+            color: white;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐾 {{appName}}</h1>
+        </div>
+        <div class="content">
+            <h2>📋 Cập nhật trạng thái lịch hẹn</h2>
+            <p>Xin chào <strong>{{ownerName}}</strong>,</p>
+            <p>{{statusMessage}}</p>
+
+            <div class="info-box {{#if (eq status 'CONFIRMED')}}success{{else if (eq status 'CANCELLED')}}cancelled{{else}}warning{{/if}}">
+                <h3 style="margin-top: 0;">
+                    {{#if (eq status 'CONFIRMED')}}✅{{else if (eq status 'CANCELLED')}}❌{{else}}⚠️{{/if}}
+                    Trạng thái: 
+                    <span class="status-badge {{#if (eq status 'CONFIRMED')}}confirmed{{else if (eq status 'CANCELLED')}}cancelled{{else if (eq status 'COMPLETED')}}completed{{else}}pending{{/if}}">
+                        {{#if (eq status 'CONFIRMED')}}ĐÃ XÁC NHẬN{{else if (eq status 'CANCELLED')}}ĐÃ HỦY{{else if (eq status 'COMPLETED')}}HOÀN THÀNH{{else}}CHỜ XÁC NHẬN{{/if}}
+                    </span>
+                </h3>
+            </div>
+
+            <div class="info-box">
+                <h3 style="margin-top: 0; color: #2196f3;">📅 Chi tiết lịch hẹn:</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Thú cưng:</div>
+                    <div class="detail-value">{{petName}}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Dịch vụ:</div>
+                    <div class="detail-value">{{serviceName}}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Ngày hẹn:</div>
+                    <div class="detail-value">{{appointmentDate}}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Giờ hẹn:</div>
+                    <div class="detail-value">{{appointmentTime}}</div>
+                </div>
+            </div>
+
+            {{#if (eq status 'CONFIRMED')}}
+            <p style="background-color: #d4edda; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745;">
+                <strong>✅ Lưu ý quan trọng:</strong><br>
+                Vui lòng đến đúng giờ để đảm bảo thú cưng của bạn được chăm sóc tốt nhất. Nếu bạn cần thay đổi lịch hẹn, vui lòng liên hệ với chúng tôi trước ít nhất 2 giờ.
+            </p>
+            {{else if (eq status 'CANCELLED')}}
+            <p style="background-color: #f8d7da; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545;">
+                <strong>❌ Lịch hẹn đã bị hủy</strong><br>
+                Nếu bạn vẫn muốn sử dụng dịch vụ, vui lòng đặt lịch hẹn mới hoặc liên hệ với chúng tôi để được hỗ trợ.
+            </p>
+            {{/if}}
+
+            <p style="margin-top: 30px;">Nếu bạn có bất kỳ thắc mắc nào, đừng ngần ngại liên hệ với chúng tôi!</p>
+        </div>
+        <div class="footer">
+            <p><strong>PAW LOVERS Pet Care Center</strong></p>
+            <p>📞 Hotline: 0123-456-789 | 📧 Email: support@pawlovers.com</p>
+            <p>📍 Địa chỉ: 123 Nguyễn Văn Linh, Quận 7, TP.HCM</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 15px 0;">
+            <p style="font-size: 12px; color: #999;">Email này được gửi tự động. Vui lòng không trả lời email này.</p>
+        </div>
+    </div>
+</body>
+</html>

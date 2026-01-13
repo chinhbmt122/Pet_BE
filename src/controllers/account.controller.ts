@@ -22,6 +22,8 @@ import {
   LoginResponseDto,
   AccountResponseDto,
   ChangePasswordDto,
+  RequestPasswordResetDto,
+  ConfirmPasswordResetDto,
 } from '../dto/account';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
@@ -197,5 +199,42 @@ export class AccountController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<Account> {
     return this.accountService.deactivateAccount(id);
+  }
+
+  /**
+   * POST /api/auth/forgot-password
+   * Request password reset - sends email with reset token
+   */
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @RouteConfig({ message: 'Request password reset', requiresAuth: false })
+  @ApiOperation({ summary: 'Request password reset email' })
+  @ApiResponse({ status: 200, description: 'Reset email sent if account exists' })
+  @ApiResponse({ status: 400, description: 'Invalid email format' })
+  async requestPasswordReset(
+    @Body() dto: RequestPasswordResetDto,
+  ): Promise<{ message: string }> {
+    await this.authService.requestPasswordReset(dto.email);
+    return { 
+      message: 'If the email exists, a password reset link has been sent.' 
+    };
+  }
+
+  /**
+   * POST /api/auth/reset-password
+   * Reset password using token from email
+   */
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @RouteConfig({ message: 'Reset password with token', requiresAuth: false })
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 404, description: 'Account not found' })
+  async resetPassword(
+    @Body() dto: ConfirmPasswordResetDto,
+  ): Promise<{ message: string }> {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
+    return { message: 'Password has been reset successfully' };
   }
 }

@@ -11,6 +11,10 @@ import { JwtPayload } from '../dto/JWTTypes';
 import { PetOwner } from '../entities/pet-owner.entity';
 import { Employee } from '../entities/employee.entity';
 import { UserType } from '../entities/types/entity.types';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
+import { EmailService } from './email.service';
+import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 /**
  * AuthService
@@ -19,6 +23,7 @@ import { UserType } from '../entities/types/entity.types';
  * - Login (credential validation)
  * - Logout (session invalidation)
  * - Token validation
+ * - Password reset
  *
  * Follows SRP - ONLY handles auth, no profile management.
  *
@@ -33,7 +38,10 @@ export class AuthService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -149,5 +157,85 @@ export class AuthService {
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,
     };
+  }
+
+  /**
+   * Request password reset - generates token and sends email
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    // Find account
+    const account = await this.accountRepository.findOne({
+      where: { email: email.toLowerCase() },
+    });
+
+    // Don't reveal if email exists or not (security best practice)
+    if (!account) {
+      return;
+    }
+
+    // Get user profile for name
+    const profile = await this.fetchProfile(account.accountId, account.userType);
+    const userName = profile?.fullName || 'Người dùng';
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 minutes expiry
+
+    // Save token to database
+    await this.passwordResetTokenRepository.save({
+      email: email.toLowerCase(),
+      token: resetToken,
+      expiresAt,
+      isUsed: false,
+    });
+
+    // Send email
+    await this.emailService.sendPasswordResetEmail(
+      email,
+      resetToken,
+      userName,
+    );
+  }
+
+  /**
+   * Reset password using token
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    // Find valid token
+    const resetToken = await this.passwordResetTokenRepository.findOne({
+      where: { token, isUsed: false },
+    });
+
+    if (!resetToken) {
+      I18nException.badRequest('errors.auth.invalidResetToken');
+    }
+
+    // Check if token expired
+    if (new Date() > resetToken.expiresAt) {
+      I18nException.badRequest('errors.auth.expiredResetToken');
+    }
+
+    // Find account
+    const account = await this.accountRepository.findOne({
+      where: { email: resetToken.email },
+    });
+
+    if (!account) {
+      I18nException.notFound('errors.account.notFound');
+    }
+
+    // Update password using domain model
+    const domain = AccountMapper.toDomain(account);
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    domain.changePassword(newPasswordHash);
+
+    // Save updated password hash
+    account.passwordHash = domain.passwordHash;
+    await this.accountRepository.save(account);
+
+    // Mark token as used
+    resetToken.isUsed = true;
+    await this.passwordResetTokenRepository.save(resetToken);
   }
 }

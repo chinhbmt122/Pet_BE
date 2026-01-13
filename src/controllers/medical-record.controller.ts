@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -28,9 +29,14 @@ import {
   CreateVaccinationDto,
   VaccinationResponseDto,
 } from '../dto/vaccination';
+import {
+  CreateVaccineTypeDto,
+  UpdateVaccineTypeDto,
+} from '../dto/vaccine-type';
 import { RouteConfig } from '../middleware/decorators/route.decorator';
 import { Account, UserType } from '../entities/account.entity';
 import { GetUser } from '../middleware/decorators/user.decorator';
+import { VaccineType } from '../entities/vaccine-type.entity';
 
 /**
  * MedicalRecordController
@@ -245,6 +251,79 @@ export class MedicalRecordController {
   })
   async getAllVaccineTypes() {
     return this.medicalRecordService.getAllVaccineTypes();
+  }
+
+  /**
+   * POST /api/vaccine-types
+   * Creates a new vaccine type (Manager only).
+   */
+  @Post('vaccine-types')
+  @RouteConfig({
+    message: 'Create vaccine type (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create new vaccine type' })
+  @ApiResponse({
+    status: 201,
+    description: 'Vaccine type created successfully',
+    type: VaccineType,
+  })
+  async createVaccineType(@Body() dto: CreateVaccineTypeDto) {
+    const vaccineType = await this.medicalRecordService.createVaccineType(dto);
+    return { data: vaccineType };
+  }
+
+  /**
+   * PUT /api/vaccine-types/:id
+   * Updates an existing vaccine type (Manager only).
+   */
+  @Put('vaccine-types/:id')
+  @RouteConfig({
+    message: 'Update vaccine type (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update vaccine type' })
+  @ApiParam({ name: 'id', description: 'Vaccine type ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vaccine type updated successfully',
+    type: VaccineType,
+  })
+  async updateVaccineType(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateVaccineTypeDto,
+  ) {
+    const vaccineType = await this.medicalRecordService.updateVaccineType(
+      id,
+      dto,
+    );
+    return { data: vaccineType };
+  }
+
+  /**
+   * DELETE /api/vaccine-types/:id
+   * Soft deletes a vaccine type (Manager only).
+   */
+  @Delete('vaccine-types/:id')
+  @RouteConfig({
+    message: 'Delete vaccine type (Manager only)',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Soft delete vaccine type (sets isActive=false)' })
+  @ApiParam({ name: 'id', description: 'Vaccine type ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Vaccine type deleted successfully',
+  })
+  async deleteVaccineType(@Param('id', ParseIntPipe) id: number) {
+    await this.medicalRecordService.deleteVaccineType(id);
+    return { message: 'Vaccine type deleted successfully' };
   }
 
   // ============================================

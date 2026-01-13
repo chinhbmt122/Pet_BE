@@ -299,6 +299,23 @@ export class PetService {
   }
 
   /**
+   * Gets all soft-deleted pets.
+   */
+  async getAllDeletedPets(): Promise<PetResponseDto[]> {
+    const entities = await this.petRepository
+      .createQueryBuilder('pet')
+      .withDeleted()
+      .leftJoinAndSelect('pet.owner', 'owner')
+      .leftJoinAndSelect('owner.account', 'account')
+      .where('pet.deletedAt IS NOT NULL')
+      .orderBy('pet.deletedAt', 'DESC')
+      .getMany();
+
+    const domains = PetMapper.toDomainList(entities);
+    return PetResponseDto.fromDomainList(domains);
+  }
+
+  /**
    * Gets all soft-deleted pets for a specific owner.
    */
   async getDeletedPetsByOwner(ownerId: number): Promise<PetResponseDto[]> {
