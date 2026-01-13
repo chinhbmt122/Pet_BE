@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { InvoiceService } from '../../../src/services/invoice.service';
+import { EmailService } from '../../../src/services/email.service';
 import { Invoice, InvoiceStatus } from '../../../src/entities/invoice.entity';
 import { Appointment, AppointmentStatus } from '../../../src/entities/appointment.entity';
 import { PetOwner } from '../../../src/entities/pet-owner.entity';
@@ -68,6 +69,12 @@ describe('InvoiceService - Full Unit Tests', () => {
         {
           provide: OwnershipValidationHelper,
           useValue: mockOwnershipHelper,
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendInvoiceEmail: jest.fn(),
+          },
         },
       ],
     }).compile();

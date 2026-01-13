@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
+import { EmailService } from './email.service';
 import { Invoice, InvoiceStatus } from '../entities/invoice.entity';
 import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { PetOwner } from '../entities/pet-owner.entity';
@@ -35,6 +36,7 @@ export class InvoiceService {
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly ownershipHelper: OwnershipValidationHelper,
+    private readonly emailService: EmailService,
   ) {}
 
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
@@ -140,6 +142,10 @@ export class InvoiceService {
 
     // Save and return
     const saved = await manager.save(Invoice, entity);
+
+    // Send invoice email notification to pet owner
+    await this.sendInvoiceEmailNotification(saved, appointment);
+
     return InvoiceResponseDto.fromEntity(saved);
   }
 
@@ -590,5 +596,67 @@ export class InvoiceService {
     }
 
     await this.invoiceRepository.remove(entity);
+  }
+
+  /**
+   * Helper method to send invoice email notification to pet owner
+   */
+  private async sendInvoiceEmailNotification(
+    invoice: Invoice,
+    appointment: Appointment,
+  ): Promise<void> {
+    try {
+      // Load appointment with pet owner info
+      const appointmentWithOwner = await this.appointmentRepository.findOne({
+        where: { appointmentId: appointment.appointmentId },
+        relations: [
+          'pet',
+          'pet.owner',
+          'pet.owner.account',
+          'appointmentServices',
+          'appointmentServices.service',
+        ],
+      });
+
+      const ownerEmail = appointmentWithOwner?.pet?.owner?.account?.email;
+      const ownerName =
+        appointmentWithOwner?.pet?.owner?.fullName || 'Quý khách';
+
+      if (!ownerEmail) {
+        console.log('[EMAIL] No owner email found for invoice notification');
+        return;
+      }
+
+      const issueDate = new Date(invoice.issueDate);
+      const formattedDate = issueDate.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+
+      // Build items array from appointment services
+      const items =
+        appointmentWithOwner?.appointmentServices?.map((as) => ({
+          name: as.service?.serviceName || 'Dịch vụ',
+          quantity: as.quantity,
+          price: Number(as.unitPrice).toLocaleString('vi-VN') + ' VNĐ',
+        })) || [];
+
+      await this.emailService.sendInvoiceEmail(ownerEmail, {
+        ownerName,
+        invoiceNumber: invoice.invoiceNumber,
+        issueDate: formattedDate,
+        totalAmount:
+          Number(invoice.totalAmount).toLocaleString('vi-VN') + ' VNĐ',
+        items,
+        invoiceUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${invoice.invoiceId}`,
+      });
+      console.log(`[EMAIL] Invoice notification sent to ${ownerEmail}`);
+    } catch (error) {
+      // Log but don't fail the operation if email fails
+      console.error(
+        `[EMAIL] Failed to send invoice email: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }

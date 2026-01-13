@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { PaymentService } from '../../../src/services/payment.service';
+import { EmailService } from '../../../src/services/email.service';
 import { Invoice, InvoiceStatus } from '../../../src/entities/invoice.entity';
 import { Payment, PaymentMethod, PaymentStatus } from '../../../src/entities/payment.entity';
 import { PaymentGatewayArchive } from '../../../src/entities/payment-gateway-archive.entity';
@@ -68,6 +69,13 @@ describe('PaymentService - Full Unit Tests', () => {
         {
           provide: OwnershipValidationHelper,
           useValue: mockOwnershipHelper,
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendPaymentConfirmationEmail: jest.fn(),
+            sendPaymentFailedEmail: jest.fn(),
+          },
         },
       ],
     }).compile();

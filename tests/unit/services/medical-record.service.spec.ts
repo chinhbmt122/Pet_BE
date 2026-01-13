@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { MedicalRecordService } from '../../../src/services/medical-record.service';
+import { EmailService } from '../../../src/services/email.service';
 import { MedicalRecord } from '../../../src/entities/medical-record.entity';
 import { VaccineType } from '../../../src/entities/vaccine-type.entity';
 import { VaccinationHistory } from '../../../src/entities/vaccination-history.entity';
@@ -126,6 +127,12 @@ describe('MedicalRecordService', () => {
         {
           provide: OwnershipValidationHelper,
           useValue: mockOwnershipHelper,
+        },
+        {
+          provide: EmailService,
+          useValue: {
+            sendMedicalRecordNotificationEmail: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

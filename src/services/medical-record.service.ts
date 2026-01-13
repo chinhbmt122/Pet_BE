@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EmailService } from './email.service';
 import { Repository, LessThanOrEqual } from 'typeorm';
 import { MedicalRecord } from '../entities/medical-record.entity';
 import { Appointment } from '../entities/appointment.entity';
@@ -56,6 +57,7 @@ export class MedicalRecordService {
     @InjectRepository(PetOwner)
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly ownershipHelper: OwnershipValidationHelper,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -170,7 +172,10 @@ export class MedicalRecordService {
     const entity = this.medicalRecordRepository.create(entityData);
     const saved = await this.medicalRecordRepository.save(entity);
 
-    // 7. Return response DTO
+    // 7. Send email notification to pet owner
+    await this.sendMedicalRecordEmail(saved, pet);
+
+    // 8. Return response DTO
     const savedDomain = MedicalRecordMapper.toDomain(saved);
     return MedicalRecordResponseDto.fromDomain(savedDomain);
   }
@@ -493,5 +498,68 @@ export class MedicalRecordService {
 
     vaccineType.isActive = false;
     await this.vaccineTypeRepository.save(vaccineType);
+  }
+
+  /**
+   * Helper method to send medical record notification email to pet owner
+   */
+  private async sendMedicalRecordEmail(
+    record: MedicalRecord,
+    pet: Pet,
+  ): Promise<void> {
+    try {
+      // Load pet with owner and account info
+      const petWithOwner = await this.petRepository.findOne({
+        where: { petId: pet.petId },
+        relations: ['owner', 'owner.account'],
+      });
+
+      // Load veterinarian info
+      const vet = await this.veterinarianRepository.findOne({
+        where: { employeeId: record.veterinarianId },
+        relations: ['account'],
+      });
+
+      const ownerEmail = petWithOwner?.owner?.account?.email;
+      const ownerName = petWithOwner?.owner?.fullName || 'Quý khách';
+      const petName = petWithOwner?.name || 'Thú cưng của bạn';
+      const veterinarianName = vet?.fullName || 'Bác sĩ';
+
+      if (!ownerEmail) {
+        console.log(
+          '[EMAIL] No owner email found for medical record notification',
+        );
+        return;
+      }
+
+      const examinationDate = new Date(record.examinationDate);
+      const formattedDate = examinationDate.toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+
+      await this.emailService.sendMedicalRecordNotificationEmail(ownerEmail, {
+        ownerName,
+        petName,
+        diagnosis: record.diagnosis,
+        treatment: record.treatment,
+        veterinarianName,
+        recordDate: formattedDate,
+        followUpDate: record.followUpDate
+          ? new Date(record.followUpDate).toLocaleDateString('vi-VN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            })
+          : undefined,
+      });
+      console.log(`[EMAIL] Medical record notification sent to ${ownerEmail}`);
+    } catch (error) {
+      // Log but don't fail the operation if email fails
+      console.error(
+        `[EMAIL] Failed to send medical record email: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }

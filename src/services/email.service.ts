@@ -250,6 +250,7 @@ export class EmailService {
       treatment: string;
       veterinarianName: string;
       recordDate: string;
+      followUpDate?: string;
     },
   ): Promise<void> {
     await this.sendEmail({
