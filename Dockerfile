@@ -26,8 +26,8 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /app/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
-# Copy i18n translation files (not included in TypeScript build)
-COPY --from=build /app/src/i18n ./dist/i18n
+# Copy i18n translation files (app.module.ts expects them at src/i18n/)
+COPY --from=build /app/src/i18n ./src/i18n
 
 USER app
 EXPOSE 3000
