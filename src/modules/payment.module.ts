@@ -39,7 +39,9 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
 
         // Warn but don't fail if VNPay is not configured
         if (!tmnCode || !secureSecret) {
-          console.warn('[VNPay] TMN_CODE or HASH_SECRET not configured. VNPay payments will be disabled.');
+          console.warn(
+            '[VNPay] TMN_CODE or HASH_SECRET not configured. VNPay payments will be disabled.',
+          );
         }
 
         return {
@@ -60,4 +62,4 @@ import { InvoiceController } from 'src/controllers/invoice.controller';
   providers: [PaymentService, VNPayService, InvoiceService],
   exports: [PaymentService, InvoiceService],
 })
-export class PaymentModule { }
+export class PaymentModule {}

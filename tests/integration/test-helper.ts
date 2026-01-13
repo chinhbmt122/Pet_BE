@@ -46,6 +46,7 @@ import { ServiceCategoryModule } from '../../src/modules/service-category.module
 import { PetOwnerModule } from '../../src/modules/pet-owner.module';
 import { CageModule } from '../../src/modules/cage.module';
 import { PaymentModule } from '../../src/modules/payment.module';
+import { SharedHelpersModule } from '../../src/modules/shared-helpers.module';
 
 /**
  * Integration Test Helper
@@ -108,6 +109,7 @@ export async function createTestApp(): Promise<INestApplication> {
       PetOwnerModule,
       CageModule,
       PaymentModule,
+      SharedHelpersModule,
     ],
     providers: [
       {

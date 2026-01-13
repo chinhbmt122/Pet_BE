@@ -49,4 +49,4 @@ import { entitiesOrdered } from './entities';
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}
