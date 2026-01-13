@@ -2,9 +2,15 @@ services:
   # Python/Node/Docker web service
   - type: web
     name: pet-backend
-    runtime: docker
+    # Use pre-built image from GitHub Container Registry (faster deploys!)
+    # CI builds and pushes image on each main branch push
+    runtime: image
+    image:
+      url: ghcr.io/chinhbmt122/pet_be:latest
     plan: free
     region: singapore
+    healthCheckPath: /api
+    autoDeploy: false  # We trigger deploy from CI via webhook
     envVars:
       - key: PORT
         value: 3000

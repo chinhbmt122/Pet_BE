@@ -1,52 +1,88 @@
 # Deploying Pet_BE to Render
 
-This guide walks you through setting up Continuous Deployment (CD) on Render using the created `render.yaml` Blueprint.
+This guide covers deploying the backend using **pre-built Docker images** from GitHub Container Registry (GHCR).
+
+## Architecture
+
+```
+GitHub Push → CI Pipeline → Build & Push Image to GHCR → Trigger Render Deploy
+                                                              ↓
+                                           Render pulls image → Deploys (~30-60s)
+```
 
 ## Prerequisites
 
-1.  **GitHub Repository**: Ensure your code is pushed to a GitHub repository.
-2.  **Render Account**: Sign up at [render.com](https://render.com).
+1. **GitHub Repository**: Code pushed to `main` branch
+2. **Render Account**: Sign up at [render.com](https://render.com)
 
-## Steps
+## Initial Setup (One-time)
 
-### 1. Connect Repository
-1.  Go to the [Render Dashboard](https://dashboard.render.com).
-2.  Click **New +** and select **Blueprint**.
-3.  Connect your GitHub repository (`Pet_BE`).
+### 1. Create Render Blueprint
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click **New +** → **Blueprint**
+3. Connect your GitHub repository (`Pet_BE`)
+4. Render detects `render.yaml` automatically
+5. Fill in required secrets (`VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`)
+6. Click **Apply**
 
-### 2. Configure Blueprint
-Render will automatically detect the `render.yaml` file.
+### 2. Get Deploy Hook URL (Optional - for faster deploys)
+1. In Render Dashboard → Select `pet-backend` service
+2. Go to **Settings** → **Deploy Hook**
+3. Copy the URL
+4. In GitHub repo → **Settings** → **Secrets** → Add:
+   - Name: `RENDER_DEPLOY_HOOK_URL`
+   - Value: (paste the URL)
 
-1.  **Name**: Confirm the service names (e.g., `pet-backend`, `pet-db`).
-2.  **Environment Variables**:
-    *   `JWT_SECRET`: Render will generate a value. Use this or override it.
-    *   `VNPAY_TMN_CODE` & `VNPAY_HASH_SECRET`: You **MUST** enter these values manually in the Render dashboard during setup or afterwards in the "Environment" tab.
-    *   `VNPAY_RETURN_URL`: Update this to your actual Frontend URL once deployed.
+### 3. Make GHCR Package Public (if private repo)
+1. Go to GitHub → Your Profile → **Packages**
+2. Find `pet_be` package
+3. Click **Package Settings** → **Change visibility** → **Public**
 
-### 3. Apply Blueprint
-1.  Click **Apply**.
-2.  Render will:
-    *   Provision a PostgreSQL database (`pet-db`).
-    *   Build your Docker image (`pet-backend`).
-    *   Deploy the service.
+Or add Render's pull credentials (advanced).
 
-### 4. Database Migrations
-The application is configured to **automatically run migrations** on startup in production (via `migrationsRun: true` in `database.module.ts`).
-*   Check the logs to verify migrations applied successfully: `[TypeOrmModule] Migrations run successfully`.
+## How Deploys Work Now
 
-### 5. Verification
-Once deployed, the status will turn **Live**.
-*   Test the health check: `https://<your-service-name>.onrender.com/api/` (or your health endpoint).
-*   Test Swagger: `https://<your-service-name>.onrender.com/api/docs`.
+| Step | What Happens |
+|------|--------------|
+| 1 | Push to `main` branch |
+| 2 | CI runs: tests, lint, security scan |
+| 3 | CI builds Docker image |
+| 4 | CI pushes to `ghcr.io/chinhbmt122/pet_be:latest` |
+| 5 | CI triggers Render deploy (via webhook) |
+| 6 | Render pulls image and deploys (~30-60s) |
+
+## Manual Deploy (if needed)
+
+```bash
+# In Render Dashboard → pet-backend → Manual Deploy → Deploy latest commit
+```
+
+## Environment Variables
+
+| Variable | Source | Notes |
+|----------|--------|-------|
+| `DATABASE_URL` | Auto from `pet-db` | Render manages this |
+| `JWT_SECRET` | Auto-generated | Secure random value |
+| `VNPAY_TMN_CODE` | Manual input | Your VNPAY merchant code |
+| `VNPAY_HASH_SECRET` | Manual input | Your VNPAY secret |
+
+## Verification
+
+1. Check service status: **Live** ✅
+2. Test health: `https://pet-backend.onrender.com/api/`
+3. Test Swagger: `https://pet-backend.onrender.com/api/docs`
 
 ## Troubleshooting
 
-### "Validation Error" on VNPAY keys
-If the deployment fails validation because of missing sync-false variables:
-1.  Open the Service in Render Dashboard.
-2.  Go to **Environment**.
-3.  Add `VNPAY_TMN_CODE` and `VNPAY_HASH_SECRET` with your real values.
-4.  Trigger a generic deployment.
+### Image Pull Failed
+- Ensure GHCR package is public, or configure Render credentials
+- Check CI logs - did the image push succeed?
 
-### Database Connection SSL
-We updated `database.module.ts` to use `ssl: { rejectUnauthorized: false }` in production. This is required for Render's managed database internal connections.
+### Database Connection Error
+- Check `DATABASE_URL` is set (from `pet-db`)
+- Verify database is running (Dashboard → pet-db)
+
+### Slow Cold Starts
+- Free tier instances sleep after 15min of inactivity
+- First request after sleep takes ~30s
+- Consider upgrading to paid plan for production
