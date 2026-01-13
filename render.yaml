@@ -17,6 +17,8 @@ services:
         value: production
       - key: APP_NAME
         value: PAW LOVERS
+      - key: AUTO_SEED
+        value: "true"  # Auto-seed database when empty (first deploy)
       
       # Database (auto-linked from pet-db)
       - key: DATABASE_URL
@@ -58,13 +60,12 @@ services:
       - key: ETHEREAL_PREVIEW_ENABLED
         value: "false"
       
-      # Redis (Render provides Redis add-on, or use external)
-      - key: REDIS_HOST
-        sync: false  # Set if using external Redis
-      - key: REDIS_PORT
-        value: 6379
-      - key: REDIS_PASSWORD
-        sync: false  # Set if using external Redis
+      # Redis (Render managed - auto-linked from pet-redis)
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pet-redis
+          property: connectionString
       
       # Frontend URL (for CORS)
       - key: FRONTEND_URL

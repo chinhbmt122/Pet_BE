@@ -17,6 +17,7 @@ import { ServiceCategoryModule } from './modules/service-category.module';
 import { CageModule } from './modules/cage.module';
 import { EmailModule } from './modules/email.module';
 import { SharedHelpersModule } from './modules/shared-helpers.module';
+import { SeedService } from './services/seed.service';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './middleware/interceptors/response.interceptor';
 import { GlobalExceptionFilter } from './middleware/filters/global.filter';
@@ -68,6 +69,7 @@ import * as path from 'path';
   controllers: [AppController],
   providers: [
     AppService,
+    SeedService, // Auto-seed database when empty (on production)
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,

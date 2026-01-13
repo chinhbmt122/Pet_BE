@@ -23,6 +23,8 @@ async function bootstrap() {
       'http://localhost:3001',
       'http://localhost:3002',
       'http://localhost:4200',
+      // Add production frontend URL from environment
+      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
     ],
   });
 
