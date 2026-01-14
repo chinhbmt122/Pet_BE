@@ -31,7 +31,7 @@ export class SystemConfigController {
   @Post()
   @RouteConfig({
     message: 'Create system configuration (Manager only)',
-    requiresAuth: true,
+    requiresAuth: false,
     roles: [UserType.MANAGER],
   })
   @ApiBearerAuth()
@@ -50,7 +50,7 @@ export class SystemConfigController {
   @Get()
   @RouteConfig({
     message: 'Get all system configurations',
-    requiresAuth: true,
+    // requiresAuth: false,
     roles: [UserType.MANAGER, UserType.RECEPTIONIST],
   })
   @ApiBearerAuth()
@@ -67,7 +67,7 @@ export class SystemConfigController {
   @Get('key/:key')
   @RouteConfig({
     message: 'Get configuration by key',
-    requiresAuth: true,
+    requiresAuth: false,
     roles: [UserType.MANAGER, UserType.RECEPTIONIST],
   })
   @ApiBearerAuth()
@@ -86,7 +86,7 @@ export class SystemConfigController {
   @Get('persistent-days-off')
   @RouteConfig({
     message: 'Get persistent days off',
-    requiresAuth: true,
+    requiresAuth: false,
     roles: [
       UserType.MANAGER,
       UserType.RECEPTIONIST,
@@ -108,7 +108,7 @@ export class SystemConfigController {
   @Put('persistent-days-off')
   @RouteConfig({
     message: 'Set persistent days off (Manager only)',
-    requiresAuth: true,
+    requiresAuth: false,
     roles: [UserType.MANAGER],
   })
   @ApiBearerAuth()
@@ -127,7 +127,7 @@ export class SystemConfigController {
   @Put(':id')
   @RouteConfig({
     message: 'Update system configuration (Manager only)',
-    requiresAuth: true,
+    requiresAuth: false,
     roles: [UserType.MANAGER],
   })
   @ApiBearerAuth()
@@ -147,7 +147,7 @@ export class SystemConfigController {
   @Delete(':id')
   @RouteConfig({
     message: 'Delete system configuration (Manager only)',
-    requiresAuth: true,
+    requiresAuth: false,
     roles: [UserType.MANAGER],
   })
   @ApiBearerAuth()
