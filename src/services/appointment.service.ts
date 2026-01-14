@@ -76,7 +76,7 @@ export class AppointmentService {
     private readonly emailService: EmailService,
     private readonly dataSource: DataSource,
     private readonly ownershipHelper: OwnershipValidationHelper,
-  ) {}
+  ) { }
 
   // ============================================
   // PRIVATE VALIDATION HELPERS (DRY - Phase 1 Refactoring)
@@ -832,7 +832,7 @@ export class AppointmentService {
             .filter(Boolean)
             .join(', ') || 'Dịch vụ';
 
-        await this.emailService.sendAppointmentStatusUpdateEmail(
+        this.emailService.sendAppointmentStatusUpdateEmail(
           appointment.pet.owner.account.email,
           {
             ownerName: appointment.pet.owner.fullName,
@@ -843,7 +843,7 @@ export class AppointmentService {
             status,
             statusMessage,
           },
-        );
+        ).catch(err => this.logger.warn(`[EMAIL] Status email failed: ${err}`));
 
         this.logger.log(
           `[EMAIL] Status update email sent for appointment ${appointment.appointmentId}`,
@@ -940,7 +940,7 @@ export class AppointmentService {
                 .filter(Boolean)
                 .join(', ') || 'Dịch vụ';
 
-            await this.emailService.sendAppointmentReminderEmail(
+            this.emailService.sendAppointmentReminderEmail(
               appointment.pet.owner.account.email,
               {
                 ownerName: appointment.pet.owner.fullName,
@@ -949,7 +949,7 @@ export class AppointmentService {
                 appointmentDate: formattedDate,
                 appointmentTime: appointment.startTime,
               },
-            );
+            ).catch(err => this.logger.warn(`[EMAIL] Reminder failed: ${err}`));
 
             this.logger.log(
               `[CRON] Reminder sent for appointment ${appointment.appointmentId}`,

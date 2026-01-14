@@ -42,7 +42,7 @@ export class AuthService {
     private readonly passwordResetTokenRepository: Repository<PasswordResetToken>,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * Authenticates user credentials and returns JWT token.
@@ -193,8 +193,9 @@ export class AuthService {
       isUsed: false,
     });
 
-    // Send email
-    await this.emailService.sendPasswordResetEmail(email, resetToken, userName);
+    // Send email (fire-and-forget)
+    this.emailService.sendPasswordResetEmail(email, resetToken, userName)
+      .catch(err => console.warn('[EMAIL] Password reset email failed:', err));
   }
 
   /**
