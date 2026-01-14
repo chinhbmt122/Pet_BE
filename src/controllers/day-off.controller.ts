@@ -216,4 +216,38 @@ export class DayOffController {
     const isDayOff = await this.dayOffService.isDayOff(date);
     return { isDayOff };
   }
+
+  /**
+   * GET /api/day-offs/appointments/:date
+   * Checks if there are appointments on a specific date.
+   */
+  @Get('appointments/:date')
+  @RouteConfig({
+    message: 'Check appointments on date',
+    requiresAuth: true,
+    roles: [UserType.MANAGER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check if appointments exist on a date' })
+  @ApiParam({
+    name: 'date',
+    description: 'Date to check (ISO 8601)',
+    example: '2026-01-15',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns appointment count on the date',
+    schema: {
+      type: 'object',
+      properties: {
+        hasAppointments: { type: 'boolean' },
+        count: { type: 'number' },
+      },
+    },
+  })
+  async checkAppointmentsOnDate(
+    @Param('date') date: string,
+  ): Promise<{ hasAppointments: boolean; count: number }> {
+    return this.dayOffService.checkAppointmentsOnDate(date);
+  }
 }

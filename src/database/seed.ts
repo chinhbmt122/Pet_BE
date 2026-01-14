@@ -1211,7 +1211,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         discount: 0,
         tax: 0,
         totalAmount: services[0].basePrice,
-        status: InvoiceStatus.PENDING,
+        status: InvoiceStatus.PAID,
         notes: 'Thanh toán bằng tiền mặt',
         paidAt: getDateOffset(-3),
       },
@@ -1224,7 +1224,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         discount: 10000, // Giảm giá 10k
         tax: 0,
         totalAmount: services[5].basePrice - 10000,
-        status: InvoiceStatus.PENDING,
+        status: InvoiceStatus.PAID,
         notes: 'Khách hàng thân thiết - giảm 10k',
       },
       // Invoice for completed appointment 3 (Mèo Mun - Vaccine) - PAID
@@ -1236,7 +1236,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         discount: 0,
         tax: 0,
         totalAmount: services[2].basePrice,
-        status: InvoiceStatus.PENDING,
+        status: InvoiceStatus.PAID,
         notes: 'Thanh toán chuyển khoản',
         paidAt: getDateOffset(-7),
       },
@@ -1249,7 +1249,7 @@ export async function seedDatabase(dataSource: DataSource): Promise<void> {
         discount: 0,
         tax: 0,
         totalAmount: 350000, // Có phụ phí thêm: 120k service + 230k additional
-        status: InvoiceStatus.PENDING,
+        status: InvoiceStatus.PAID,
         notes: 'Thêm dịch vụ massage +30k',
         paidAt: getDateOffset(-10),
       },

@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { DayOff } from '../entities/day-off.entity';
+import { WorkSchedule } from '../entities/work-schedule.entity';
+import { Appointment } from '../entities/appointment.entity';
 import {
   CreateDayOffDto,
   UpdateDayOffDto,
@@ -20,10 +22,16 @@ export class DayOffService {
   constructor(
     @InjectRepository(DayOff)
     private readonly dayOffRepository: Repository<DayOff>,
+    @InjectRepository(WorkSchedule)
+    private readonly scheduleRepository: Repository<WorkSchedule>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
   ) {}
 
   /**
    * Creates a new day-off record.
+   * Clears all schedules on that date ONLY if there are no appointments.
+   * If appointments exist, schedules are NOT cleared and user is notified.
    */
   async createDayOff(dto: CreateDayOffDto): Promise<DayOffResponseDto> {
     // Check if day-off already exists for this date
@@ -44,7 +52,53 @@ export class DayOffService {
     });
 
     const saved = await this.dayOffRepository.save(dayOff);
+
+    // Check for appointments and clear schedules if possible
+    await this.clearSchedulesOnDayOff(dto.date);
+
     return this.mapToResponseDto(saved);
+  }
+
+  /**
+   * Clears work schedules on a specific date ONLY if there are NO appointments.
+   * If any appointments exist on that date, NO schedules are cleared.
+   */
+  private async clearSchedulesOnDayOff(dateString: string): Promise<void> {
+    const targetDate = new Date(dateString);
+
+    // Get all schedules on this date
+    const schedulesOnDate = await this.scheduleRepository.find({
+      where: { workDate: targetDate },
+    });
+
+    if (schedulesOnDate.length === 0) {
+      console.log(`[DayOffService] No schedules to clear on ${dateString}`);
+      return;
+    }
+
+    // Check if ANY appointments exist on this date (active appointments only)
+    const appointmentsOnDate = await this.appointmentRepository.find({
+      where: {
+        appointmentDate: targetDate,
+        status: In(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED']),
+      },
+    });
+
+    // If there are ANY appointments, DO NOT clear any schedules
+    if (appointmentsOnDate.length > 0) {
+      console.log(
+        `[DayOffService] Cannot clear schedules on ${dateString} - ${appointmentsOnDate.length} appointment(s) exist. Schedules preserved.`,
+      );
+      return;
+    }
+
+    // No appointments exist - safe to clear all schedules
+    const scheduleIds = schedulesOnDate.map((s) => s.scheduleId);
+    await this.scheduleRepository.delete(scheduleIds);
+
+    console.log(
+      `[DayOffService] Cleared all ${schedulesOnDate.length} schedules on ${dateString} (no appointments found)`,
+    );
   }
 
   /**
@@ -154,6 +208,27 @@ export class DayOffService {
       where: { date: new Date(date) },
     });
     return !!dayOff;
+  }
+
+  /**
+   * Checks if there are appointments on a specific date.
+   * Used to warn managers before creating day-offs.
+   */
+  async checkAppointmentsOnDate(
+    date: string,
+  ): Promise<{ hasAppointments: boolean; count: number }> {
+    const targetDate = new Date(date);
+    const appointments = await this.appointmentRepository.find({
+      where: {
+        appointmentDate: targetDate,
+        status: In(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED']),
+      },
+    });
+
+    return {
+      hasAppointments: appointments.length > 0,
+      count: appointments.length,
+    };
   }
 
   /**
