@@ -288,7 +288,13 @@ export class ScheduleController {
    * GET /api/schedules/available-employees
    * Gets all available employees for a specific date/time range.
    */
-  @Get('available-employees')
+  @Get('available/employees')
+  @RouteConfig({
+    message: 'Get available employees',
+    requiresAuth: false,
+    roles: [UserType.PET_OWNER, UserType.MANAGER, UserType.RECEPTIONIST],
+  })
+  // @ApiBearerAuth()
   @ApiOperation({ summary: 'Get available employees' })
   @ApiQuery({
     name: 'date',
@@ -316,6 +322,7 @@ export class ScheduleController {
     @Query('endTime') endTime?: string,
     @Query('role') role?: string,
   ): Promise<any[]> {
+    console.log('hello');
     return this.scheduleService.getAvailableEmployees({
       date: new Date(date),
       startTime,
