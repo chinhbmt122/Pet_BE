@@ -43,7 +43,6 @@ export class InvoiceController {
   // ============================================
   // INVOICE CRUD
   // ============================================
-  // THIS SHIT ISN'T USED
 
   /**
    * POST /api/invoices/generate
@@ -142,6 +141,7 @@ export class InvoiceController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiQuery({ name: 'includeAppointment', required: false, type: Boolean })
   @ApiQuery({ name: 'includePet', required: false, type: Boolean })
+  @ApiQuery({ name: 'includePayment', required: false, type: Boolean })
   @ApiResponse({
     status: 200,
     description: 'List of current pet owner invoices',
@@ -154,6 +154,7 @@ export class InvoiceController {
     @Query('endDate') endDate?: string,
     @Query('includeAppointment') includeAppointment?: boolean,
     @Query('includePet') includePet?: boolean,
+    @Query('includePayment') includePayment?: boolean,
   ): Promise<InvoiceResponseDto[]> {
     return this.invoiceService.getAllInvoices(user, {
       status,
@@ -162,6 +163,7 @@ export class InvoiceController {
       includeAppointment,
       includePetOwner: false, // Pet owner viewing own invoices doesn't need this
       includePet,
+      includePayment,
     });
   }
 
@@ -183,6 +185,7 @@ export class InvoiceController {
   @ApiQuery({ name: 'includeAppointment', required: false, type: Boolean })
   @ApiQuery({ name: 'includePetOwner', required: false, type: Boolean })
   @ApiQuery({ name: 'includePet', required: false, type: Boolean })
+  @ApiQuery({ name: 'includePayment', required: false, type: Boolean })
   @ApiResponse({
     status: 200,
     description: 'List of all invoices',
@@ -196,6 +199,7 @@ export class InvoiceController {
     @Query('includeAppointment') includeAppointment?: boolean,
     @Query('includePetOwner') includePetOwner?: boolean,
     @Query('includePet') includePet?: boolean,
+    @Query('includePayment') includePayment?: boolean,
   ): Promise<InvoiceResponseDto[]> {
     return this.invoiceService.getAllInvoices(user, {
       status,
@@ -204,6 +208,7 @@ export class InvoiceController {
       includeAppointment,
       includePetOwner,
       includePet,
+      includePayment,
     });
   }
 

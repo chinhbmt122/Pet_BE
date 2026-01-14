@@ -317,6 +317,7 @@ export class InvoiceService {
       includeAppointment?: boolean;
       includePetOwner?: boolean;
       includePet?: boolean;
+      includePayment?: boolean;
     },
   ): Promise<InvoiceResponseDto[]> {
     // If PET_OWNER, filter to only their own invoices
@@ -366,6 +367,10 @@ export class InvoiceService {
         }
       }
 
+      if (filters?.includePayment) {
+        qb.leftJoinAndSelect('invoice.payments', 'payments');
+      }
+
       if (filters?.status) {
         qb.andWhere('invoice.status = :status', { status: filters.status });
       }
@@ -406,6 +411,10 @@ export class InvoiceService {
         }
         qb.leftJoinAndSelect('pet.owner', 'owner');
       }
+    }
+
+    if (filters?.includePayment) {
+      qb.leftJoinAndSelect('invoice.payments', 'payments');
     }
 
     if (filters?.status) {

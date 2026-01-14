@@ -5,6 +5,7 @@ import { PetResponseDto } from '../pet/pet-response.dto';
 import { PetOwnerResponseDto } from '../pet-owner/pet-owner-response.dto';
 import { AppointmentStatus } from '../../entities/types/entity.types';
 import { InvoiceItemDto } from '../invoice-item.dto';
+import { PaymentResponseDto } from '../payment/payment-response.dto';
 
 /**
  * Appointment DTO for invoice response
@@ -143,6 +144,12 @@ export class InvoiceResponseDto {
   })
   items?: InvoiceItemDto[];
 
+  @ApiPropertyOptional({
+    description: 'Payment records (if included)',
+    type: [PaymentResponseDto],
+  })
+  payments?: PaymentResponseDto[];
+
   /**
    * Factory method to convert entity to DTO
    */
@@ -231,6 +238,13 @@ export class InvoiceResponseDto {
     // Include invoice items if loaded
     if (entity.items && entity.items.length > 0) {
       dto.items = InvoiceItemDto.fromEntityList(entity.items);
+    }
+
+    // Include payments if loaded
+    if (entity.payments && entity.payments.length > 0) {
+      dto.payments = entity.payments.map((payment) =>
+        PaymentResponseDto.fromEntity(payment),
+      );
     }
 
     return dto;
