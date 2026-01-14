@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
@@ -12,6 +12,7 @@ import {
   WorkScheduleResponseDto,
 } from '../dto/schedule';
 import { UserType } from '../entities/account.entity';
+import { SystemConfigService } from './system-config.service';
 
 /**
  * ScheduleService (DDD Pattern)
@@ -26,6 +27,8 @@ export class ScheduleService {
     private readonly scheduleRepository: Repository<WorkSchedule>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
+    @Inject(forwardRef(() => SystemConfigService))
+    private readonly systemConfigService: SystemConfigService,
   ) {}
 
   /**
@@ -41,6 +44,28 @@ export class ScheduleService {
     if (!employee) {
       I18nException.notFound('errors.notFound.employee', {
         id: dto.employeeId,
+      });
+    }
+
+    // Check if the work date falls on a persistent day off
+    const workDate = new Date(dto.workDate);
+    const isPersistentDayOff =
+      await this.systemConfigService.isPersistentDayOff(workDate);
+
+    if (isPersistentDayOff) {
+      const dayNames = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+      ];
+      const dayName = dayNames[workDate.getDay()];
+      I18nException.badRequest('errors.validation.persistentDayOff', {
+        date: dto.workDate,
+        day: dayName,
       });
     }
 

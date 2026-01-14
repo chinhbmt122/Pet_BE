@@ -29,6 +29,9 @@
     "amountMustBeNumber": "Số tiền phải là số",
     "amountGreaterThanZero": "Số tiền phải lớn hơn 0",
     "invalidTimeFormat": "Định dạng thời gian không hợp lệ (HH:MM)",
-    "invalidPaymentMethod": "Phương thức thanh toán không hợp lệ"
+    "invalidPaymentMethod": "Phương thức thanh toán không hợp lệ",
+    "invalidJson": "Định dạng JSON không hợp lệ cho {field}",
+    "invalidDayNumbers": "Số ngày phải nằm trong khoảng {valid}",
+    "invalidTimeRange": "Khoảng thời gian không hợp lệ: {error}"
   }
 }

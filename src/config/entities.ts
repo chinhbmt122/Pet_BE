@@ -23,6 +23,8 @@ import { PaymentGatewayArchive } from '../entities/payment-gateway-archive.entit
 import { AuditLog } from '../entities/audit-log.entity';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { EmailLog } from '../entities/email-log.entity';
+import { DayOff } from 'src/entities/day-off.entity';
+import { SystemConfig } from 'src/entities/system-config.entity';
 
 export const entitiesOrdered = [
   Account,
@@ -50,4 +52,6 @@ export const entitiesOrdered = [
   AuditLog,
   PasswordResetToken,
   EmailLog,
+  DayOff,
+  SystemConfig,
 ];

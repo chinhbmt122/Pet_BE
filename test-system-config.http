@@ -1,0 +1,85 @@
+### System Configuration API Tests
+### Make sure to replace {{token}} with a valid JWT token for a MANAGER account
+
+@baseUrl = http://localhost:3000
+@token = YOUR_JWT_TOKEN_HERE
+
+### 1. Set Sunday as persistent day off (Manager only)
+PUT {{baseUrl}}/api/system-config/persistent-days-off
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "daysOff": [0]
+}
+
+### 2. Set weekend (Saturday and Sunday) as persistent days off
+PUT {{baseUrl}}/api/system-config/persistent-days-off
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "daysOff": [0, 6]
+}
+
+### 3. Get persistent days off (available to all staff)
+GET {{baseUrl}}/api/system-config/persistent-days-off
+Authorization: Bearer {{token}}
+
+### 4. Get all configurations (Manager/Receptionist)
+GET {{baseUrl}}/api/system-config
+Authorization: Bearer {{token}}
+
+### 5. Get configuration by key
+GET {{baseUrl}}/api/system-config/key/persistent_days_off
+Authorization: Bearer {{token}}
+
+### 6. Create a custom configuration (Manager only)
+POST {{baseUrl}}/api/system-config
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "configKey": "business_hours",
+  "configValue": "{\"open\":\"08:00\",\"close\":\"18:00\"}",
+  "description": "Standard business hours",
+  "isActive": true
+}
+
+### 7. Update configuration
+PUT {{baseUrl}}/api/system-config/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "configValue": "[0, 6]",
+  "description": "Weekend closure policy"
+}
+
+### 8. Try to create schedule on Sunday (should fail if Sunday is configured as day off)
+POST {{baseUrl}}/api/schedules
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employeeId": 1,
+  "workDate": "2026-01-18",
+  "startTime": "09:00",
+  "endTime": "17:00"
+}
+
+### 9. Create schedule on Monday (should succeed)
+POST {{baseUrl}}/api/schedules
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employeeId": 1,
+  "workDate": "2026-01-19",
+  "startTime": "09:00",
+  "endTime": "17:00"
+}
+
+### 10. Delete configuration (Manager only)
+DELETE {{baseUrl}}/api/system-config/1
+Authorization: Bearer {{token}}

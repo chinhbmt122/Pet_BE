@@ -17,7 +17,8 @@
     "cage": "Không tìm thấy chuồng với ID {id}",
     "schedule": "Không tìm thấy lịch trình với ID {id}",
     "assignment": "Không tìm thấy phân công với ID {id}",
-    "resource": "Không tìm thấy tài nguyên"
+    "resource": "Không tìm thấy tài nguyên",
+    "config": "Không tìm thấy cấu hình"
   },
   "badRequest": {
     "cannotDeletePaidInvoice": "Không thể xóa hóa đơn đã thanh toán",
@@ -55,8 +56,9 @@
     "refundFailed": "Hoàn tiền thất bại: {reason}",
     "petOrAppointmentRequired": "Phải cung cấp petId hoặc appointmentId",
     "notVeterinarian": "Nhân viên {id} không phải là bác sĩ thú y"
-  },
-  "unauthorized": {
+  },  "validation": {
+    "persistentDayOff": "Không thể tạo lịch làm việc vào {date} ({day}): Ngày này được cấu hình là ngày nghỉ cố định"
+  },  "unauthorized": {
     "oldPasswordIncorrect": "Mật khẩu cũ không chính xác",
     "invalidCredentials": "Thông tin đăng nhập không hợp lệ",
     "noToken": "Không được phép: Không có token",
@@ -78,7 +80,9 @@
     "scheduleExists": "Lịch trình đã tồn tại cho nhân viên {employeeId} vào ngày {date}",
     "cageNumber": "Số chuồng {number} đã tồn tại",
     "resourceAlreadyExists": "Tài nguyên đã tồn tại",
-    "invoiceAlreadyExists": "Hóa đơn đã tồn tại cho lịch hẹn {id}"
+    "invoiceAlreadyExists": "Hóa đơn đã tồn tại cho lịch hẹn {id}",
+    "configExists": "Cấu hình với khóa '{key}' đã tồn tại",
+    "dayOffExists": "Ngày nghỉ đã tồn tại cho ngày {date}"
   },
   "internal": {
     "serverError": "Lỗi máy chủ nội bộ",

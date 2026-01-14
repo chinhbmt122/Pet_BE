@@ -29,6 +29,9 @@
     "amountMustBeNumber": "Amount must be a number",
     "amountGreaterThanZero": "Amount must be greater than 0",
     "invalidTimeFormat": "Invalid time format (HH:MM)",
-    "invalidPaymentMethod": "Invalid payment method"
+    "invalidPaymentMethod": "Invalid payment method",
+    "invalidJson": "Invalid JSON format for {field}",
+    "invalidDayNumbers": "Day numbers must be between {valid}",
+    "invalidTimeRange": "Invalid time range: {error}"
   }
 }

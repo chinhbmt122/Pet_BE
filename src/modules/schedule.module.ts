@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleController } from '../controllers/schedule.controller';
 import { ScheduleService } from '../services/schedule.service';
 import { WorkSchedule } from '../entities/work-schedule.entity';
 import { Employee } from '../entities/employee.entity';
+import { SystemConfigModule } from './system-config.module';
 
 /**
  * ScheduleModule
@@ -13,7 +14,10 @@ import { Employee } from '../entities/employee.entity';
  * Provides staff availability information for appointment booking system.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([WorkSchedule, Employee])],
+  imports: [
+    TypeOrmModule.forFeature([WorkSchedule, Employee]),
+    forwardRef(() => SystemConfigModule),
+  ],
   controllers: [ScheduleController],
   providers: [ScheduleService],
   exports: [ScheduleService],

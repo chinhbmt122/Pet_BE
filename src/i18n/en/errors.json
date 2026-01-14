@@ -17,7 +17,8 @@
     "cage": "Cage with ID {id} not found",
     "schedule": "Schedule with ID {id} not found",
     "assignment": "Assignment with ID {id} not found",
-    "resource": "Resource not found"
+    "resource": "Resource not found",
+    "config": "Configuration not found"
   },
   "badRequest": {
     "cannotDeletePaidInvoice": "Cannot delete paid invoice",
@@ -56,6 +57,9 @@
     "petOrAppointmentRequired": "Either petId or appointmentId must be provided",
     "notVeterinarian": "Employee {id} is not a veterinarian"
   },
+  "validation": {
+    "persistentDayOff": "Cannot create schedule on {date} ({day}): This day is configured as a persistent day off"
+  },
   "unauthorized": {
     "oldPasswordIncorrect": "Old password is incorrect",
     "invalidCredentials": "Invalid credentials",
@@ -78,7 +82,9 @@
     "scheduleExists": "Schedule already exists for employee {employeeId} on {date}",
     "cageNumber": "Cage number {number} already exists",
     "resourceAlreadyExists": "Resource already exists",
-    "invoiceAlreadyExists": "Invoice already exists for appointment {id}"
+    "invoiceAlreadyExists": "Invoice already exists for appointment {id}",
+    "configExists": "Configuration with key '{key}' already exists",
+    "dayOffExists": "Day off already exists for date {date}"
   },
   "internal": {
     "serverError": "Internal server error",

@@ -16,6 +16,8 @@ import { ReportModule } from './modules/report.module';
 import { ServiceCategoryModule } from './modules/service-category.module';
 import { CageModule } from './modules/cage.module';
 import { EmailModule } from './modules/email.module';
+import { DayOffModule } from './modules/day-off.module';
+import { SystemConfigModule } from './modules/system-config.module';
 import { SharedHelpersModule } from './modules/shared-helpers.module';
 import { SeedService } from './services/seed.service';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -65,6 +67,8 @@ import * as path from 'path';
     ReportModule,
     CageModule,
     EmailModule,
+    DayOffModule,
+    SystemConfigModule,
   ],
   controllers: [AppController],
   providers: [
