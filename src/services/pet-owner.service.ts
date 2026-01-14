@@ -78,17 +78,14 @@ export class PetOwnerService {
       // 4. Save PetOwner
       const savedPetOwner = await manager.save(PetOwner, petOwner);
 
-      // 5. Send registration confirmation email (non-blocking)
-      try {
-        await this.emailService.sendRegistrationSuccessEmail(
+      // 5. Send registration confirmation email (fire-and-forget, don't wait)
+      this.emailService
+        .sendRegistrationSuccessEmail(
           savedAccount.email,
           savedPetOwner.fullName,
           'Pet Owner',
-        );
-      } catch (emailError) {
-        // Log error but don't fail registration
-        console.warn('Failed to send registration email:', emailError);
-      }
+        )
+        .catch((err) => console.warn('Failed to send registration email:', err));
 
       return savedPetOwner;
     });
