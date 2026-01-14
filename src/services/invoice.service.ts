@@ -37,7 +37,7 @@ export class InvoiceService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly ownershipHelper: OwnershipValidationHelper,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   async generateInvoice(dto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
     // Validate appointment status before generating invoice
@@ -102,11 +102,11 @@ export class InvoiceService {
     // Use appointmentServices pricing if available
     const subtotal =
       appointment.appointmentServices &&
-      appointment.appointmentServices.length > 0
+        appointment.appointmentServices.length > 0
         ? appointment.appointmentServices.reduce(
-            (sum, as) => sum + Number(as.unitPrice) * as.quantity,
-            0,
-          )
+          (sum, as) => sum + Number(as.unitPrice) * as.quantity,
+          0,
+        )
         : Number(appointment.actualCost) || 0;
 
     // Apply discount (TODO: implement discount code lookup)
@@ -651,7 +651,7 @@ export class InvoiceService {
           price: Number(as.unitPrice).toLocaleString('vi-VN') + ' VNĐ',
         })) || [];
 
-      await this.emailService.sendInvoiceEmail(ownerEmail, {
+      this.emailService.sendInvoiceEmail(ownerEmail, {
         ownerName,
         invoiceNumber: invoice.invoiceNumber,
         issueDate: formattedDate,
@@ -659,7 +659,7 @@ export class InvoiceService {
           Number(invoice.totalAmount).toLocaleString('vi-VN') + ' VNĐ',
         items,
         invoiceUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${invoice.invoiceId}`,
-      });
+      }).catch(err => console.warn('[EMAIL] Invoice email failed:', err));
       console.log(`[EMAIL] Invoice notification sent to ${ownerEmail}`);
     } catch (error) {
       // Log but don't fail the operation if email fails

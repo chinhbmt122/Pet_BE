@@ -58,7 +58,7 @@ export class PaymentService {
     private readonly vnpayService: VNPayService,
     private readonly ownershipHelper: OwnershipValidationHelper,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   getGateway(paymentMethod: PaymentMethod): IPaymentGatewayService {
     switch (paymentMethod) {
@@ -698,23 +698,23 @@ export class PaymentService {
       });
 
       if (isSuccess) {
-        await this.emailService.sendPaymentConfirmationEmail(ownerEmail, {
+        this.emailService.sendPaymentConfirmationEmail(ownerEmail, {
           ownerName,
           invoiceNumber: invoice.invoiceNumber,
           amount: Number(payment.amount).toLocaleString('vi-VN') + ' VNĐ',
           paymentMethod: payment.paymentMethod,
           transactionId: payment.transactionId || 'N/A',
           paymentDate: formattedDate,
-        });
+        }).catch(err => console.warn('[EMAIL] Payment confirmation failed:', err));
         console.log(`[EMAIL] Payment confirmation sent to ${ownerEmail}`);
       } else {
-        await this.emailService.sendPaymentFailedEmail(ownerEmail, {
+        this.emailService.sendPaymentFailedEmail(ownerEmail, {
           ownerName,
           invoiceNumber: invoice.invoiceNumber,
           amount: Number(payment.amount).toLocaleString('vi-VN') + ' VNĐ',
           failureReason: 'Thanh toán không thành công. Vui lòng thử lại.',
           retryUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invoices/${invoice.invoiceId}`,
-        });
+        }).catch(err => console.warn('[EMAIL] Payment failed notification error:', err));
         console.log(
           `[EMAIL] Payment failed notification sent to ${ownerEmail}`,
         );

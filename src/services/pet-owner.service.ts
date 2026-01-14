@@ -38,7 +38,7 @@ export class PetOwnerService {
     private readonly petOwnerFactory: PetOwnerFactory,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * Registers a new PetOwner (self-registration, public).
@@ -78,12 +78,14 @@ export class PetOwnerService {
       // 4. Save PetOwner
       const savedPetOwner = await manager.save(PetOwner, petOwner);
 
-      // 5. Send registration confirmation email
-      await this.emailService.sendRegistrationSuccessEmail(
-        savedAccount.email,
-        savedPetOwner.fullName,
-        'Pet Owner',
-      );
+      // 5. Send registration confirmation email (fire-and-forget, don't wait)
+      this.emailService
+        .sendRegistrationSuccessEmail(
+          savedAccount.email,
+          savedPetOwner.fullName,
+          'Pet Owner',
+        )
+        .catch((err) => console.warn('Failed to send registration email:', err));
 
       return savedPetOwner;
     });

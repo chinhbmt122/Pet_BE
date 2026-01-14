@@ -58,7 +58,7 @@ export class MedicalRecordService {
     private readonly petOwnerRepository: Repository<PetOwner>,
     private readonly ownershipHelper: OwnershipValidationHelper,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /**
    * Retrieves all medical records (for Veterinarian/Manager).
@@ -539,7 +539,7 @@ export class MedicalRecordService {
         day: '2-digit',
       });
 
-      await this.emailService.sendMedicalRecordNotificationEmail(ownerEmail, {
+      this.emailService.sendMedicalRecordNotificationEmail(ownerEmail, {
         ownerName,
         petName,
         diagnosis: record.diagnosis,
@@ -548,12 +548,12 @@ export class MedicalRecordService {
         recordDate: formattedDate,
         followUpDate: record.followUpDate
           ? new Date(record.followUpDate).toLocaleDateString('vi-VN', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            })
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          })
           : undefined,
-      });
+      }).catch(err => console.warn('[EMAIL] Medical record email failed:', err));
       console.log(`[EMAIL] Medical record notification sent to ${ownerEmail}`);
     } catch (error) {
       // Log but don't fail the operation if email fails
