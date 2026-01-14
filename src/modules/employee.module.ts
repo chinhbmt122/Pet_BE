@@ -10,6 +10,7 @@ import { Manager } from '../entities/manager.entity';
 import { Receptionist } from '../entities/receptionist.entity';
 import { CareStaff } from '../entities/care-staff.entity';
 import { Veterinarian } from '../entities/veterinarian.entity';
+import { Appointment } from 'src/entities/appointment.entity';
 
 /**
  * EmployeeModule
@@ -26,6 +27,7 @@ import { Veterinarian } from '../entities/veterinarian.entity';
       Account,
       Employee,
       Manager,
+      Appointment,
       Receptionist,
       CareStaff,
       Veterinarian,

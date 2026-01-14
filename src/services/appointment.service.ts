@@ -76,7 +76,7 @@ export class AppointmentService {
     private readonly emailService: EmailService,
     private readonly dataSource: DataSource,
     private readonly ownershipHelper: OwnershipValidationHelper,
-  ) { }
+  ) {}
 
   // ============================================
   // PRIVATE VALIDATION HELPERS (DRY - Phase 1 Refactoring)
@@ -832,18 +832,22 @@ export class AppointmentService {
             .filter(Boolean)
             .join(', ') || 'Dịch vụ';
 
-        this.emailService.sendAppointmentStatusUpdateEmail(
-          appointment.pet.owner.account.email,
-          {
-            ownerName: appointment.pet.owner.fullName,
-            petName: appointment.pet.name,
-            serviceName: services,
-            appointmentDate: formattedDate,
-            appointmentTime: appointment.startTime,
-            status,
-            statusMessage,
-          },
-        ).catch(err => this.logger.warn(`[EMAIL] Status email failed: ${err}`));
+        this.emailService
+          .sendAppointmentStatusUpdateEmail(
+            appointment.pet.owner.account.email,
+            {
+              ownerName: appointment.pet.owner.fullName,
+              petName: appointment.pet.name,
+              serviceName: services,
+              appointmentDate: formattedDate,
+              appointmentTime: appointment.startTime,
+              status,
+              statusMessage,
+            },
+          )
+          .catch((err) =>
+            this.logger.warn(`[EMAIL] Status email failed: ${err}`),
+          );
 
         this.logger.log(
           `[EMAIL] Status update email sent for appointment ${appointment.appointmentId}`,
@@ -940,16 +944,20 @@ export class AppointmentService {
                 .filter(Boolean)
                 .join(', ') || 'Dịch vụ';
 
-            this.emailService.sendAppointmentReminderEmail(
-              appointment.pet.owner.account.email,
-              {
-                ownerName: appointment.pet.owner.fullName,
-                petName: appointment.pet.name,
-                serviceName: services,
-                appointmentDate: formattedDate,
-                appointmentTime: appointment.startTime,
-              },
-            ).catch(err => this.logger.warn(`[EMAIL] Reminder failed: ${err}`));
+            this.emailService
+              .sendAppointmentReminderEmail(
+                appointment.pet.owner.account.email,
+                {
+                  ownerName: appointment.pet.owner.fullName,
+                  petName: appointment.pet.name,
+                  serviceName: services,
+                  appointmentDate: formattedDate,
+                  appointmentTime: appointment.startTime,
+                },
+              )
+              .catch((err) =>
+                this.logger.warn(`[EMAIL] Reminder failed: ${err}`),
+              );
 
             this.logger.log(
               `[CRON] Reminder sent for appointment ${appointment.appointmentId}`,

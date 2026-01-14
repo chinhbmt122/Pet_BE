@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { I18nException } from '../utils/i18n-exception.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, Between } from 'typeorm';
 import { Account } from '../entities/account.entity';
 import { Employee } from '../entities/employee.entity';
+import { Appointment, AppointmentStatus } from '../entities/appointment.entity';
 import { UserType } from '../entities/types/entity.types';
 import { AccountFactory } from '../factories/account.factory';
 import { EmployeeFactory } from '../factories/employee.factory';
@@ -32,6 +33,8 @@ export class EmployeeService {
     private readonly accountRepository: Repository<Account>,
     @InjectRepository(Employee)
     private readonly employeeRepository: Repository<Employee>,
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
     private readonly accountFactory: AccountFactory,
     private readonly employeeFactory: EmployeeFactory,
     private readonly dataSource: DataSource,
@@ -196,6 +199,43 @@ export class EmployeeService {
       .getMany();
   }
 
+  /**
+   * Gets available employees with optional date filtering.
+   * If date is provided, only returns employees who have availability on that date.
+   */
+  async getAvailableEmployees(filters?: {
+    role?: UserType;
+    date?: string;
+  }): Promise<Employee[]> {
+    const queryBuilder = this.employeeRepository
+      .createQueryBuilder('employee')
+      .leftJoinAndSelect('employee.account', 'account')
+      .where('employee.isAvailable = :available', { available: true });
+
+    if (filters?.role) {
+      queryBuilder.andWhere('account.userType = :role', { role: filters.role });
+    }
+
+    if (filters?.date) {
+      // Subquery to find employees who are NOT fully booked on the given date
+      // An employee is available if they don't have overlapping appointments
+      // or have gaps in their schedule
+      queryBuilder.andWhere(
+        `employee.employeeId NOT IN (
+          SELECT DISTINCT a."employeeId"
+          FROM appointments a
+          WHERE a."appointmentDate" = :date
+          AND a.status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
+          GROUP BY a."employeeId"
+          HAVING COUNT(*) >= 10
+        )`,
+        { date: filters.date },
+      );
+    }
+
+    return queryBuilder.orderBy('employee.fullName', 'ASC').getMany();
+  }
+
   // ==================== Update ====================
 
   /**
@@ -327,5 +367,92 @@ export class EmployeeService {
 
   private isSameEmployee(accountId: number, employee: Employee): boolean {
     return employee.accountId === accountId;
+  }
+
+  /**
+   * Gets employee availability time slots for a specific date.
+   * Returns 30-minute intervals from 8:00 to 17:30, marked as available or booked.
+   */
+  async getEmployeeAvailability(
+    employeeId: number,
+    dateStr: string,
+  ): Promise<Array<{ time: string; available: boolean; isBooked: boolean }>> {
+    // Verify employee exists and is available
+    const employee = await this.getById(employeeId);
+
+    if (!employee.isAvailable) {
+      // Return all slots as unavailable if employee is not available
+      return this.generateTimeSlots().map((time) => ({
+        time,
+        available: false,
+        isBooked: false,
+      }));
+    }
+
+    // Get all appointments for this employee on this date
+    const appointments = await this.appointmentRepository.find({
+      where: {
+        employeeId,
+        appointmentDate: new Date(dateStr),
+        status: Between(
+          AppointmentStatus.PENDING,
+          AppointmentStatus.IN_PROGRESS,
+        ) as any, // Active appointments
+      },
+      select: ['startTime', 'endTime'],
+    });
+
+    // Generate time slots and mark which ones are booked
+    const timeSlots = this.generateTimeSlots();
+
+    return timeSlots.map((time) => {
+      const isBooked = this.isTimeSlotBooked(time, appointments);
+      return {
+        time,
+        available: !isBooked,
+        isBooked,
+      };
+    });
+  }
+
+  /**
+   * Generates 30-minute time slots from 8:00 to 17:30
+   */
+  private generateTimeSlots(): string[] {
+    const slots: string[] = [];
+    for (let hour = 8; hour < 18; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(time);
+      }
+    }
+    return slots;
+  }
+
+  /**
+   * Checks if a time slot overlaps with any appointment
+   */
+  private isTimeSlotBooked(
+    timeSlot: string,
+    appointments: Array<{ startTime: string; endTime: string }>,
+  ): boolean {
+    const [slotHour, slotMinute] = timeSlot.split(':').map(Number);
+    const slotMinutes = slotHour * 60 + slotMinute;
+    const slotEndMinutes = slotMinutes + 30; // 30-minute slot
+
+    return appointments.some((apt) => {
+      const [startHour, startMinute] = apt.startTime.split(':').map(Number);
+      const [endHour, endMinute] = apt.endTime.split(':').map(Number);
+
+      const aptStartMinutes = startHour * 60 + startMinute;
+      const aptEndMinutes = endHour * 60 + endMinute;
+
+      // Check if slot overlaps with appointment
+      return (
+        (slotMinutes >= aptStartMinutes && slotMinutes < aptEndMinutes) ||
+        (slotEndMinutes > aptStartMinutes && slotEndMinutes <= aptEndMinutes) ||
+        (slotMinutes <= aptStartMinutes && slotEndMinutes >= aptEndMinutes)
+      );
+    });
   }
 }

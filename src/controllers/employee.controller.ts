@@ -125,14 +125,23 @@ export class EmployeeController {
   @RouteConfig({
     message: 'Get available employees',
     requiresAuth: true,
-    roles: [UserType.MANAGER, UserType.RECEPTIONIST],
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
   })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get available employees' })
   @ApiQuery({ name: 'role', required: false, enum: UserType })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    type: String,
+    description: 'Filter by availability on specific date (YYYY-MM-DD)',
+  })
   @ApiResponse({ status: 200, type: [EmployeeResponseDto] })
-  async getAvailable(@Query('role') role?: UserType): Promise<Employee[]> {
-    return this.employeeService.getAll({ role, available: true });
+  async getAvailable(
+    @Query('role') role?: UserType,
+    @Query('date') date?: string,
+  ): Promise<Employee[]> {
+    return this.employeeService.getAvailableEmployees({ role, date });
   }
 
   /**
@@ -173,6 +182,48 @@ export class EmployeeController {
   @ApiResponse({ status: 404, description: 'Not found' })
   async getById(@Param('id', ParseIntPipe) id: number): Promise<Employee> {
     return this.employeeService.getById(id);
+  }
+
+  /**
+   * GET /api/employees/:id/availability
+   * Get employee availability for a specific date
+   */
+  @Get(':id/availability')
+  @RouteConfig({
+    message: 'Get employee availability',
+    requiresAuth: true,
+    roles: [UserType.MANAGER, UserType.RECEPTIONIST, UserType.PET_OWNER],
+  })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get employee available time slots for a specific date',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    type: String,
+    description: 'Date to check availability (YYYY-MM-DD)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns available time slots',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          time: { type: 'string', example: '09:00' },
+          available: { type: 'boolean' },
+          isBooked: { type: 'boolean' },
+        },
+      },
+    },
+  })
+  async getEmployeeAvailability(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('date') date: string,
+  ): Promise<Array<{ time: string; available: boolean; isBooked: boolean }>> {
+    return this.employeeService.getEmployeeAvailability(id, date);
   }
 
   /**
